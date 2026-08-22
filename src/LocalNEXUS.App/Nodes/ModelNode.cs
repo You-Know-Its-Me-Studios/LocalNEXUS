@@ -309,6 +309,23 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// <summary>True while this node uses a hosted provider chosen from the catalogue.</summary>
     public bool IsCloud => Provider == ModelProvider.Cloud;
 
+    /// <summary>
+    /// Whether anything establishes that this node's model writes diffs well.
+    /// </summary>
+    /// <remarks>
+    /// The provider is the only signal there is. A model file on this machine is a small one by
+    /// definition, because that is what fits, and the published benchmarks put small models well
+    /// below the line where asking for a diff is sensible. A hosted frontier provider is above it.
+    ///
+    /// A self hosted server and a mesh model are unknown, because either could be serving anything,
+    /// and unknown leans towards sending the whole file. That is the safer way to be wrong: a whole
+    /// file that will not fit is refused loudly, and a diff a model could not write comes back well
+    /// formed and pointing at lines that do not exist.
+    /// </remarks>
+    public EditCapability Capability => Provider is ModelProvider.Cloud or ModelProvider.OpenRouter
+        ? EditCapability.HandlesDiffs
+        : EditCapability.Unknown;
+
     /// <summary>Everything the provider list offers, for the node's selector.</summary>
     public static IReadOnlyList<CloudProvider> AvailableProviders => ProviderCatalog.All;
 
@@ -466,7 +483,8 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
             var wholeFile = CodeEditApplier.WantsWholeFile(
                 EditFormat,
                 task.Operation == FileOperation.Create,
-                task.ExistingContent?.Length ?? 0);
+                task.ExistingContent?.Length ?? 0,
+                Capability);
 
             var entry = ctx.Feed.Add(
                 ActivityKind.ModelStream,
