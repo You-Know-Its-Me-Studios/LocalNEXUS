@@ -160,15 +160,21 @@ public sealed class PrerequisiteChecker
     {
         try
         {
-            using var process = Process.Start(new ProcessStartInfo
+            var startInfo = new ProcessStartInfo
             {
-                FileName = command,
-                Arguments = "--version",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
-            });
+            };
+
+            // The same resolution the launcher uses, so a prerequisite is not reported missing for
+            // the one reason that has nothing to do with whether it is installed.
+            Services.Processes.CommandLauncher
+                .Resolve(command)
+                .ApplyTo(startInfo, new[] { "--version" });
+
+            using var process = Process.Start(startInfo);
 
             if (process is null)
             {

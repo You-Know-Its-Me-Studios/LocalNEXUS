@@ -175,9 +175,12 @@ public sealed class ExtensionHost : IDisposable
         var launch = extension.Manifest.Launch;
         var logPath = AppPaths.CreateLogFilePath($"extension-{Sanitise(extension.Manifest.Id)}");
 
+        // Resolved before it is started. A command that is only ever a .cmd on Windows, which npx
+        // is, cannot be found or run by CreateProcess without this.
+        var resolved = Services.Processes.CommandLauncher.Resolve(launch.Command);
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = launch.Command,
             // The manifest wins, then the open project, then the application's own folder. A
             // manifest that names a directory means it, and a worker with no opinion belongs in
             // the project it is there for.
@@ -193,10 +196,7 @@ public sealed class ExtensionHost : IDisposable
             RedirectStandardError = true
         };
 
-        foreach (var argument in launch.Arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
+        resolved.ApplyTo(startInfo, launch.Arguments);
 
         if (launch.Environment is { } environment)
         {

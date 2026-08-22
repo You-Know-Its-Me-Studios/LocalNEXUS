@@ -256,9 +256,10 @@ public sealed class ExtensionInstaller
         IProgress<string>? progress,
         CancellationToken ct)
     {
+        var resolved = Services.Processes.CommandLauncher.Resolve(command);
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = command,
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -266,10 +267,7 @@ public sealed class ExtensionInstaller
             RedirectStandardError = true
         };
 
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
+        resolved.ApplyTo(startInfo, arguments);
 
         Process process;
 
