@@ -145,7 +145,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Services.Execution.BreakpointService breakpoints,
         Services.Extensions.ExtensionRegistry extensions,
         Services.Extensions.ExtensionHost extensionHost,
-        ProjectSettingsService projectSettings)
+        ProjectSettingsService projectSettings,
+        RecentProjectsService recents)
     {
         _extensionHost = extensionHost;
         Breakpoints = breakpoints;
@@ -175,6 +176,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // a tab sent it.
         ProjectSettings = projectSettings;
         ProjectSetup = new ProjectSetupViewModel(projectSettings, catalog.Models);
+
+        // Asked before anything else, and answered from the recent list nearly every time. It is
+        // handed the same open path the File menu uses rather than a second one, so a project
+        // opened from the door and one opened from the menu are the same event.
+        FrontDoor = new FrontDoorViewModel(
+            recents,
+            project,
+            dialogs,
+            config,
+            OpenProjectFolder,
+            () => ShowSection(PrimarySection.Network));
 
         Spec = new SpecViewModel(extensions, extensionHost, feed, text =>
         {
@@ -282,6 +294,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The questions asked the first time a project is opened.</summary>
     public ProjectSetupViewModel ProjectSetup { get; }
+
+    /// <summary>The question asked before anything else: what are you working on.</summary>
+    public FrontDoorViewModel FrontDoor { get; }
 
     /// <summary>What this project has been told about itself.</summary>
     public ProjectSettingsService ProjectSettings { get; }
@@ -706,10 +721,51 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // project can be opened and changed at any point in a session.
         _extensionHost.ProjectPath = Project.ProjectPath;
 
+        // The door has been answered, however it was answered.
+        FrontDoor.NoteProjectOpened();
+
+        RestoreProjectGraph();
+
         if (ProjectSettings.NeedsSetUp)
         {
             ProjectSetup.Open(Project.ProjectName ?? "this project", Project.Kind);
         }
+    }
+
+    /// <summary>
+    /// Puts back the graph this project was last working on, or clears the canvas.
+    /// </summary>
+    /// <remarks>
+    /// Per project rather than per installation, which is the whole of the fix. A graph names one
+    /// project's files and reaches for one project's default model, so restoring the last one
+    /// opened anywhere meant opening a graph belonging to a different project and finding out when
+    /// it wrote somewhere unexpected.
+    ///
+    /// Clearing is the other half. Switching projects with the previous one's graph still on the
+    /// canvas is the same mistake arrived at from the other direction.
+    /// </remarks>
+    private void RestoreProjectGraph()
+    {
+        var path = ProjectSettings.LastGraphPath;
+
+        if (path is { Length: > 0 } && File.Exists(path))
+        {
+            LoadGraphFrom(path);
+            return;
+        }
+
+        if (path is { Length: > 0 })
+        {
+            _feed.Info("Last graph not found", $"{path} is no longer there, so the canvas was left empty.");
+            ProjectSettings.LastGraphPath = string.Empty;
+            ProjectSettings.Save();
+        }
+
+        Graph.Clear();
+        SelectedNode = null;
+        CurrentGraphPath = null;
+        Document.MarkSaved(null);
+        TemplatesDismissed = false;
     }
 
     /// <summary>Opens the search where a wire was let go over empty canvas.</summary>
@@ -804,23 +860,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            Project.Open(folder);
-            _config.LastProjectPath = Project.ProjectPath;
-            _config.Save();
-
-            _feed.Info(
-                $"{Project.KindText} opened",
-                Project.IsUnity
-                    ? $"{Project.ProjectPath}. The Unity write rules are in force: a file name has to match "
-                      + "its MonoBehaviour, and a type, namespace or serialized field cannot quietly change name."
-                    : $"{Project.ProjectPath}. An ordinary C# project, so the Unity write rules do not apply.");
-
-            OnProjectOpened();
+            OpenProjectFolder(folder);
         }
         catch (DirectoryNotFoundException ex)
         {
             _dialogs.ShowError("Project not opened", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Opens a folder as the project, wherever the request came from.
+    /// </summary>
+    /// <remarks>
+    /// One path rather than two. The File menu and the front door are asking the same thing, and a
+    /// second copy of this is how the two would come to disagree about what opening a project does.
+    /// Failure is thrown rather than shown, because where to say so differs: the menu has a window
+    /// behind it and the front door has nothing behind it at all.
+    /// </remarks>
+    /// <exception cref="DirectoryNotFoundException">The folder is not there.</exception>
+    public void OpenProjectFolder(string folder)
+    {
+        Project.Open(folder);
+        _config.LastProjectPath = Project.ProjectPath;
+        _config.Save();
+
+        _feed.Info(
+            $"{Project.KindText} opened",
+            Project.IsUnity
+                ? $"{Project.ProjectPath}. The Unity write rules are in force: a file name has to match "
+                  + "its MonoBehaviour, and a type, namespace or serialized field cannot quietly change name."
+                : $"{Project.ProjectPath}. An ordinary C# project, so the Unity write rules do not apply.");
+
+        OnProjectOpened();
     }
 
     /// <summary>Clears the canvas.</summary>
@@ -866,8 +937,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _serializer.Save(Graph, path);
             CurrentGraphPath = path;
             Document.MarkSaved(path);
-            _config.LastGraphPath = path;
-            _config.Save();
+            RememberGraph(path);
             _feed.Info("Graph saved", path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -895,6 +965,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LoadGraphFrom(path);
     }
 
+    /// <summary>
+    /// Remembers this as the project's graph, so opening the project opens it again.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is remembered with no project open, because there is nowhere for it to belong. That
+    /// used to be an application wide setting, written on every save and read by nothing.
+    /// </remarks>
+    private void RememberGraph(string path)
+    {
+        if (!Project.HasProject)
+        {
+            return;
+        }
+
+        ProjectSettings.LastGraphPath = path;
+        ProjectSettings.Save();
+    }
+
     /// <summary>Loads a graph from an explicit path. Used by the File menu and at startup.</summary>
     public void LoadGraphFrom(string path)
     {
@@ -905,8 +993,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             CurrentGraphPath = path;
             Document.MarkSaved(path);
-            _config.LastGraphPath = path;
-            _config.Save();
+            RememberGraph(path);
 
             _feed.Info("Graph loaded", $"{Graph.Nodes.Count} nodes, {Graph.Connections.Count} connections from {path}");
 

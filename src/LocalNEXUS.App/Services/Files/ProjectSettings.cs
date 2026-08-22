@@ -67,6 +67,17 @@ public sealed class ProjectSettings
     /// <summary>True when the shared file is meant to be committed rather than ignored.</summary>
     public bool ShareSettings { get; set; }
 
+    /// <summary>
+    /// The graph that was last saved or loaded while this project was open.
+    /// </summary>
+    /// <remarks>
+    /// Here rather than in the application configuration, which is where it used to be written and
+    /// never read. A graph belongs to a project: it names that project's files, reaches for that
+    /// project's default model, and is meaningless against a different one. Kept per machine
+    /// because it is a path on this machine.
+    /// </remarks>
+    public string LastGraphPath { get; set; } = string.Empty;
+
     /// <summary>True once the setup window has been answered or skipped for this project.</summary>
     /// <remarks>
     /// In the local file rather than the shared one. Somebody cloning a repository that shares its
@@ -120,6 +131,7 @@ public sealed class ProjectSettings
             settings.DefaultModelPath = Text(local, "defaultModelPath") ?? string.Empty;
             settings.McpServerEnabled = local["mcpServerEnabled"]?.GetValue<bool>() == true;
             settings.HasBeenSetUp = local["hasBeenSetUp"]?.GetValue<bool>() == true;
+            settings.LastGraphPath = Text(local, "lastGraphPath") ?? string.Empty;
 
             // The shared file may not exist, in which case the conventions live here instead. That
             // is the ordinary case, because sharing them is off until somebody says otherwise.
@@ -145,7 +157,8 @@ public sealed class ProjectSettings
         {
             ["defaultModelPath"] = DefaultModelPath,
             ["mcpServerEnabled"] = McpServerEnabled,
-            ["hasBeenSetUp"] = HasBeenSetUp
+            ["hasBeenSetUp"] = HasBeenSetUp,
+            ["lastGraphPath"] = LastGraphPath
         };
 
         if (ShareSettings)

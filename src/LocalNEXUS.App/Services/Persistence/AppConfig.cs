@@ -94,8 +94,24 @@ public sealed class AppConfig
     /// into a file that gets shared.
     /// </remarks>
 
-    /// <summary>The project folder that was open when the app last closed.</summary>
+    /// <summary>
+    /// The project folder the folder pickers start in.
+    /// </summary>
+    /// <remarks>
+    /// No longer what is opened at launch. The front door asks instead, because opening whatever
+    /// happened to be last is a guess made on somebody's behalf about the thing they are least
+    /// likely to want guessed. What it is still good for is where a folder picker starts.
+    /// </remarks>
     public string? LastProjectPath { get; set; }
+
+    /// <summary>
+    /// The projects this installation has opened, most recent first.
+    /// </summary>
+    /// <remarks>
+    /// The front door is answered from this almost every time, so it is a list rather than one
+    /// path. Order in the file is not trusted; it is sorted by when each was last opened.
+    /// </remarks>
+    public List<RecentProject> RecentProjects { get; set; } = new();
 
     /// <summary>Folders added by the user that are scanned for models alongside the default one.</summary>
     public List<string> ExtraModelFolders { get; set; } = new();
@@ -109,9 +125,6 @@ public sealed class AppConfig
     /// nothing around it is registered by having added it.
     /// </remarks>
     public List<string> ExtraModelPaths { get; set; } = new();
-
-    /// <summary>The graph file that was last saved or loaded.</summary>
-    public string? LastGraphPath { get; set; }
 
     /// <summary>
     /// This install's own identity, generated once and never regenerated. A running mesh node

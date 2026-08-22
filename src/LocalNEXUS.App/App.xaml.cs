@@ -101,8 +101,10 @@ public partial class App : Application
         var feed = new ActivityFeed(Dispatcher);
         var dialogs = new WindowsDialogService();
 
+        // Nothing is opened here. The front door asks which project this session is for, because
+        // opening whatever happened to be last is a guess about the one thing worth asking.
         var project = new ProjectService();
-        RestoreLastProject(config, project, feed);
+        var recents = new RecentProjectsService(config);
 
         // Owns every engine process this session starts. Built before anything can start one,
         // and given the chance to deal with anything a previous session failed to clean up.
@@ -303,7 +305,8 @@ public partial class App : Application
             services.Breakpoints,
             extensions,
             extensionHost,
-            projectSettings);
+            projectSettings,
+            recents);
 
         // The MCP server, if this installation answers to other tools. Built whatever the setting
         // says so the toggle has something to start, and started only when it is on.
@@ -338,15 +341,14 @@ public partial class App : Application
 
         _mainViewModel = mainViewModel;
 
-        // A project restored from the last session gets the same treatment as one just opened:
-        // its own settings are read, and it is asked the first open questions if this machine has
-        // never been asked about it. The window is shown first, because the questions are drawn
-        // over it.
-        mainViewModel.OnProjectOpened();
-
         var window = new MainWindow { DataContext = mainViewModel };
         MainWindow = window;
         window.Show();
+
+        // The first question, over the window rather than before it, so the application is already
+        // there behind the thing it is asking. Nothing waits on it: every other piece of start up
+        // carries on, and answering it opens a project the same way the File menu does.
+        mainViewModel.FrontDoor.Show();
 
         // Deliberately not awaited. Building the Python environment is a download measured in
         // gigabytes, and the window has to be usable while it runs: GGUF models work throughout,
@@ -477,25 +479,6 @@ public partial class App : Application
         if (history.IsOpen)
         {
             await conversation.OpenProjectAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-    }
-
-    private static void RestoreLastProject(AppConfig config, ProjectService project, ActivityFeed feed)
-    {
-        if (string.IsNullOrWhiteSpace(config.LastProjectPath))
-        {
-            return;
-        }
-
-        try
-        {
-            project.Open(config.LastProjectPath);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            feed.Info(
-                "Previous project not found",
-                $"{config.LastProjectPath} no longer exists. Open a project from the File menu.");
         }
     }
 

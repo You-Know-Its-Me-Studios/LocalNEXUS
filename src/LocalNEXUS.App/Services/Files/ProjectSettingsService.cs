@@ -54,6 +54,10 @@ public sealed partial class ProjectSettingsService : ObservableObject
     [ObservableProperty]
     private bool _hasBeenSetUp;
 
+    /// <summary>The graph last open in this project, restored when it is opened again.</summary>
+    [ObservableProperty]
+    private string _lastGraphPath = string.Empty;
+
     /// <summary>The project these belong to, or null.</summary>
     [ObservableProperty]
     private string? _projectPath;
@@ -76,6 +80,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
         {
             Kind = ProjectKind.None;
             HasBeenSetUp = false;
+            LastGraphPath = string.Empty;
             return;
         }
 
@@ -91,6 +96,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
         McpServerEnabled = settings.McpServerEnabled;
         ShareSettings = settings.ShareSettings;
         HasBeenSetUp = settings.HasBeenSetUp;
+        LastGraphPath = settings.LastGraphPath;
     }
 
     /// <summary>What a project of this kind starts from before anybody has said otherwise.</summary>
@@ -164,7 +170,8 @@ public sealed partial class ProjectSettingsService : ObservableObject
             DefaultModelPath = DefaultModelPath,
             McpServerEnabled = McpServerEnabled,
             ShareSettings = ShareSettings,
-            HasBeenSetUp = HasBeenSetUp
+            HasBeenSetUp = HasBeenSetUp,
+            LastGraphPath = LastGraphPath
         };
 
         try
