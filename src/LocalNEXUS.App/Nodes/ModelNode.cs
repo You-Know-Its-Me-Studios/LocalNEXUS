@@ -439,9 +439,29 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
         ctx.Feed.Info($"{Title}: writing {tasks.Count} file(s)", string.Join(Environment.NewLine, tasks.Select(t => t.ToString())));
 
-        foreach (var task in tasks)
+        foreach (var planned in tasks)
         {
             ct.ThrowIfCancellationRequested();
+
+            // Read from disk, now, before anything is asked. Not from the index, not from the plan,
+            // not from what an earlier step in this run said the file held. A model shown a stale
+            // copy produces a change against a file that no longer exists in that shape, which is
+            // the failure this keeps producing, and it cannot invent what it was just handed.
+            var task = planned;
+
+            if (task.Operation == FileOperation.Edit)
+            {
+                var reading = Services.Editing.SourceFileReader.Read(
+                    ctx.Services.Project.ProjectPath, task.RelativePath, task.TypeName);
+
+                if (!reading.IsUsable)
+                {
+                    StageUnreadableFile(ctx, task, reading.Message);
+                    continue;
+                }
+
+                task = WithFreshContent(task, reading);
+            }
 
             var wholeFile = CodeEditApplier.WantsWholeFile(
                 EditFormat,
@@ -570,6 +590,57 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
                 reply = await StreamTextAsync(ctx, retry, endpoint, message, ct).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// The same task, carrying what the file holds right now rather than what it held when the plan
+    /// was made.
+    /// </summary>
+    /// <remarks>
+    /// An excerpt says so, in the project context, which is already where a coder is told what it
+    /// has to fit into. Letting it believe it had been shown a whole file when it had been shown
+    /// part of one would invite exactly the invention this exists to stop.
+    /// </remarks>
+    private static CodeTask WithFreshContent(CodeTask task, Services.Editing.FileReading reading)
+    {
+        var context = reading.Note.Length == 0
+            ? task.ProjectContext
+            : (task.ProjectContext.Length == 0
+                ? reading.Note
+                : $"{task.ProjectContext}{Environment.NewLine}{Environment.NewLine}{reading.Note}");
+
+        return new CodeTask(
+            task.Order,
+            task.RelativePath,
+            task.TypeName,
+            task.Operation,
+            task.Intent,
+            context,
+            reading.Content,
+            task.ExistingType,
+            task.ExistingTypePath);
+    }
+
+    /// <summary>Keeps a file that could not be read, and moves on without asking anything about it.</summary>
+    private void StageUnreadableFile(NodeExecutionContext ctx, CodeTask task, string message)
+    {
+        ctx.Services.Staging.Stage(new Services.Files.StagedFile(
+            task.RelativePath,
+            task.TypeName,
+            false,
+            task.Intent,
+            string.Empty,
+            Services.Files.StagedReason.CouldNotBeRead,
+            message,
+            DateTimeOffset.Now));
+
+        if (ctx.RunId is { } runId)
+        {
+            ctx.Services.History.RecordFile(
+                runId, task.RelativePath, Services.History.FileOutcome.Staged, message);
+        }
+
+        ctx.Feed.Error($"{task.RelativePath} was not changed", message);
     }
 
     /// <summary>Keeps a file the coder could not write, with what went wrong, and moves on.</summary>

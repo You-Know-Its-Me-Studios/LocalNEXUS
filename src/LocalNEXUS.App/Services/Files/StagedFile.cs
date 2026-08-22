@@ -28,7 +28,18 @@ public enum StagedReason
     /// could not be talked out of it within its retry limit. Calling that a compile failure would
     /// tell somebody to go looking for a compiler error that does not exist.
     /// </remarks>
-    EditDidNotApply
+    EditDidNotApply,
+
+    /// <summary>
+    /// The file could not be read, so no change to it was ever proposed.
+    /// </summary>
+    /// <remarks>
+    /// A model is never asked to edit a file it has not just been shown, so a file that cannot be
+    /// read is a file that cannot be edited. It has moved, been deleted, or is locked by something
+    /// else, and every one of those is a plan made against a project that has changed underneath
+    /// it rather than anything the model did.
+    /// </remarks>
+    CouldNotBeRead
 }
 
 /// <summary>
@@ -65,6 +76,7 @@ public sealed record StagedFile(
         StagedReason.RefusedByProjectRules => $"{RelativePath} was refused by the project rules",
         StagedReason.WriteFailed => $"{RelativePath} could not be written",
         StagedReason.EditDidNotApply => $"{RelativePath} could not be changed as asked",
+        StagedReason.CouldNotBeRead => $"{RelativePath} could not be read",
         _ => $"{RelativePath} does not compile yet"
     };
 
@@ -77,6 +89,9 @@ public sealed record StagedFile(
         StagedReason.EditDidNotApply =>
             "The coder kept asking to replace lines that are not in this file, so nothing was written. "
             + "The file on disk is untouched.",
+        StagedReason.CouldNotBeRead =>
+            "It could not be read, and nothing is asked to change a file it has not been shown, so no "
+            + "change was proposed. The file on disk is untouched.",
         _ => "Still has compiler errors after the repair limit was spent."
     };
 }
