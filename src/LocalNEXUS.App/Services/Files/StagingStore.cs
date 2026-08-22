@@ -32,8 +32,16 @@ namespace LocalNEXUS.App.Services.Files;
 /// </remarks>
 public sealed partial class StagingStore : ObservableObject
 {
-    /// <summary>The folder inside a project where this application keeps its own state.</summary>
-    public const string FolderName = ".localnexus";
+    /// <summary>
+    /// The folder inside a project where this application keeps its own state.
+    /// </summary>
+    /// <remarks>
+    /// Defined by <see cref="Persistence.ProjectPaths"/>, which is where every project scoped path
+    /// is decided. This was the first thing written into that folder and so used to be where the
+    /// name lived, which meant the history store asking the staging file where a project keeps its
+    /// database.
+    /// </remarks>
+    public const string FolderName = Persistence.ProjectPaths.FolderName;
 
     /// <summary>The file staged work is written to.</summary>
     public const string FileName = "staging.json";

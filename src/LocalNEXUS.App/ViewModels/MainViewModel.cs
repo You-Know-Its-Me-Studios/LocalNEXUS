@@ -925,7 +925,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             "Save graph",
             suggested,
             $"LocalNEXUS graph (*{GraphSerializer.FileExtension})|*{GraphSerializer.FileExtension}|JSON (*.json)|*.json",
-            Path.GetDirectoryName(CurrentGraphPath) ?? AppPaths.Graphs);
+            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder(forSaving: true));
 
         if (path is null)
         {
@@ -955,7 +955,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var path = _dialogs.PickOpenFile(
             "Load graph",
             $"LocalNEXUS graph (*{GraphSerializer.FileExtension})|*{GraphSerializer.FileExtension}|JSON (*.json)|*.json|All files (*.*)|*.*",
-            Path.GetDirectoryName(CurrentGraphPath) ?? AppPaths.Graphs);
+            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder(forSaving: false));
 
         if (path is null)
         {
@@ -963,6 +963,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         LoadGraphFrom(path);
+    }
+
+    /// <summary>
+    /// Where a graph dialog opens on, and the folder it will be saved into.
+    /// </summary>
+    /// <remarks>
+    /// A graph is an arrangement of work on a particular codebase, so it belongs with that
+    /// codebase rather than in a folder on one machine where every project's graphs pile up
+    /// together. New ones are written into the project.
+    ///
+    /// The old folder is not emptied, and nothing is moved out of it. It can hold graphs from any
+    /// number of projects with no record of which belongs where, so moving them would mean
+    /// guessing, and a graph guessed into the wrong project writes into the wrong codebase. A load
+    /// dialog opens on it while it holds graphs and the project holds none, which is what stops
+    /// anybody having to go looking.
+    /// </remarks>
+    private string GraphFolder(bool forSaving)
+    {
+        var folder = ProjectPaths.GraphFolderToShow(Project.ProjectPath, forSaving);
+
+        try
+        {
+            Directory.CreateDirectory(folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A dialog that opens somewhere else is better than one that does not open. The save
+            // itself reports properly if the folder is the reason it failed.
+            _feed.Info("Graph folder not created", $"{folder} could not be created: {ex.Message}");
+        }
+
+        return folder;
     }
 
     /// <summary>

@@ -22,16 +22,21 @@ namespace LocalNEXUS.App.Services.Extensions;
 /// get an error colour anywhere.
 /// </para>
 /// <para>
-/// Stored under the project's <c>UserSettings</c> folder, which is Unity's convention for state
-/// that belongs to whoever is sitting at the machine and is not committed. It matters here
-/// because a registry entry holds a command line, and command lines hold absolute paths that are
-/// wrong on anybody else's computer.
+/// Stored in the project's own <c>.localnexus</c> folder beside everything else this application
+/// keeps about it. It used to live under <c>UserSettings</c>, which is Unity's convention for
+/// state belonging to whoever is at the machine: the right reasoning applied to the wrong scope,
+/// because this works on any codebase and a plain C# project has no reason to grow a folder named
+/// after an engine it does not use. The reasoning still holds, and the folder it points at is
+/// gitignored for it: a registry entry holds a command line, and command lines hold absolute paths
+/// that are wrong on anybody else's computer.
+/// </para>
+/// <para>
+/// A registry left in the old place is moved the first time that project is opened, so nobody
+/// loses the extensions they had.
 /// </para>
 /// </remarks>
 public sealed partial class ExtensionRegistry : ObservableObject
 {
-    private const string FolderName = "UserSettings/LocalNEXUS";
-    private const string RegistryFileName = "extensions.json";
 
     private readonly IActivityFeed _feed;
 
@@ -66,7 +71,7 @@ public sealed partial class ExtensionRegistry : ObservableObject
             return;
         }
 
-        var file = RegistryPath!;
+        var file = MoveFromLegacyLocation(RegistryPath!);
 
         if (!File.Exists(file))
         {
@@ -175,7 +180,53 @@ public sealed partial class ExtensionRegistry : ObservableObject
     }
 
     private string? RegistryPath
-        => HasProject ? Path.Combine(ProjectPath!, FolderName, RegistryFileName) : null;
+        => HasProject ? Services.Persistence.ProjectPaths.Extensions(ProjectPath!) : null;
+
+    /// <summary>
+    /// Brings a registry written by an older version across to where they live now, and says
+    /// which file to read.
+    /// </summary>
+    /// <remarks>
+    /// Moved rather than read in place, because two files that both look like the registry is how
+    /// a project ends up with the extensions it had a year ago. Only when there is nothing at the
+    /// new path: a project already opened by this version has the current answer there, and an old
+    /// file beside it is history rather than a source.
+    ///
+    /// A move that cannot be made is not a failure worth stopping for, and the answer is then the
+    /// old file: an extension somebody installed is not lost because a folder was read only.
+    /// Nothing is deleted until the copy is there.
+    /// </remarks>
+    private string MoveFromLegacyLocation(string file)
+    {
+        var legacy = Services.Persistence.ProjectPaths.LegacyExtensions(ProjectPath!);
+
+        if (File.Exists(file) || !File.Exists(legacy))
+        {
+            return file;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            File.Copy(legacy, file);
+            File.Delete(legacy);
+
+            _feed.Info(
+                "Extensions moved",
+                $"This project's extension registry moved from {legacy} to {file}, which is where "
+                + "everything this application keeps about a project now lives.");
+
+            return file;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _feed.Info(
+                "Extensions not moved",
+                $"{legacy} could not be moved to {file}, so it is being read where it is. {ex.Message}");
+
+            return legacy;
+        }
+    }
 
     private void LoadOne(JsonObject entry, string file)
     {

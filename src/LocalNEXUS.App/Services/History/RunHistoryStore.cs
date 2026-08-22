@@ -96,7 +96,7 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var folder = Path.Combine(projectPath, Files.StagingStore.FolderName);
+        var folder = Persistence.ProjectPaths.For(projectPath);
         var path = Path.Combine(folder, FileName);
 
         try

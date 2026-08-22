@@ -114,9 +114,12 @@ public sealed class McpAppSurface : IMcpAppSurface
             names.Add($"{template.Name} (template): {template.Description}");
         }
 
-        if (Directory.Exists(AppPaths.Graphs))
+        // The project's own graphs and any left in the old machine wide folder. The tool, its
+        // arguments and what it answers with are unchanged; only where a graph is looked for is,
+        // because a graph now lives with the project it was arranged against.
+        foreach (var folder in ProjectPaths.GraphFolders(_project.ProjectPath))
         {
-            foreach (var path in Directory.EnumerateFiles(AppPaths.Graphs, "*" + GraphSerializer.FileExtension))
+            foreach (var path in Directory.EnumerateFiles(folder, "*" + GraphSerializer.FileExtension))
             {
                 names.Add(NameOf(path) + " (saved)");
             }
@@ -137,10 +140,9 @@ public sealed class McpAppSurface : IMcpAppSurface
             return Describe();
         }
 
-        var path = Directory.Exists(AppPaths.Graphs)
-            ? Directory.EnumerateFiles(AppPaths.Graphs, "*" + GraphSerializer.FileExtension)
-                .FirstOrDefault(p => string.Equals(NameOf(p), name, StringComparison.OrdinalIgnoreCase))
-            : null;
+        var path = ProjectPaths.GraphFolders(_project.ProjectPath)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*" + GraphSerializer.FileExtension))
+            .FirstOrDefault(p => string.Equals(NameOf(p), name, StringComparison.OrdinalIgnoreCase));
 
         if (path is null)
         {

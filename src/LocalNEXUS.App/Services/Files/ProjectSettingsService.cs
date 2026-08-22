@@ -97,6 +97,8 @@ public sealed partial class ProjectSettingsService : ObservableObject
         ShareSettings = settings.ShareSettings;
         HasBeenSetUp = settings.HasBeenSetUp;
         LastGraphPath = settings.LastGraphPath;
+
+        EnsureFolderIgnored(projectPath);
     }
 
     /// <summary>What a project of this kind starts from before anybody has said otherwise.</summary>
@@ -197,8 +199,36 @@ public sealed partial class ProjectSettingsService : ObservableObject
     ///
     /// The local file is always listed. The shared one is listed only while it is not being shared,
     /// which is the whole of what the toggle does on disk.
+    ///
+    /// The application's own folder is always listed too. It holds run history, the file snapshots
+    /// taken before a write, and conversation threads, which are large, machine local and nobody
+    /// else's business. Nothing in it is worth sharing: the registry inside it holds command lines
+    /// with absolute paths that are wrong on any other computer, and the graphs are the one thing
+    /// that would be worth committing, which is exactly why they can be added back by hand rather
+    /// than pushed on a team by a tool.
     /// </remarks>
     private void EnsureIgnored(string root)
+        => Append(root, ShareSettings
+            ? new[] { FolderEntry, ProjectSettings.LocalFileName }
+            : new[] { FolderEntry, ProjectSettings.LocalFileName, ProjectSettings.SharedFileName });
+
+    /// <summary>What the application's own folder is written as in a gitignore.</summary>
+    private static string FolderEntry => Persistence.ProjectPaths.FolderName + "/";
+
+    /// <summary>
+    /// Keeps the application's own folder out of the repository, whether or not anything has been
+    /// answered about this project yet.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the settings entries and called when a project is opened, because a project
+    /// set up before this folder existed would otherwise never have it listed: the settings are
+    /// only written again when somebody changes one. Only the folder, because which of the two
+    /// settings files is ignored depends on an answer that has not necessarily been given yet, and
+    /// listing the shared one now would leave it ignored after somebody chose to share it.
+    /// </remarks>
+    private void EnsureFolderIgnored(string root) => Append(root, new[] { FolderEntry });
+
+    private void Append(string root, IReadOnlyList<string> wanted)
     {
         var path = Path.Combine(root, ".gitignore");
 
@@ -206,10 +236,6 @@ public sealed partial class ProjectSettingsService : ObservableObject
         {
             return;
         }
-
-        var wanted = ShareSettings
-            ? new[] { ProjectSettings.LocalFileName }
-            : new[] { ProjectSettings.LocalFileName, ProjectSettings.SharedFileName };
 
         string text;
 
@@ -234,7 +260,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
         {
             var addition = (text.EndsWith('\n') ? string.Empty : Environment.NewLine)
                            + Environment.NewLine
-                           + "# LocalNEXUS project settings" + Environment.NewLine
+                           + "# LocalNEXUS" + Environment.NewLine
                            + string.Join(Environment.NewLine, missing) + Environment.NewLine;
 
             File.AppendAllText(path, addition);
