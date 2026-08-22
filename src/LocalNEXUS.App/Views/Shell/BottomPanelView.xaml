@@ -173,7 +173,8 @@
                     <ItemsControl ItemsSource="{Binding Feed.Events}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,1">
+                                <StackPanel Margin="0,0,0,1">
+                                <StackPanel Orientation="Horizontal">
                                     <TextBlock Style="{StaticResource MonoText}"
                                                Foreground="{DynamicResource Text.Muted.Brush}"
                                                Text="{Binding TimeText}"
@@ -190,6 +191,27 @@
                                                Margin="10,0,0,0"
                                                Foreground="{DynamicResource Text.Muted.Brush}"
                                                Text="{Binding Detail}" />
+                                </StackPanel>
+
+                                <!--
+                                    The body, in full and unfolded. The Activity tab is the same
+                                    events read as a transcript and shows what happened; this is
+                                    them read as a log and shows what was produced. Nothing was
+                                    lost when the transcript stopped printing generated code, it
+                                    moved here.
+                                -->
+                                <TextBox Margin="20,1,0,4"
+                                         Text="{Binding Text, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="{DynamicResource Text.Secondary.Brush}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="{StaticResource Font.Size.Small}"
+                                         TextWrapping="NoWrap"
+                                         Padding="0"
+                                         HorizontalScrollBarVisibility="Disabled"
+                                         Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

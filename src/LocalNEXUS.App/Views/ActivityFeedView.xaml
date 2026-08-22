@@ -74,20 +74,57 @@
                                            TextTrimming="CharacterEllipsis" />
                             </DockPanel>
 
-                            <!-- Streamed model output lands here and grows in place. -->
-                            <TextBox Grid.Row="1" Grid.Column="2"
-                                     Margin="0,4,0,0"
-                                     Text="{Binding Text, Mode=OneWay}"
-                                     IsReadOnly="True"
-                                     BorderThickness="0"
-                                     Background="Transparent"
-                                     Foreground="{DynamicResource Text.Secondary.Brush}"
-                                     FontFamily="{StaticResource Font.Mono}"
-                                     FontSize="{StaticResource Font.Size.Small}"
-                                     TextWrapping="Wrap"
-                                     Padding="0"
-                                     HorizontalScrollBarVisibility="Disabled"
-                                     Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
+                            <!--
+                                What a step produced, and what the step was, are different
+                                questions. The feed answers the second: one line for the thing
+                                that happened and a short result. A generated file is hundreds of
+                                lines of vertex arrays scrolling past, and the line saying which
+                                file landed is the part that was worth seeing.
+
+                                Three things can sit here. A failure explains itself, because that
+                                is the moment somebody needs it. A stream says how far along it is,
+                                because with the body gone there would otherwise be nothing moving
+                                while a model works, which reads as a hang. Everything else folds
+                                its body away, one click from the surface.
+                            -->
+                            <StackPanel Grid.Row="1" Grid.Column="2">
+                                <TextBox Margin="0,4,0,0"
+                                         Text="{Binding InlineText, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="{DynamicResource Text.Secondary.Brush}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="{StaticResource Font.Size.Small}"
+                                         TextWrapping="Wrap"
+                                         Padding="0"
+                                         HorizontalScrollBarVisibility="Disabled"
+                                         Visibility="{Binding HasInlineText, Converter={StaticResource BooleanToVisibility}}" />
+
+                                <TextBlock Style="{StaticResource MonoText}"
+                                           Margin="0,3,0,0"
+                                           Foreground="{DynamicResource Text.Muted.Brush}"
+                                           Text="{Binding Progress}"
+                                           Visibility="{Binding IsStreaming, Converter={StaticResource BooleanToVisibility}}" />
+
+                                <Expander Margin="0,3,0,0"
+                                          Header="Output"
+                                          Visibility="{Binding HasHiddenBody, Converter={StaticResource BooleanToVisibility}}">
+                                    <TextBox Margin="0,4,0,0"
+                                             MaxHeight="320"
+                                             Text="{Binding Text, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             BorderThickness="0"
+                                             Background="Transparent"
+                                             Foreground="{DynamicResource Text.Secondary.Brush}"
+                                             FontFamily="{StaticResource Font.Mono}"
+                                             FontSize="{StaticResource Font.Size.Small}"
+                                             TextWrapping="Wrap"
+                                             Padding="0"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Disabled" />
+                                </Expander>
+                            </StackPanel>
 
                             <!-- Questions the run is blocked on. -->
                             <StackPanel Grid.Row="2" Grid.Column="2"

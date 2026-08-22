@@ -38,9 +38,13 @@ public sealed partial class ActivityEvent : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasDiffCounts))]
     [NotifyPropertyChangedFor(nameof(AddedText))]
     [NotifyPropertyChangedFor(nameof(RemovedText))]
+    [NotifyPropertyChangedFor(nameof(IsStreaming))]
     private string? _detail;
 
     private TaskCompletionSource<bool>? _completion;
+
+    /// <summary>How many chunks have arrived, which is what the progress line counts.</summary>
+    private int _chunks;
 
     /// <summary>
     /// Told when this entry is finished, so that whatever is recording it can write the final
@@ -153,6 +157,7 @@ public sealed partial class ActivityEvent : ObservableObject
         lock (_sync)
         {
             _body.Append(chunk);
+            _chunks++;
         }
 
         var now = Environment.TickCount64;
@@ -227,5 +232,96 @@ public sealed partial class ActivityEvent : ObservableObject
     {
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(HasText));
+        OnPropertyChanged(nameof(InlineText));
+        OnPropertyChanged(nameof(HasInlineText));
+        OnPropertyChanged(nameof(HasHiddenBody));
+        OnPropertyChanged(nameof(IsStreaming));
+        OnPropertyChanged(nameof(Progress));
+    }
+
+    /// <summary>
+    /// How much of a failure is worth reading in the feed before the rest is folded away.
+    /// </summary>
+    /// <remarks>
+    /// A compile failure is usually a handful of diagnostics and reading them is the entire reason
+    /// somebody is looking. A file that will not compile at all is a hundred, and a hundred lines
+    /// of red is the same wall of text this is meant to remove, from a different direction. Forty
+    /// lines is enough to see the first several errors, which is where the cause almost always is.
+    /// </remarks>
+    public const int InlineFailureLines = 40;
+
+    /// <summary>
+    /// Whether the body of this entry belongs on screen without being asked for.
+    /// </summary>
+    /// <remarks>
+    /// This is the line the feed is drawn on. A failure and a question carry their explanation in
+    /// the body, and that is the moment somebody needs it, so it is shown. Everything else carries
+    /// what it produced, and what a step produced is not what the step was: a generated file is
+    /// hundreds of lines of vertex arrays scrolling past, and the one line saying which file landed
+    /// is the thing that was worth seeing.
+    ///
+    /// Nothing is discarded. The body is still recorded, still in the Output tab in full, and one
+    /// click away here.
+    /// </remarks>
+    public bool ShowsBodyInline => Kind is ActivityKind.Error
+        or ActivityKind.NodeFaulted
+        or ActivityKind.RunFaulted
+        or ActivityKind.Confirmation;
+
+    /// <summary>The part of a failure shown without being asked for.</summary>
+    public string InlineText
+    {
+        get
+        {
+            if (!ShowsBodyInline)
+            {
+                return string.Empty;
+            }
+
+            var body = Text;
+            var lines = body.ReplaceLineEndings("\n").Split('\n');
+
+            if (lines.Length <= InlineFailureLines)
+            {
+                return body;
+            }
+
+            return string.Join(Environment.NewLine, lines[..InlineFailureLines])
+                   + Environment.NewLine
+                   + $"... and {lines.Length - InlineFailureLines} more line(s)";
+        }
+    }
+
+    /// <summary>True when there is a failure explanation to show inline.</summary>
+    public bool HasInlineText => ShowsBodyInline && HasText;
+
+    /// <summary>True when there is a body worth offering that is not being shown.</summary>
+    public bool HasHiddenBody => HasText && !ShowsBodyInline;
+
+    /// <summary>True while tokens are still arriving, which is what the progress line is for.</summary>
+    /// <remarks>
+    /// A streamed entry gets its detail when the stream ends, so having none is what being still
+    /// under way looks like. Without the body on screen there would otherwise be nothing at all
+    /// moving while a model works, which reads as a hang rather than as progress.
+    /// </remarks>
+    public bool IsStreaming => Kind == ActivityKind.ModelStream && string.IsNullOrEmpty(Detail) && HasText;
+
+    /// <summary>
+    /// How far along a stream is, in place of the stream itself.
+    /// </summary>
+    /// <remarks>
+    /// Chunks rather than tokens counted properly, because a chunk is what arrives and every
+    /// server here sends one token per chunk. It is called what it is measuring rather than what it
+    /// is counting nowhere, so nothing downstream treats it as a billing figure.
+    /// </remarks>
+    public string Progress
+    {
+        get
+        {
+            var seconds = (DateTimeOffset.Now - Timestamp).TotalSeconds;
+            var rate = seconds > 0.5 ? _chunks / seconds : 0;
+
+            return $"{_chunks} tokens, {seconds:0.0} s, {rate:0}/s";
+        }
     }
 }
