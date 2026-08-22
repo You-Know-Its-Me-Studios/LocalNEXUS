@@ -403,7 +403,7 @@
                     HorizontalAlignment="Center"
                     MaxWidth="460"
                     IsHitTestVisible="True"
-                    Visibility="{Binding IsCanvasEmpty, Converter={StaticResource BooleanToVisibility}}">
+                    Visibility="{Binding ShowTemplates, Converter={StaticResource BooleanToVisibility}}">
             <TextBlock Text="Nothing on the canvas yet"
                        HorizontalAlignment="Center"
                        FontSize="{StaticResource Font.Size.Large}"
@@ -435,6 +435,24 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <!--
+                The way out. A suggestion that cannot be refused is not a suggestion, and without
+                this the only ways past the templates were to take one or to put a node down.
+            -->
+            <Button Margin="0,8,0,0"
+                    HorizontalContentAlignment="Left"
+                    Padding="12,8"
+                    ToolTip="Puts these away and leaves the canvas empty. Double click anywhere to add a node."
+                    Command="{Binding DataContext.DismissTemplatesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <StackPanel>
+                    <TextBlock Text="Build on my own" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               MaxWidth="400"
+                               Text="Start from an empty canvas. Double click anywhere to add a node." />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!--

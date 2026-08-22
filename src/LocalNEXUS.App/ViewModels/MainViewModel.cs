@@ -255,6 +255,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>True when the canvas has nothing on it, which is what the empty state is drawn from.</summary>
     public bool IsCanvasEmpty => Graph.Nodes.Count == 0;
 
+    /// <summary>
+    /// True when somebody has said they are starting from nothing.
+    /// </summary>
+    /// <remarks>
+    /// The templates are a suggestion and a suggestion has to be refusable. Without this the only
+    /// way past them is to accept one or to add a node, which is the canvas telling somebody what
+    /// they are allowed to do next.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTemplates))]
+    private bool _templatesDismissed;
+
+    /// <summary>True when the empty canvas should be offering the templates.</summary>
+    public bool ShowTemplates => IsCanvasEmpty && !TemplatesDismissed;
+
+    /// <summary>Puts the templates away and leaves an empty canvas.</summary>
+    [RelayCommand]
+    private void DismissTemplates() => TemplatesDismissed = true;
+
     /// <summary>The first run checklist, which suggests and never blocks.</summary>
     public WalkthroughViewModel Walkthrough { get; }
 
@@ -813,6 +832,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         CurrentGraphPath = null;
         Document.MarkSaved(null);
         _cascadeIndex = 0;
+
+        // A new graph is a new decision, so the suggestion is offered again. Dismissing it lasts
+        // as long as the thing it was dismissed on.
+        TemplatesDismissed = false;
+
         _feed.Info("New graph", "The canvas was cleared.");
     }
 
@@ -958,6 +982,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(IsCanvasEmpty));
+        OnPropertyChanged(nameof(ShowTemplates));
         SaveAsTemplateCommand.NotifyCanExecuteChanged();
         Walkthrough.Refresh();
 
