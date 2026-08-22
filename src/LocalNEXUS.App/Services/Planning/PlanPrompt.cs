@@ -180,6 +180,76 @@ public static class PlanPrompt
     }
 
     /// <summary>
+    /// How large a file can be and still be worth asking for in full on a retry.
+    /// </summary>
+    /// <remarks>
+    /// Roughly three hundred lines. Under it, asking for the whole file back is the surest repair
+    /// there is, because a whole file has no block to fail to match: the failure mode is removed
+    /// rather than described. Over it a whole file will not fit in a reply ceiling, so the retry
+    /// asks for a diff again and has to rely on the model reading what it was sent.
+    /// </remarks>
+    public const int RetryWholeFileBudget = 12_000;
+
+    /// <summary>
+    /// Asks again for a file whose changes could not be applied.
+    /// </summary>
+    /// <remarks>
+    /// The whole current file is sent, uncut, exactly as the first attempt sent it. That is worth
+    /// being explicit about: the model already had the file and invented lines anyway, so the value
+    /// here is not more context but the two things the first attempt did not have, which are that
+    /// it was wrong and which lines it made up. The failure message carries those.
+    ///
+    /// Nothing is truncated. Sending less than the first attempt did would be answering a model
+    /// that guessed by giving it less to work from.
+    /// </remarks>
+    /// <param name="task">The file being written.</param>
+    /// <param name="emittedSignatures">What earlier files in this plan declared.</param>
+    /// <param name="failure">Why the last answer could not be applied, naming the missing lines.</param>
+    public static string BuildEditRetryMessage(CodeTask task, string emittedSignatures, string failure)
+    {
+        var existing = task.ExistingContent ?? string.Empty;
+        var wholeFile = existing.Length is > 0 and <= RetryWholeFileBudget;
+
+        var builder = new StringBuilder();
+
+        builder.AppendLine($"Your previous answer for {task.RelativePath} could not be applied to the file.");
+        builder.AppendLine();
+        builder.AppendLine(failure);
+        builder.AppendLine();
+        builder.AppendLine(
+            "Those lines are not in this file. Do not send them again. Work only from the content "
+            + "below, which is the file exactly as it is now.");
+        builder.AppendLine();
+
+        builder.AppendLine("What this file is for:");
+        builder.AppendLine(task.Intent.Length == 0 ? "(no further detail was given)" : task.Intent);
+        builder.AppendLine();
+
+        if (emittedSignatures.Length > 0)
+        {
+            builder.AppendLine("Written earlier in this same request, so use these exactly as they are:");
+            builder.AppendLine();
+            builder.AppendLine(emittedSignatures);
+            builder.AppendLine();
+        }
+
+        if (existing.Length > 0)
+        {
+            builder.AppendLine($"The current content of {task.RelativePath}:");
+            builder.AppendLine();
+            builder.AppendLine(existing);
+            builder.AppendLine();
+        }
+
+        builder.Append(wholeFile
+            ? "Return the complete file with your change made. Output raw C# only: no markdown "
+              + "fences, no commentary."
+            : EditFormatInstruction(task));
+
+        return builder.ToString();
+    }
+
+    /// <summary>
     /// The instruction for a diff shaped reply. Line tagged, because that is the format the
     /// research finds smaller models handle best, and because a tagged line can be matched even
     /// when its indentation comes back slightly wrong.

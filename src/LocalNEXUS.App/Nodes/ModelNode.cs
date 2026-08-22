@@ -43,13 +43,50 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     public const string OpenRouterBaseUrl = "https://openrouter.ai/api/v1";
 
     /// <summary>
-    /// The starting system prompt. It is aimed at producing files that compile, because the end
-    /// of the default pipeline writes straight into a Unity project. Change it per node to give
-    /// a node a different role, for example planning rather than coding.
+    /// The starting system prompt for a project that is not Unity, and for no project at all.
     /// </summary>
+    /// <remarks>
+    /// Not empty, and it is worth saying why. A coding model given no system prompt answers the way
+    /// it was trained to answer a person: prose around the code, an explanation of what it did, and
+    /// the whole thing inside markdown fences. The end of the default pipeline writes what comes
+    /// back into a file, so every one of those is a file that does not compile. This exists because
+    /// it works.
+    ///
+    /// What it no longer does is name an engine. It used to say Unity, in every project, including
+    /// ones with no Unity anywhere in them, which is at best noise in the one instruction the model
+    /// reads before everything else.
+    /// </remarks>
     public const string DefaultSystemPrompt =
+        "You are an expert software engineer. Produce complete, compilable code that does what was "
+        + "asked and nothing more. Output raw code only: no markdown code fences, no commentary, "
+        + "no explanation.";
+
+    /// <summary>
+    /// The starting system prompt for a Unity project.
+    /// </summary>
+    /// <remarks>
+    /// Word for word what every node used to start with. Unity is a real target with real
+    /// conventions, and a model told it is writing for Unity writes a MonoBehaviour rather than a
+    /// class with a Main method. Kept exactly as it was so that what a Unity project produces is
+    /// unchanged by any of this.
+    /// </remarks>
+    public const string UnitySystemPrompt =
         "You are an expert Unity C# engineer. Produce complete, compilable C# for Unity. "
         + "Output raw code only: no markdown code fences, no commentary, no explanation.";
+
+    /// <summary>
+    /// What a newly added node starts with, for a project of this kind.
+    /// </summary>
+    /// <remarks>
+    /// Seeded, never enforced. The prompt is a setting on the node, so this decides what a node
+    /// dropped on the canvas today begins as and reaches back into nothing: a node in a saved graph
+    /// keeps whatever it was given, because the value belongs to the node and travels with it.
+    ///
+    /// Nothing known means the neutral one. Assuming Unity because nobody has said otherwise is the
+    /// thing being fixed.
+    /// </remarks>
+    public static string PromptFor(Services.Files.ProjectKind kind)
+        => kind == Services.Files.ProjectKind.Unity ? UnitySystemPrompt : DefaultSystemPrompt;
 
     /// <summary>Where this node's requests go.</summary>
     [ObservableProperty]
@@ -441,7 +478,23 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
                 throw;
             }
 
-            var content = CodeEditApplier.Apply(reply, task.ExistingContent);
+            string content;
+
+            try
+            {
+                content = await ApplyWithRetriesAsync(ctx, task, reply, signatures, ct).ConfigureAwait(false);
+            }
+            catch (EditApplyException ex)
+            {
+                // Out of attempts. The file is kept with what went wrong and the run carries on
+                // with the rest of the plan, the same as a file that would not compile. One file
+                // the coder could not write is not a reason to throw away the four that worked.
+                entry.Detail = "could not be applied";
+
+                StageUnappliedEdit(ctx, task, reply, ex.Message);
+                continue;
+            }
+
             var declared = DeclaredTypes(content, task.RelativePath, ct);
 
             produced.Add(new GeneratedFile(task, content, declared));
@@ -454,6 +507,99 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
         StatusMessage = $"{produced.Count} file(s) written";
         return Emit(produced);
+    }
+
+    /// <summary>
+    /// How many times the coder is asked again when its changes will not apply to the file.
+    /// </summary>
+    /// <remarks>
+    /// Its own limit rather than the compile check's. That one belongs to a different node and is
+    /// spent on a different failure: a file that compiles is a file that was successfully built,
+    /// and one whose blocks did not match was never built at all. Sharing a budget between them
+    /// would mean a file that took two attempts to apply had one attempt left to compile.
+    ///
+    /// Two, because a model that has been shown the file, told which lines it invented and asked
+    /// for the whole file back has been given everything there is to give. A third attempt is the
+    /// same attempt again.
+    /// </remarks>
+    public const int EditRetryLimit = 2;
+
+    /// <summary>
+    /// Applies the coder's reply, asking it again when the reply will not apply.
+    /// </summary>
+    /// <remarks>
+    /// A block that does not match is an ordinary model mistake and is treated as one, the way the
+    /// compile check treats code that does not build: the error goes back to whoever wrote it and
+    /// it tries again, capped. It used to end the run.
+    ///
+    /// Nothing about the matching is relaxed to make this pass. A block that was accepted without
+    /// matching would write the wrong thing into the right file, which is worse than not writing
+    /// it, so the only thing that changes here is how many chances the model gets to be right.
+    /// </remarks>
+    /// <exception cref="EditApplyException">Still would not apply after the last attempt.</exception>
+    private async Task<string> ApplyWithRetriesAsync(
+        NodeExecutionContext ctx,
+        CodeTask task,
+        string reply,
+        IReadOnlyList<string> signatures,
+        CancellationToken ct)
+    {
+        var attempt = 0;
+
+        while (true)
+        {
+            try
+            {
+                return CodeEditApplier.Apply(reply, task.ExistingContent);
+            }
+            catch (EditApplyException ex) when (attempt < EditRetryLimit)
+            {
+                attempt++;
+
+                var retry = ctx.Feed.Add(
+                    ActivityKind.ModelStream,
+                    $"{Title}  ({task.RelativePath} would not apply, attempt {attempt} of {EditRetryLimit})",
+                    ex.Message,
+                    Id);
+
+                StatusMessage = $"retrying {task.FileName} ({attempt} of {EditRetryLimit})";
+
+                var endpoint = await ResolveEndpointAsync(ctx, retry, ct).ConfigureAwait(false);
+                var message = PlanPrompt.BuildEditRetryMessage(task, FitSignatures(signatures), ex.Message);
+
+                reply = await StreamTextAsync(ctx, retry, endpoint, message, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>Keeps a file the coder could not write, with what went wrong, and moves on.</summary>
+    private void StageUnappliedEdit(NodeExecutionContext ctx, CodeTask task, string reply, string failure)
+    {
+        var detail = $"{failure}{Environment.NewLine}{Environment.NewLine}"
+                     + $"Asked again {EditRetryLimit} time(s) and it did not improve.";
+
+        // What is kept is the last reply rather than the file, because the file was never built.
+        // It is still the work, and it is what somebody picking this up later needs to see.
+        ctx.Services.Staging.Stage(new Services.Files.StagedFile(
+            task.RelativePath,
+            task.TypeName,
+            task.Operation == FileOperation.Create,
+            task.Intent,
+            reply,
+            Services.Files.StagedReason.EditDidNotApply,
+            detail,
+            DateTimeOffset.Now));
+
+        if (ctx.RunId is { } runId)
+        {
+            ctx.Services.History.RecordFile(
+                runId, task.RelativePath, Services.History.FileOutcome.Staged, detail);
+        }
+
+        ctx.Feed.Error(
+            $"{task.RelativePath} was not written",
+            $"The coder kept asking to replace lines that are not in the file, so it was kept rather "
+            + $"than written and the run carried on.{Environment.NewLine}{failure}");
     }
 
     /// <summary>

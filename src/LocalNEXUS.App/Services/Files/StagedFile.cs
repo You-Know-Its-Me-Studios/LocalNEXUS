@@ -16,7 +16,19 @@ public enum StagedReason
     RefusedByProjectRules,
 
     /// <summary>The write itself failed, so the file on disk is whatever it was.</summary>
-    WriteFailed
+    WriteFailed,
+
+    /// <summary>
+    /// The coder kept asking to change lines that are not in the file, so nothing was ever built
+    /// to write.
+    /// </summary>
+    /// <remarks>
+    /// Its own state rather than the compile one. Nothing here was ever compiled, because there
+    /// was never a file to compile: the model invented the lines it claimed to be replacing and
+    /// could not be talked out of it within its retry limit. Calling that a compile failure would
+    /// tell somebody to go looking for a compiler error that does not exist.
+    /// </remarks>
+    EditDidNotApply
 }
 
 /// <summary>
@@ -52,6 +64,7 @@ public sealed record StagedFile(
     {
         StagedReason.RefusedByProjectRules => $"{RelativePath} was refused by the project rules",
         StagedReason.WriteFailed => $"{RelativePath} could not be written",
+        StagedReason.EditDidNotApply => $"{RelativePath} could not be changed as asked",
         _ => $"{RelativePath} does not compile yet"
     };
 
@@ -61,6 +74,9 @@ public sealed record StagedFile(
         StagedReason.RefusedByProjectRules =>
             "Refused. It compiles, and writing it would have broken something Unity binds by more than a name.",
         StagedReason.WriteFailed => "The write failed, so the file on disk is untouched.",
+        StagedReason.EditDidNotApply =>
+            "The coder kept asking to replace lines that are not in this file, so nothing was written. "
+            + "The file on disk is untouched.",
         _ => "Still has compiler errors after the repair limit was spent."
     };
 }
