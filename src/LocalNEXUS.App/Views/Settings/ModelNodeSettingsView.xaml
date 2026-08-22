@@ -350,6 +350,15 @@
                  MaxHeight="260" />
 
         <!--
+            Said out loud for the same reason the scripts folder says it. A value that arrives from
+            somewhere else and then stops following it is the sort of thing somebody changes once,
+            expects to apply everywhere, and never finds out did not.
+        -->
+        <TextBlock Style="{StaticResource HintText}"
+                   TextWrapping="Wrap"
+                   Text="This node starts from a prompt chosen for the kind of project that was open when it was added: a Unity one is told it is writing for Unity, anything else is not. It is this node's own from then on, so changing it here changes only this node, and opening a different project does not change it back." />
+
+        <!--
             On by default, because a model asked for a file wraps it in a fence whatever the prompt
             says. It used to take a node wired into every graph to undo that.
         -->

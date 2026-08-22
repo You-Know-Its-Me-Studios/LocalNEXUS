@@ -169,12 +169,18 @@ public sealed class NodeFactory
             "Model",
             "Asks a model, local or hosted, and sends on its reply.",
             Array.Empty<string>(),
+            // The system prompt is seeded from the project for the same reason the Output node's
+            // folder is: a plain C# project has no business being told it is writing Unity code.
+            // Nothing reaches back into a saved graph, because the prompt belongs to the node.
             factory => new ModelNode(
                 factory._catalog,
                 factory._mesh,
                 factory._dialogs,
                 factory._toolset,
-                factory._credentials)),
+                factory._credentials)
+            {
+                SystemPrompt = ModelNode.PromptFor(factory._project?.Kind ?? ProjectKind.None)
+            }),
 
         new BuiltInNode(
             "Debate",

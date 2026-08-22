@@ -771,7 +771,7 @@
                     <TextBlock Style="{StaticResource HintText}"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource Status.Warning.Brush}"
-                               Text="Undo puts back only the files this application wrote or edited during a run. Anything Unity regenerated, an extension changed, or you edited by hand is invisible to it, and putting a file back also discards whatever was done to it since. This is run undo, not version control." />
+                               Text="Undo puts back only the files this application wrote or edited during a run. Anything a build or an editor regenerated, an extension changed, or you edited by hand is invisible to it, and putting a file back also discards whatever was done to it since. This is run undo, not version control." />
                 </StackPanel>
 
                 <StackPanel Visibility="{Binding Section, Converter={StaticResource EnumToVisibility}, ConverterParameter=Behaviour}">

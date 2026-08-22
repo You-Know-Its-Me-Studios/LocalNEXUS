@@ -164,6 +164,12 @@ public sealed class EvalHarness : IDisposable
 
         var (graph, coder, check, triage) = BuildGraph(modelPath);
 
+        // What the application seeds a new Model node with for this kind of project. Set here
+        // rather than by handing the factory the project's settings, because that would also move
+        // where the Output node writes, and a measurement with two things changed in it measures
+        // neither.
+        coder.SystemPrompt = ModelNode.PromptFor(projectService.Kind);
+
         var watch = System.Diagnostics.Stopwatch.StartNew();
         RunContext? run = null;
         string? fault = null;
