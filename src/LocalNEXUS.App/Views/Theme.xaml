@@ -330,13 +330,34 @@
                                       Focusable="False"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                       ClickMode="Press" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                        <ContentPresenter x:Name="Selection"
+                                          Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Left"
                                           VerticalAlignment="Center"
                                           IsHitTestVisible="False"
                                           Content="{TemplateBinding SelectionBoxItem}"
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+                        <!--
+                            The editable case. A ComboBox with IsEditable set puts its text in a
+                            TextBox the template has to supply and named PART_EditableTextBox, and
+                            leaves SelectionBoxItem empty. Without one the framework has nowhere to
+                            put the text, so the box renders blank and cannot be typed into, which
+                            is exactly how it behaved.
+
+                            Its own background, border and padding are set here so the TextBox
+                            style does not draw a second input inside this one. Everything it is
+                            painted with still comes from that style.
+                        -->
+                        <TextBox x:Name="PART_EditableTextBox"
+                                 Margin="8,0,26,0"
+                                 VerticalAlignment="Center"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Padding="0"
+                                 Visibility="Collapsed"
+                                 IsReadOnly="{TemplateBinding IsReadOnly}" />
+
                         <TextBlock x:Name="Placeholder"
                                    Margin="{TemplateBinding Padding}"
                                    VerticalAlignment="Center"
@@ -363,9 +384,25 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="HasItems" Value="False">
-                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="Selection" Property="Visibility" Value="Collapsed" />
                         </Trigger>
+
+                        <!--
+                            Nothing to choose is about the list, and an editable box with an empty
+                            list is still perfectly usable because anything can be typed into it.
+                            Saying otherwise over the top of what somebody is typing would be
+                            wrong twice.
+                        -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="HasItems" Value="False" />
+                                <Condition Property="IsEditable" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
+
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
                         </Trigger>

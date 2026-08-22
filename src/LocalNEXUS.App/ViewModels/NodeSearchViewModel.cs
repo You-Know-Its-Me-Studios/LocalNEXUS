@@ -126,11 +126,20 @@ public sealed partial class NodeSearchViewModel : ObservableObject
         OnPropertyChanged(nameof(HasResults));
     }
 
-    /// <summary>Places the selected type, and wires it back when the search came from a pin.</summary>
+    /// <summary>
+    /// Places a type, and wires it back when the search came from a pin.
+    /// </summary>
+    /// <remarks>
+    /// Takes what to place rather than always reading the highlight, because a row that was
+    /// clicked is not necessarily the row that was highlighted: whether a list has updated its
+    /// selection by the time a click is acted on depends on which element saw the press first,
+    /// which is not a thing to rely on. Clicking says what it means; the keyboard passes nothing
+    /// and gets the highlight, which is what it means there.
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(CanPlace))]
-    private void Place()
+    private void Place(NodeSearchResult? result)
     {
-        if (Selected is not { } result)
+        if ((result ?? Selected) is not { } chosen)
         {
             return;
         }
@@ -141,10 +150,10 @@ public sealed partial class NodeSearchViewModel : ObservableObject
 
         Close();
 
-        _place(result.TypeKey, x, y, from);
+        _place(chosen.TypeKey, x, y, from);
     }
 
-    private bool CanPlace() => Selected is not null;
+    private bool CanPlace(NodeSearchResult? result) => (result ?? Selected) is not null;
 
     /// <summary>Moves the highlight down, so the list can be worked without leaving the box.</summary>
     [RelayCommand]

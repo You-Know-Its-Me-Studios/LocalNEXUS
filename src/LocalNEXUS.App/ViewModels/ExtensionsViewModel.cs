@@ -149,6 +149,35 @@ public sealed partial class ExtensionsViewModel : ObservableObject
     /// <summary>True when the details pane has nothing to show yet.</summary>
     public bool HasNothingSelected => !HasSelection && !HasSelectedPreset;
 
+    /// <summary>
+    /// Choosing something installed puts away whatever preset was showing.
+    /// </summary>
+    /// <remarks>
+    /// One details pane, one thing in it. The two panels are drawn in the same place, each shown
+    /// by whether its own selection is set, so both selections being set at once drew both panels
+    /// on top of each other. Clearing the other one is what makes the pane hold one thing rather
+    /// than whichever was set most recently plus whatever was set before it.
+    ///
+    /// Only when something was chosen. Clearing on a clear would have the two of them putting each
+    /// other away in turn.
+    /// </remarks>
+    partial void OnSelectedChanged(InstalledExtension? value)
+    {
+        if (value is not null)
+        {
+            SelectedPreset = null;
+        }
+    }
+
+    /// <summary>And choosing a preset puts away whatever installed extension was showing.</summary>
+    partial void OnSelectedPresetChanged(ExtensionManifest? value)
+    {
+        if (value is not null)
+        {
+            Selected = null;
+        }
+    }
+
     /// <summary>Whether the prerequisites of the selection are met, checked when it is shown.</summary>
     public IReadOnlyList<PrerequisiteResult> SelectedPrerequisites => Selected is null
         ? Array.Empty<PrerequisiteResult>()

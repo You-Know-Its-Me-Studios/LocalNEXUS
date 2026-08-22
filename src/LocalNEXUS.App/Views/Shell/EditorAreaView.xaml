@@ -456,14 +456,22 @@
         </StackPanel>
 
         <!--
-            Dimmed behind, so the click that lands anywhere else closes the search rather than
+            Dimmed behind, so a click that lands anywhere else closes the search rather than
             reaching the canvas underneath and starting something.
+
+            The dimming and the card are siblings rather than one inside the other, and that is
+            the whole of why clicking a result works. Input bindings are evaluated on the way down
+            through every element the pointer is over, outermost first, so with the card inside the
+            dimming a click on a result reached the close binding before it reached the row: the
+            search closed and nothing was placed. Side by side, a click on the card never passes
+            through the dimming at all.
         -->
-        <Border Background="{DynamicResource Surface.Scrim.Brush}"
-                Visibility="{Binding NodeSearch.IsOpen, Converter={StaticResource BooleanToVisibility}}">
-            <Border.InputBindings>
-                <MouseBinding MouseAction="LeftClick" Command="{Binding NodeSearch.CloseCommand}" />
-            </Border.InputBindings>
+        <Grid Visibility="{Binding NodeSearch.IsOpen, Converter={StaticResource BooleanToVisibility}}">
+            <Border Background="{DynamicResource Surface.Scrim.Brush}">
+                <Border.InputBindings>
+                    <MouseBinding MouseAction="LeftClick" Command="{Binding NodeSearch.CloseCommand}" />
+                </Border.InputBindings>
+            </Border>
 
             <Border Width="380"
                     MaxHeight="360"
@@ -505,19 +513,41 @@
                                Visibility="{Binding NodeSearch.HasResults, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}"
                                Text="Nothing matches. Every node type is offered here, so a name that finds nothing is a name no node has." />
 
+                    <!--
+                        Stretched rows, so a click anywhere across a row is a click on that row
+                        rather than only one that landed on the words.
+                    -->
                     <ListBox ItemsSource="{Binding NodeSearch.Results}"
                              SelectedItem="{Binding NodeSearch.Selected}"
                              Background="Transparent"
                              BorderThickness="0"
+                             HorizontalContentAlignment="Stretch"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.InputBindings>
-                            <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding NodeSearch.PlaceCommand}" />
                             <KeyBinding Key="Enter" Command="{Binding NodeSearch.PlaceCommand}" />
                             <KeyBinding Key="Escape" Command="{Binding NodeSearch.CloseCommand}" />
                         </ListBox.InputBindings>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="4,3">
+
+                                <!--
+                                    One click places the row and closes the search, which is what
+                                    clicking a thing in a list of things to add means. It used to
+                                    take two, so a single click selected a row and then sat there.
+
+                                    The row hands itself to the command rather than letting it read
+                                    the highlight, because whether the list has updated its
+                                    selection by the time this runs depends on which element saw
+                                    the press first. Transparent so the whole row is clickable and
+                                    not only the text.
+                                -->
+                                <StackPanel Margin="4,3" Background="Transparent">
+                                    <StackPanel.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.NodeSearch.PlaceCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                      CommandParameter="{Binding}" />
+                                    </StackPanel.InputBindings>
+
                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
                                     <TextBlock Style="{StaticResource HintText}"
                                                TextWrapping="Wrap"
@@ -528,7 +558,7 @@
                     </ListBox>
                 </DockPanel>
             </Border>
-        </Border>
+        </Grid>
         </Grid>
     </DockPanel>
 </UserControl>
