@@ -173,10 +173,48 @@ public static class PlanPrompt
         }
 
         builder.Append(wholeFile
-            ? "Return the complete file. Output raw C# only: no markdown fences, no commentary."
+            ? WholeFileInstruction(task)
             : EditFormatInstruction(task));
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// What to ask for when the whole file is wanted, plus the way out for a single member.
+    /// </summary>
+    /// <remarks>
+    /// Naming the member and writing the new one asks nothing of the model about what the file
+    /// already contains, which is the whole difficulty with a diff. It is offered rather than
+    /// required, because a change touching several places at once is a whole file and pretending
+    /// otherwise would cost more than it saved.
+    /// </remarks>
+    private static string WholeFileInstruction(CodeTask task)
+    {
+        var instruction = "Return the complete file. Output raw C# only: no markdown fences, no "
+                          + "commentary. Write every member out in full: a comment saying the rest is "
+                          + "unchanged deletes everything it stands for and will be refused.";
+
+        if (task.Operation == FileOperation.Create)
+        {
+            return instruction;
+        }
+
+        return instruction
+               + Environment.NewLine
+               + Environment.NewLine
+               + "If your change is confined to one or two members, you may instead name them and "
+               + "give only those, which is shorter and cannot go wrong:"
+               + Environment.NewLine
+               + Environment.NewLine
+               + $"@replace {task.TypeName}.MemberName" + Environment.NewLine
+               + "the complete new declaration of that member" + Environment.NewLine
+               + $"@add {task.TypeName}.NewMemberName" + Environment.NewLine
+               + "the complete declaration of a member to add" + Environment.NewLine
+               + $"@remove {task.TypeName}.MemberName" + Environment.NewLine
+               + "@remove-using Some.Namespace"
+               + Environment.NewLine
+               + Environment.NewLine
+               + "Indentation does not matter in that form. Do not mix it with the whole file.";
     }
 
     /// <summary>

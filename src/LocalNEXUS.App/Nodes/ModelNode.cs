@@ -588,7 +588,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         {
             try
             {
-                return CodeEditApplier.Apply(reply, task.ExistingContent);
+                return await ApplyOnceAsync(ctx, task, reply, ct).ConfigureAwait(false);
             }
             catch (EditApplyException ex) when (attempt < EditRetryLimit)
             {
@@ -608,6 +608,60 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
                 reply = await StreamTextAsync(ctx, retry, endpoint, message, ct).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Turns one reply into the new file, structurally where it can and by text where it cannot.
+    /// </summary>
+    /// <remarks>
+    /// A reply that names what it is changing goes through Roslyn: the member is found by walking
+    /// the tree, so there is no search text and nothing to hallucinate, and the formatter lays the
+    /// replacement out to fit rather than refusing it for its indentation. That is the route that
+    /// makes this class of failure impossible rather than recoverable.
+    ///
+    /// Everything else is unchanged. An edit that names nothing, names something the file does not
+    /// have, or would need a type and one of its members changed at once falls back to the whole
+    /// file and diff path exactly as before, and the fallback is said out loud rather than being a
+    /// silent second attempt.
+    /// </remarks>
+    private async Task<string> ApplyOnceAsync(
+        NodeExecutionContext ctx,
+        CodeTask task,
+        string reply,
+        CancellationToken ct)
+    {
+        var body = CodeEditApplier.Unfence(reply);
+
+        if (task.ExistingContent is not { Length: > 0 } existing
+            || !Services.Editing.StructuredEditParser.LooksStructured(body))
+        {
+            return CodeEditApplier.Apply(reply, task.ExistingContent);
+        }
+
+        var edits = Services.Editing.StructuredEditParser.Parse(body);
+        var result = await Services.Editing.RoslynEditApplier
+            .ApplyAsync(existing, edits, ct)
+            .ConfigureAwait(false);
+
+        if (result.IsApplied)
+        {
+            ctx.Feed.Info(
+                $"{task.RelativePath} changed by name, not by text",
+                string.Join(Environment.NewLine, edits.Select(e => e.ToString())));
+
+            return result.Content;
+        }
+
+        // Refused is a real problem with what the model asked for, and the retry is the place that
+        // tells it so. Not mappable is not a failure at all; it is a reply in another shape.
+        if (result.State == Services.Editing.StructuredEditState.Refused)
+        {
+            throw new EditApplyException(result.Message);
+        }
+
+        ctx.Feed.Info($"{task.RelativePath} was not expressed as named changes", result.Message);
+
+        return CodeEditApplier.Apply(reply, task.ExistingContent);
     }
 
     /// <summary>
