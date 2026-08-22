@@ -321,9 +321,18 @@ public partial class App : Application
                 history,
                 (path, token) =>
                 {
-                    project.Open(path);
-                    config.LastProjectPath = project.ProjectPath;
-                    config.Save();
+                    // Everything a person's open does, minus the setup window. On the dispatcher
+                    // because a tool call arrives on its own thread and restoring the project's
+                    // graph replaces the contents of a collection the canvas is bound to, which is
+                    // not something the framework marshals on anybody's behalf.
+                    Dispatcher.Invoke(() =>
+                    {
+                        project.Open(path);
+                        config.LastProjectPath = project.ProjectPath;
+                        config.Save();
+
+                        mainViewModel.OnProjectOpened(ViewModels.ProjectOpenedBy.Tool);
+                    });
 
                     return IndexProjectAsync(projectIndex, project.ProjectPath, feed, token);
                 })),

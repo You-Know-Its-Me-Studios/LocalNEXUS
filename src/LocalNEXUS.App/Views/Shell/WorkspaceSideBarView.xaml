@@ -110,7 +110,12 @@
                 BorderThickness="0,1,0,0"
                 Padding="0,0,0,12">
             <StackPanel>
-                <TextBlock Style="{StaticResource SideBarHeader}" Text="UNITY PROJECT" />
+                <!--
+                    Not the kind of project. This works on any codebase, and what kind this one is
+                    is already on the status bar, read from detection rather than from a heading
+                    that could only ever say one thing.
+                -->
+                <TextBlock Style="{StaticResource SideBarHeader}" Text="PROJECT" />
 
                 <TextBlock Margin="14,0,14,2"
                            Text="{Binding Project.ProjectName, TargetNullValue=No project open}"

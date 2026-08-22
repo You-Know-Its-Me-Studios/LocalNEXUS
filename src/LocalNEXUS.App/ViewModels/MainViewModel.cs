@@ -707,13 +707,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool CanSaveAsTemplate() => IsWorkspace && Graph.Nodes.Count > 0;
 
     /// <summary>
-    /// Reads this project's own settings, and asks the first open questions if it has never been asked.
+    /// Everything opening a project does: its own settings, where its extensions run, the recent
+    /// list, the graph it was last working on, and the first open questions.
     /// </summary>
     /// <remarks>
     /// The asking happens once per project per machine and nothing waits on it. Somebody who
     /// dismisses it has the defaults, which is the state every project was in before this existed.
+    ///
+    /// Everything but the asking happens whoever opened it. That is the whole of what
+    /// <see cref="ProjectOpenedBy"/> decides: a project opened by a tool call gets its settings,
+    /// its extension host path and its graph, and does not get a window.
     /// </remarks>
-    public void OnProjectOpened()
+    public void OnProjectOpened(ProjectOpenedBy who)
     {
         ProjectSettings.Open(Project.ProjectPath, Project.Kind);
 
@@ -726,7 +731,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         RestoreProjectGraph();
 
-        if (ProjectSettings.NeedsSetUp)
+        // The one step that needs somebody there. A tool call opens the project with its defaults
+        // and leaves the questions for whenever a person opens it, which is what stops a window
+        // appearing on top of whatever they were actually doing. Nothing is recorded as answered,
+        // so it is still asked the first time somebody opens it themselves.
+        if (who == ProjectOpenedBy.Person && ProjectSettings.NeedsSetUp)
         {
             ProjectSetup.Open(Project.ProjectName ?? "this project", Project.Kind);
         }
@@ -891,7 +900,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                   + "its MonoBehaviour, and a type, namespace or serialized field cannot quietly change name."
                 : $"{Project.ProjectPath}. An ordinary C# project, so the Unity write rules do not apply.");
 
-        OnProjectOpened();
+        OnProjectOpened(ProjectOpenedBy.Person);
     }
 
     /// <summary>Clears the canvas.</summary>
