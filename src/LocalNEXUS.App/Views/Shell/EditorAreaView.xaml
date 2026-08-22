@@ -164,6 +164,13 @@
                 <!--
                     A run held on a wire, and the thing it is holding.
 
+                    Whether it is showing is read from the held stop itself rather than from the
+                    service that owns it, because this element sets its own DataContext and every
+                    other binding on it is resolved against the new one. A path reaching back to
+                    the outer view model resolves against the stop, finds nothing, and leaves
+                    Visibility at its default, which is visible: the panel was up permanently with
+                    nothing in it and two buttons bound to null.
+
                     Above the request box for the same reason the staged files are: the value is
                     being read and edited, so it wants the width and the wrap that a dialog does
                     not have, and the run is not going anywhere until it is released.
@@ -177,8 +184,8 @@
                         Background="{DynamicResource Surface.Card.Brush}"
                         BorderThickness="1"
                         BorderBrush="{DynamicResource Breakpoint.Marker.Brush}"
-                        Visibility="{Binding Breakpoints.IsHolding, Converter={StaticResource BooleanToVisibility}}"
-                        DataContext="{Binding Breakpoints.Current}">
+                        DataContext="{Binding Breakpoints.Current}"
+                        Visibility="{Binding Converter={StaticResource NullToVisibility}}">
                     <StackPanel>
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
