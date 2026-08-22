@@ -244,6 +244,262 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// </remarks>
     public ObservableCollection<string> AllowedToolNames { get; } = new();
 
+    /// <summary>
+    /// Rebuilds the offered extensions from what this project has installed.
+    /// </summary>
+    /// <remarks>
+    /// Called when the panel opens. Nothing is started here: an extension is a process, and one is
+    /// not launched to fill in a panel somebody opened to change the temperature. What is selected
+    /// survives an extension that is no longer installed, because the graph is the record of what
+    /// was chosen and this machine not having it is a fact about this machine.
+    /// </remarks>
+    [RelayCommand]
+    public void RefreshToolExtensions()
+    {
+        ToolExtensions.Clear();
+
+        if (_toolset is null)
+        {
+            RaiseToolCostChanged();
+            return;
+        }
+
+        foreach (var installed in _toolset.Registry.Extensions.Where(e => e.Manifest.ProvidesTools))
+        {
+            ToolExtensions.Add(new ExtensionChoice(
+                installed.Manifest.Id,
+                installed.Manifest.Name,
+                installed.StateText,
+                installed.IsUsable,
+                SelectedExtensionIds.Contains(installed.Manifest.Id, StringComparer.OrdinalIgnoreCase),
+                OnExtensionChoiceChanged));
+        }
+
+        RaiseToolCostChanged();
+    }
+
+    /// <summary>
+    /// Starts one selected extension and asks it what tools it has.
+    /// </summary>
+    /// <remarks>
+    /// Asked for rather than done on opening the panel. Listing means starting the process, and a
+    /// server with three hundred tools takes a moment to answer, which is a thing to wait for
+    /// deliberately rather than a thing to make every panel open slowly.
+    /// </remarks>
+    [RelayCommand]
+    public async Task ListToolsAsync(ExtensionChoice? choice)
+    {
+        if (choice is null || _toolset is null || !choice.IsUsable)
+        {
+            return;
+        }
+
+        choice.Listing = ToolListingState.Listing;
+        choice.Problem = null;
+
+        var problem = string.Empty;
+
+        var tools = await _toolset
+            .GatherAsync(new[] { choice.Id }, null, (_, reason) => problem = reason, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        if (problem.Length > 0)
+        {
+            choice.Problem = problem;
+            choice.Listing = ToolListingState.Unavailable;
+            RaiseToolCostChanged();
+            return;
+        }
+
+        choice.Tools.Clear();
+
+        foreach (var tool in tools)
+        {
+            // Empty means all of them, so an unnarrowed extension shows every tool ticked, which
+            // is what it actually does rather than what an empty list looks like.
+            var selected = AllowedToolNames.Count == 0
+                           || AllowedToolNames.Contains(tool.Name, StringComparer.Ordinal);
+
+            choice.Tools.Add(new ToolChoice(tool, selected, OnToolChoiceChanged));
+        }
+
+        choice.Listing = ToolListingState.Listed;
+        choice.RefreshSummary();
+
+        RaiseToolCostChanged();
+    }
+
+    /// <summary>Asks the model's own server whether it can call tools at all.</summary>
+    [RelayCommand]
+    public async Task CheckToolSupportAsync()
+    {
+        ToolSupport = ToolSupport.Unknown;
+        ToolSupportDetail = "Checking.";
+
+        if (Catalog is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var endpoint = new ModelEndpoint(
+                string.IsNullOrWhiteSpace(BaseUrl) ? LoopbackProbeUrl : BaseUrl,
+                ModelDisplayName,
+                null);
+
+            var probe = new ToolSupportProbe(OpenAiCompatibleClient.CreateDefaultHttpClient());
+            var (support, detail) = await probe.ProbeAsync(endpoint, CancellationToken.None).ConfigureAwait(true);
+
+            ToolSupport = support;
+            ToolSupportDetail = detail;
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or InvalidOperationException or UriFormatException)
+        {
+            ToolSupport = ToolSupport.Unknown;
+            ToolSupportDetail = $"The model's server could not be asked: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Where a check looks when the node has no address of its own.
+    /// </summary>
+    /// <remarks>
+    /// A local model is served on a port picked when it starts, so there is nothing to ask before
+    /// a run has started one. The check then reports that it could not be asked, which is the
+    /// honest answer and is not the same as saying the model cannot call tools.
+    /// </remarks>
+    private const string LoopbackProbeUrl = "http://127.0.0.1:0/v1";
+
+    private void OnExtensionChoiceChanged(ExtensionChoice choice)
+    {
+        if (choice.IsSelected)
+        {
+            if (!SelectedExtensionIds.Contains(choice.Id, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedExtensionIds.Add(choice.Id);
+            }
+        }
+        else
+        {
+            for (var i = SelectedExtensionIds.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(SelectedExtensionIds[i], choice.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedExtensionIds.RemoveAt(i);
+                }
+            }
+        }
+
+        RaiseToolCostChanged();
+    }
+
+    /// <summary>
+    /// Keeps the allowed names in step with the ticks, and keeps empty meaning all of them.
+    /// </summary>
+    /// <remarks>
+    /// An extension with everything ticked writes nothing, because empty means all and writing out
+    /// three hundred names would make the graph file mostly a list of things nobody narrowed. The
+    /// moment one is unticked the rest are written down, which is what narrowing means.
+    /// </remarks>
+    private void OnToolChoiceChanged(ToolChoice choice)
+    {
+        var listed = ToolExtensions.Where(e => e.Listing == ToolListingState.Listed).ToList();
+
+        if (listed.Count == 0)
+        {
+            return;
+        }
+
+        var everything = listed.SelectMany(e => e.Tools).All(t => t.IsSelected);
+
+        AllowedToolNames.Clear();
+
+        if (!everything)
+        {
+            foreach (var name in listed.SelectMany(e => e.Tools).Where(t => t.IsSelected).Select(t => t.Name))
+            {
+                AllowedToolNames.Add(name);
+            }
+        }
+
+        foreach (var extension in listed)
+        {
+            extension.RefreshSummary();
+        }
+
+        RaiseToolCostChanged();
+    }
+
+    private void RaiseToolCostChanged()
+    {
+        OnPropertyChanged(nameof(ToolTokenEstimate));
+        OnPropertyChanged(nameof(ToolCostText));
+    }
+
+    /// <summary>
+    /// The installed extensions this node could use, as the panel offers them.
+    /// </summary>
+    /// <remarks>
+    /// Built on demand rather than kept in step with the registry, because the panel is the only
+    /// thing that reads it and it is rebuilt every time the panel is opened. What is saved with the
+    /// graph is the two lists of names above; this is a view of them beside what is installed now,
+    /// so a graph opened on a machine without an extension says so rather than losing the choice.
+    /// </remarks>
+    public ObservableCollection<ExtensionChoice> ToolExtensions { get; } = new();
+
+    /// <summary>Roughly what the whole selection costs, every turn.</summary>
+    public int ToolTokenEstimate => ToolExtensions
+        .Where(e => e.IsSelected)
+        .Sum(e => e.Tools.Count == 0 ? 0 : e.SelectedTokens);
+
+    /// <summary>What the selection costs, worded for the panel.</summary>
+    public string ToolCostText
+    {
+        get
+        {
+            var selected = ToolExtensions.Count(e => e.IsSelected);
+
+            if (selected == 0)
+            {
+                return "No tools. Nothing is offered to the model and nothing is spent on schemas.";
+            }
+
+            var listed = ToolExtensions.Where(e => e.IsSelected).All(e => e.Listing == ToolListingState.Listed);
+
+            return listed
+                ? $"{selected} extension(s), about {ToolTokenEstimate} tokens of schema on every turn."
+                : $"{selected} extension(s). List their tools to see what that costs.";
+        }
+    }
+
+    /// <summary>Whether the model behind this node can call tools at all.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToolSupportText))]
+    private ToolSupport _toolSupport = ToolSupport.Unknown;
+
+    /// <summary>What the probe said, when it said anything.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToolSupportText))]
+    private string _toolSupportDetail = string.Empty;
+
+    /// <summary>
+    /// What to say about tool support where tools are being chosen.
+    /// </summary>
+    /// <remarks>
+    /// Before a run rather than after it. Selecting tools for a model that will ignore them is a
+    /// silent waste of the context they were paid for, and the run that discovers it has already
+    /// spent it.
+    /// </remarks>
+    public string ToolSupportText => ToolSupport switch
+    {
+        ToolSupport.Supported => "This model can call tools.",
+        ToolSupport.Unsupported =>
+            "This model cannot call tools, so anything selected here will be ignored. "
+            + ToolSupportDetail,
+        _ => "Whether this model can call tools has not been checked. Check it before relying on them."
+    };
+
     public ModelNode(
         ModelCatalog catalog,
         MeshManager mesh,

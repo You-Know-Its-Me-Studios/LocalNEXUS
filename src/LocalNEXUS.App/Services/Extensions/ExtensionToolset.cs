@@ -30,6 +30,16 @@ public sealed class ExtensionToolset
     }
 
     /// <summary>
+    /// What this project has installed, so a node can offer the choice of them.
+    /// </summary>
+    /// <remarks>
+    /// Exposed here rather than handed to every node separately, because a node that can call an
+    /// extension's tools already holds the thing that knows how to call them and asking it what
+    /// there is to call is the same question.
+    /// </remarks>
+    public ExtensionRegistry Registry => _registry;
+
+    /// <summary>
     /// Starts each selected MCP extension and asks it what tools it has.
     /// </summary>
     /// <param name="extensionIds">Which extensions this node selected.</param>

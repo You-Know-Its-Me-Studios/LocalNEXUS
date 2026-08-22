@@ -416,5 +416,99 @@
                  FontFamily="{StaticResource Font.Mono}" />
         <TextBlock Style="{StaticResource HintText}"
                    Text="Leave blank to let LocalNEXUS run the model. Set it to use a server that is already running." />
+
+        <!--
+            What this model may reach for. Nothing is selected until somebody selects it: a model
+            that suddenly gains three hundred tools because an extension was installed is a
+            surprise, and a run quietly spending its context on schemas nobody asked for is worse.
+        -->
+        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Tools" />
+
+        <DockPanel Margin="0,2,0,0">
+            <Button DockPanel.Dock="Right"
+                    Style="{StaticResource SmallButton}"
+                    Margin="6,0,0,0"
+                    Content="Refresh"
+                    ToolTip="Reads what this project has installed again"
+                    Command="{Binding RefreshToolExtensionsCommand}" />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Text="{Binding ToolCostText}" />
+        </DockPanel>
+
+        <!-- Said before a run, because a run that discovers it has already spent the context. -->
+        <DockPanel Margin="0,8,0,0">
+            <Button DockPanel.Dock="Right"
+                    Style="{StaticResource SmallButton}"
+                    Margin="6,0,0,0"
+                    Content="Check support"
+                    ToolTip="Asks the model's own server whether its template can call tools"
+                    Command="{Binding CheckToolSupportCommand}" />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Text="{Binding ToolSupportText}" />
+        </DockPanel>
+
+        <ItemsControl ItemsSource="{Binding ToolExtensions}" Margin="0,8,0,0">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="0,0,0,8">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right"
+                                    Style="{StaticResource SmallButton}"
+                                    Margin="6,0,0,0"
+                                    Content="List tools"
+                                    IsEnabled="{Binding IsUsable}"
+                                    Command="{Binding DataContext.ListToolsCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
+
+                            <CheckBox IsChecked="{Binding IsSelected}"
+                                      IsEnabled="{Binding IsUsable}"
+                                      VerticalAlignment="Center"
+                                      Content="{Binding Name}" />
+                        </DockPanel>
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="22,2,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding Summary}" />
+
+                        <!--
+                            Narrowing, which is a convenience rather than a requirement. Everything
+                            ticked is what an unnarrowed extension does, and the moment one is
+                            unticked the rest are written down.
+                        -->
+                        <Expander Margin="22,4,0,0"
+                                  Header="Choose tools"
+                                  Visibility="{Binding HasTools, Converter={StaticResource BooleanToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding Tools}" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,0,0,2"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  ToolTip="{Binding Description}">
+                                            <TextBlock Style="{StaticResource MonoText}" Text="{Binding Name}" />
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Expander>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,0" Text="Tool calls per run" />
+        <TextBox Text="{Binding MaxToolCalls, UpdateSourceTrigger=LostFocus}"
+                 ToolTip="How many times this node may call a tool before it has to answer without one" />
+
+        <TextBlock Style="{StaticResource HintText}"
+                   Margin="0,4,0,0"
+                   TextWrapping="Wrap"
+                   Text="Extensions are per project, so this is what this project has installed. Every call is written to the feed with its arguments and result, and a tool that fails comes back to the model as an error rather than stopping the run." />
     </StackPanel>
 </UserControl>
