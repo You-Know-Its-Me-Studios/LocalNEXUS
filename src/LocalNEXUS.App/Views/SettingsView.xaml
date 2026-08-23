@@ -589,12 +589,20 @@
                                Foreground="{DynamicResource Field.Error.Brush}"
                                Text="{Binding VisionProblem}"
                                Visibility="{Binding VisionProblem, Converter={StaticResource StringToVisibility}}" />
+                    <!--
+                        Three boxes in a row under one heading, and nothing about an empty one says
+                        which is which. Each carries an example of the answer rather than a repeat
+                        of the question, because an address, a model id and a key are told apart by
+                        what goes in them and by nothing else.
+                    -->
                     <TextBox Margin="0,6,0,0"
                              Padding="8,6"
+                             behaviors:PlaceholderBehavior.Text="Address, such as https://api.openai.com/v1"
                              Text="{Binding VisionBaseUrl, UpdateSourceTrigger=LostFocus}"
                              ToolTip="The base url of an OpenAI compatible server that can see." />
                     <TextBox Margin="0,6,0,0"
                              Padding="8,6"
+                             behaviors:PlaceholderBehavior.Text="Model id at that address, such as gpt-4o-mini"
                              Text="{Binding VisionModelId, UpdateSourceTrigger=LostFocus}"
                              ToolTip="Which model at that address reads images." />
                     <DockPanel Margin="0,6,0,0">
@@ -604,7 +612,9 @@
                                 Content="Save key"
                                 Command="{Binding SetVisionKeyCommand}"
                                 CommandParameter="{Binding Path=(behaviors:PasswordBoxBehavior.Text), ElementName=VisionKeyBox}" />
-                        <PasswordBox x:Name="VisionKeyBox" behaviors:PasswordBoxBehavior.IsBound="True" />
+                        <PasswordBox x:Name="VisionKeyBox"
+                                     behaviors:PasswordBoxBehavior.IsBound="True"
+                                     behaviors:PlaceholderBehavior.Text="API key for that address, if it needs one" />
                     </DockPanel>
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,4,0,14"
