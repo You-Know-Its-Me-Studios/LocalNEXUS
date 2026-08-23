@@ -87,6 +87,8 @@ public static class SemanticBrushes
         ("NodeType.Reshape.Brush", "NodeType.ReshapeColor"),
         ("NodeType.CompilerCheck.Brush", "NodeType.CompilerCheckColor"),
         ("NodeType.Output.Brush", "NodeType.OutputColor"),
+        ("NodeType.TextOutput.Brush", "NodeType.TextOutputColor"),
+        ("NodeType.Agent.Brush", "NodeType.AgentColor"),
 
         // Node execution state, as the model records it.
         ("NodeState.Pending.Brush", "Accent.NeutralColor"),

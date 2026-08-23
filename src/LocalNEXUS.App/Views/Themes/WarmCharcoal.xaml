@@ -38,6 +38,8 @@
     <Color x:Key="NodeType.JudgeColor">#FFC678DD</Color>
     <Color x:Key="NodeType.CompilerCheckColor">#FFE06C75</Color>
     <Color x:Key="NodeType.OutputColor">#FFE5C07B</Color>
+    <Color x:Key="NodeType.TextOutputColor">#FF98C379</Color>
+    <Color x:Key="NodeType.AgentColor">#FF56B6C2</Color>
 
     <Color x:Key="Pin.TextColor">#FF61AFEF</Color>
     <Color x:Key="Pin.CodeColor">#FFD19A66</Color>

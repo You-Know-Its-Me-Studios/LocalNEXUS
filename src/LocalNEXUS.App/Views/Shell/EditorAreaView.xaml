@@ -540,8 +540,8 @@
                 </Border.InputBindings>
             </Border>
 
-            <Border Width="380"
-                    MaxHeight="360"
+            <Border Width="700"
+                    MaxHeight="560"
                     VerticalAlignment="Center"
                     HorizontalAlignment="Center"
                     Padding="0"
@@ -581,45 +581,119 @@
                                Text="Nothing matches. Every node type is offered here, so a name that finds nothing is a name no node has." />
 
                     <!--
-                        Stretched rows, so a click anywhere across a row is a click on that row
-                        rather than only one that landed on the words.
+                        A grid of cards rather than a list of rows. There are a dozen node types
+                        and a list showed four of them, so choosing one meant scrolling a set small
+                        enough to have been shown whole. Three across fits every one of them at
+                        once, which is the point.
+
+                        Still a ListBox with its panel swapped, rather than an items control. That
+                        is what keeps the selection, the arrow keys and Enter working exactly as
+                        they did, all three of which would otherwise have had to be rebuilt by hand.
+
+                        Pixel scrolling rather than item scrolling, which is the scrolling fix and
+                        not a consequence of the grid. A list that scrolls by whole items moves a
+                        card at a time and reads as jumping past them; this stays right for the day
+                        an extension adds enough node types that the grid does have to scroll.
                     -->
                     <ListBox ItemsSource="{Binding NodeSearch.Results}"
                              SelectedItem="{Binding NodeSearch.Selected}"
                              Background="Transparent"
                              BorderThickness="0"
-                             HorizontalContentAlignment="Stretch"
+                             Margin="8,0,8,4"
+                             ScrollViewer.CanContentScroll="False"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.InputBindings>
                             <KeyBinding Key="Enter" Command="{Binding NodeSearch.PlaceCommand}" />
                             <KeyBinding Key="Escape" Command="{Binding NodeSearch.CloseCommand}" />
                         </ListBox.InputBindings>
+
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+
+                        <!--
+                            The container is the card, so the whole card is the hit area and the
+                            highlight is drawn on the card rather than as a bar behind it.
+                        -->
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Margin" Value="4" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Card"
+                                                    Width="209"
+                                                    MinHeight="74"
+                                                    Cursor="Hand"
+                                                    CornerRadius="4"
+                                                    Background="{DynamicResource Surface.Input.Brush}"
+                                                    BorderThickness="1"
+                                                    BorderBrush="{DynamicResource Surface.Border.Brush}">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Accent.Primary.Brush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Accent.Primary.Brush}" />
+                                                    <Setter TargetName="Card" Property="Background" Value="{DynamicResource Surface.Selected.Brush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
                         <ListBox.ItemTemplate>
                             <DataTemplate>
 
                                 <!--
-                                    One click places the row and closes the search, which is what
+                                    One click places the card and closes the search, which is what
                                     clicking a thing in a list of things to add means. It used to
                                     take two, so a single click selected a row and then sat there.
 
-                                    The row hands itself to the command rather than letting it read
+                                    The card hands itself to the command rather than letting it read
                                     the highlight, because whether the list has updated its
                                     selection by the time this runs depends on which element saw
-                                    the press first. Transparent so the whole row is clickable and
+                                    the press first. Transparent so the whole card is clickable and
                                     not only the text.
                                 -->
-                                <StackPanel Margin="4,3" Background="Transparent">
-                                    <StackPanel.InputBindings>
+                                <DockPanel Background="Transparent">
+                                    <DockPanel.InputBindings>
                                         <MouseBinding MouseAction="LeftClick"
                                                       Command="{Binding DataContext.NodeSearch.PlaceCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                       CommandParameter="{Binding}" />
-                                    </StackPanel.InputBindings>
+                                    </DockPanel.InputBindings>
 
-                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                    <TextBlock Style="{StaticResource HintText}"
-                                               TextWrapping="Wrap"
-                                               Text="{Binding Detail}" />
-                                </StackPanel>
+                                    <!--
+                                        The type colour down the leading edge, which is where a node
+                                        on the canvas wears it, so what was picked here and what
+                                        landed there are recognisably the same thing.
+                                    -->
+                                    <Border DockPanel.Dock="Left"
+                                            Width="3"
+                                            CornerRadius="3,0,0,3"
+                                            Background="{Binding TypeKey, Converter={StaticResource ResourceLookup}, ConverterParameter=NodeType}" />
+
+                                    <StackPanel Margin="9,7,9,8">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+
+                                        <TextBlock Style="{StaticResource HintText}"
+                                                   Margin="0,2,0,0"
+                                                   TextWrapping="Wrap"
+                                                   Text="{Binding Detail}" />
+                                    </StackPanel>
+                                </DockPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
