@@ -24,6 +24,65 @@
                        Foreground="{Binding Availability, Converter={StaticResource ResourceLookup}, ConverterParameter=ModelAvailability}"
                        Text="{Binding ChainStatusText}" />
 
+            <!--
+                The full id, which the table shows a readable name for. A local model is named by
+                the hash of its file, so the row leads with the file's name where the node reports
+                one, and this is where the thing a request actually carries can be read and copied.
+            -->
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Model id" />
+            <TextBox Style="{StaticResource SelectableText}"
+                     FontFamily="{StaticResource Font.Mono}"
+                     TextWrapping="Wrap"
+                     Text="{Binding ModelId, Mode=OneWay}" />
+
+            <!--
+                The columns the table used to carry. Most of them read "not reported", which is a
+                wall across every row in a table and one honest line here, where somebody who
+                wondered has come to look.
+            -->
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Size" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="not reported" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="2">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Context" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ContextLength, TargetNullValue=not reported}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="0">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Parameters" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ParameterSize, TargetNullValue=not reported}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="2">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Throughput" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="not reported" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="0">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Backups" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding WeakestSpare}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="2">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Last verified" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding LastVerifiedText}" />
+                </StackPanel>
+            </Grid>
+
             <TextBlock Style="{StaticResource SectionHeader}" Text="Coverage" />
 
             <Grid Margin="0,8,0,4">

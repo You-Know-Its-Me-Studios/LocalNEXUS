@@ -69,7 +69,12 @@ public sealed class MeshStatusReader : IDisposable
                     // The other half of what makes a mesh public. A node that has registered with
                     // the relays says so here, and its publication state can still be reporting
                     // the transition.
-                    NostrDiscovery: ReadBool(root, "nostr_discovery"));
+                    NostrDiscovery: ReadBool(root, "nostr_discovery"),
+
+                    // The files this node was asked to serve. The mesh names a local model by the
+                    // hash of its contents, so this is the only thing that can put a readable name
+                    // on one.
+                    RequestedModelPaths: ReadStringList(root, "requested_models"));
             }
             finally
             {

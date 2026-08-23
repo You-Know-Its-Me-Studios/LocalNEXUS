@@ -1,7 +1,6 @@
 <UserControl x:Class="LocalNEXUS.App.Views.Shell.NetworkSideBarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:behaviors="clr-namespace:LocalNEXUS.App.Infrastructure.Behaviors"
              xmlns:vm="clr-namespace:LocalNEXUS.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:NetworkViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -10,307 +9,50 @@
              Background="{DynamicResource Surface.Panel.Brush}">
 
     <!--
-        Filter groups over a pinned card for this machine. The counts are live, because a filter
-        list without them asks the person to click each one to find out whether it is worth
-        clicking.
+        The machines in the mesh, and nothing else.
 
-        Two of the groups infer their answer from what the engine does report rather than being
-        told it, and each says so in its tool tip rather than quietly presenting a guess as a fact.
+        This rail used to hold three unrelated things stacked: four filter groups acting on the
+        table, a whole host settings form acting on the node, and this list. The filters became one
+        dropdown in the toolbar, because a table that usually holds one row does not need four
+        groups with live counts; the settings became a panel that opens on demand, because they are
+        edited rarely and applied. What is left is the one thing here that is worth watching.
     -->
 
     <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Style="{StaticResource SideBarHeader}" Text="MACHINES" />
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel>
+        <TextBlock DockPanel.Dock="Top"
+                   Style="{StaticResource HintText}"
+                   Margin="14,0,14,10"
+                   TextWrapping="Wrap"
+                   Text="{Binding Mesh.EmptySourcesText}"
+                   Visibility="{Binding Machines.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
 
-                <ItemsControl ItemsSource="{Binding Groups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource SideBarHeader}"
-                                           Text="{Binding Title}"
-                                           ToolTip="{Binding Note}" />
+        <ListBox ItemsSource="{Binding Machines}"
+                 SelectedItem="{Binding SelectedSource}"
+                 ItemContainerStyle="{StaticResource ListRow}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel Margin="0,3">
+                        <Ellipse DockPanel.Dock="Left"
+                                 Style="{StaticResource StateDot}"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=SourceState}" />
 
-                                <ItemsControl ItemsSource="{Binding Filters}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Command="{Binding Apply}"
-                                                    CommandParameter="{Binding}"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Cursor="Hand">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="Root" Background="Transparent">
-                                                            <Grid>
-                                                                <Rectangle x:Name="Rule" Width="2" HorizontalAlignment="Left" Fill="Transparent" />
-                                                                <ContentPresenter Margin="14,4" />
-                                                            </Grid>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
-                                                            </Trigger>
-                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
-                                                                <Setter TargetName="Rule" Property="Fill" Value="{DynamicResource Accent.Primary.Brush}" />
-                                                            </DataTrigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-
-                                                <DockPanel>
-                                                    <TextBlock DockPanel.Dock="Right"
-                                                               Style="{StaticResource CountText}"
-                                                               Text="{Binding Count}" />
-                                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                                                </DockPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!--
-                    What this machine gives the mesh, and which mesh it gives it to. This was
-                    pinned to the bottom, and it grew: mesh name, joining, publishing, the share and
-                    the port between them took most of the panel, and what it squeezed out was the
-                    list of models to share, above it. It scrolls with everything else now.
-                -->
-                <Border BorderBrush="{DynamicResource Surface.Border.Brush}"
-                        BorderThickness="0,1,0,0"
-                        Padding="14,12">
-            <StackPanel>
-
-                <!--
-                    What the mesh is, before what this machine gives it. These four were in Settings
-                    and the contribution below them was here, so answering one question meant
-                    looking in two places and neither half said the other existed.
-                -->
-                <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Mesh name" />
-                <TextBox Text="{Binding MeshName, UpdateSourceTrigger=LostFocus}"
-                         behaviors:TextBoxHelper.Placeholder="A name for the mesh this machine hosts" />
-                <TextBlock Style="{StaticResource HintText}"
-                           TextWrapping="Wrap"
-                           Text="What this machine's own mesh is called, and what anybody you invite sees. Ignored while you are joined to somebody else's." />
-
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Join by invite" />
-                <TextBox Text="{Binding TypedToken, UpdateSourceTrigger=PropertyChanged}"
-                         FontFamily="{StaticResource Font.Mono}"
-                         behaviors:TextBoxHelper.Placeholder="Invite token from the hosting machine" />
-
-                <Button Style="{StaticResource SmallButton}"
-                        Margin="0,8,0,0"
-                        HorizontalAlignment="Left"
-                        Content="Join it"
-                        Command="{Binding JoinMeshCommand}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           TextWrapping="Wrap"
-                           Text="For a mesh somebody sent you an invite to. Anything you join is listed under the table, and you can be in several at once." />
-
-                <CheckBox Style="{StaticResource ToggleSwitch}"
-                          Margin="0,14,0,0"
-                          Content="Publish this mesh publicly"
-                          IsChecked="{Binding Publish}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource Status.Warning.Brush}"
-                           Text="The only thing here that reaches past your own network. Off, only machines on this network can find the mesh. On, it is listed publicly so anybody can find it, though joining still needs the token." />
-
-                <Rectangle Height="1" Margin="0,14,0,12" Fill="{DynamicResource Surface.Border.Brush}" />
-
-                <CheckBox Style="{StaticResource ToggleSwitch}"
-                          Content="Offer this machine"
-                          IsChecked="{Binding Contribute}" />
-
-                <!--
-                    Offering nothing is a coherent thing to be doing, not a failure, so it says
-                    what is missing in the ordinary hint colour instead of colouring itself red at
-                    someone who is halfway through deciding.
-                -->
-                <TextBlock Style="{StaticResource HintText}"
-                           Text="Tick the models below to share them. Nothing is shared until you do."
-                           Visibility="{Binding IsOfferingNothing, Converter={StaticResource BooleanToVisibility}}" />
-
-                <!--
-                    A slider rather than a field, because the question is what share of the card
-                    to give away and a proportion is what a slider is for. The number beside it is
-                    a readout: the control is the track, and the track cannot reach past what the
-                    machine has.
-                -->
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Memory to share" />
-
-                <Grid Visibility="{Binding HasMemoryReading, Converter={StaticResource BooleanToVisibility}}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <Slider Grid.Column="0"
-                            VerticalAlignment="Center"
-                            Minimum="0"
-                            Maximum="{Binding MemoryMaximumGb}"
-                            Value="{Binding MemoryShareGb}"
-                            Ticks="{Binding MemoryTicks}"
-                            SmallChange="0.5"
-                            LargeChange="1"
-                            AutomationProperties.Name="Memory to share" />
-
-                    <TextBlock Grid.Column="1"
-                               Style="{StaticResource MonoText}"
-                               Margin="10,0,0,0"
-                               MinWidth="52"
-                               TextAlignment="Right"
-                               VerticalAlignment="Center"
-                               Text="{Binding MemoryReadout}" />
-                </Grid>
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Text="No graphics driver answered, so the engine decides how much it can use."
-                           Visibility="{Binding HasMemoryReading, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-
-                <CheckBox Margin="0,8,0,0"
-                          Content="Share all of it"
-                          ToolTip="Unlocks the rest of the card. The slider keeps its current value."
-                          IsChecked="{Binding OfferAllMemory}"
-                          Visibility="{Binding HasMemoryReading, Converter={StaticResource BooleanToVisibility}}" />
-
-                <TextBlock Style="{StaticResource HintText}" Text="{Binding MemorySummary}" />
-
-                <!--
-                            What this machine can share. Ticking is the whole decision: an unticked model
-                            stays on this machine, and until one is ticked nothing is shared at all.
-                        -->
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Models to share" />
-                        <TextBlock Style="{StaticResource HintText}"
-                                   Margin="0,0,0,4"
-                                   TextWrapping="Wrap"
-                                   Text="Tick what this machine offers the mesh. Nothing is shared until one is ticked." />
-
-                        <ItemsControl ItemsSource="{Binding OfferedModels}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Margin="14,3"
-                                              IsChecked="{Binding IsOffered}"
-                                              AutomationProperties.Name="{Binding Name}">
-                                        <StackPanel Margin="2,0,0,0">
-                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-
-                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                <TextBlock Style="{StaticResource MonoText}"
-                                                           Foreground="{DynamicResource Text.Muted.Brush}"
-                                                           Text="{Binding Quantisation}" />
-                                                <TextBlock Style="{StaticResource MonoText}"
-                                                           Margin="8,0,0,0"
-                                                           Foreground="{DynamicResource Text.Muted.Brush}"
-                                                           Text="{Binding SizeLabel}" />
-                                                <TextBlock Style="{StaticResource MonoText}"
-                                                           Margin="8,0,0,0"
-                                                           Foreground="{DynamicResource Text.Muted.Brush}"
-                                                           Text="{Binding FormatLabel}" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </CheckBox>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <TextBlock Style="{StaticResource HintText}"
-                                   Margin="14,2,14,10"
-                                   Text="No models found on this machine. Add a folder in Settings, Models."
-                                   Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
-
-                        <TextBlock Style="{StaticResource HintText}"
-                                   Margin="14,2,14,10"
-                                   Text="Nothing here is in force until you press the button at the bottom of this panel. A running node is restarted so it picks them up; a stopped one just keeps them for next time."
-                                   Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}}" />
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
-                <TextBox Text="{Binding ApiPort, UpdateSourceTrigger=LostFocus}" />
-
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Invite token" />
-
-                <TextBox Text="{Binding InviteToken, Mode=OneWay}"
-                         IsReadOnly="True"
-                         FontFamily="{StaticResource Font.Mono}"
-                         FontSize="{StaticResource Font.Size.Small}"
-                         Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,2,0,0"
-                           Text="Start the node to get a token."
-                           Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Button Style="{StaticResource LinkButton}"
-                            Content="Copy"
-                            Command="{Binding CopyInviteCommand}" />
-
-                    <Button Style="{StaticResource LinkButton}"
-                            Margin="14,0,0,0"
-                            Content="Replace"
-                            ToolTip="Anyone using the old token leaves this mesh."
-                            Command="{Binding RegenerateInviteCommand}" />
-
-                    <TextBlock Style="{StaticResource MutedText}"
-                               Margin="14,0,0,0"
-                               VerticalAlignment="Center"
-                               Text="local network only"
-                               Visibility="{Binding Mesh.IsPublic, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-
-                    <TextBlock Style="{StaticResource MutedText}"
-                               Margin="14,0,0,0"
-                               VerticalAlignment="Center"
-                               Foreground="{DynamicResource Status.Warning.Brush}"
-                               Text="published"
-                               Visibility="{Binding Mesh.IsPublic, Converter={StaticResource BooleanToVisibility}}" />
-                </StackPanel>
-
-                <Button Style="{StaticResource SmallButton}"
-                        Margin="0,12,0,0"
-                        HorizontalAlignment="Left"
-                        Content="{Binding ApplyButtonText}"
-                        ToolTip="Saves everything on this panel. Restarts the node too, when there is one running to restart."
-                        Command="{Binding ApplySettingsCommand}" />
-            </StackPanel>
-        </Border>
-
-                <!-- Machines. A machine is a thing to inspect rather than the spine of the page. -->
-                <TextBlock Style="{StaticResource SideBarHeader}" Text="MACHINES" />
-
-                <ListBox ItemsSource="{Binding Machines}"
-                         SelectedItem="{Binding SelectedSource}"
-                         ItemContainerStyle="{StaticResource ListRow}"
-                         Background="Transparent"
-                         BorderThickness="0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel>
-                                <Ellipse DockPanel.Dock="Left"
-                                         Style="{StaticResource StateDot}"
-                                         Margin="0,0,8,0"
-                                         Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=SourceState}" />
-
-                                <TextBlock DockPanel.Dock="Right"
-                                           Style="{StaticResource CountText}"
-                                           Text="this machine"
-                                           Visibility="{Binding IsThisMachine, Converter={StaticResource BooleanToVisibility}}" />
-
-                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="14,2,14,10"
-                           Text="{Binding Mesh.EmptySourcesText}"
-                           Visibility="{Binding Machines.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
-            </StackPanel>
-        </ScrollViewer>
+                        <StackPanel>
+                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Style="{StaticResource MonoText}"
+                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding CapabilityText}" />
+                        </StackPanel>
+                    </DockPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
     </DockPanel>
 </UserControl>

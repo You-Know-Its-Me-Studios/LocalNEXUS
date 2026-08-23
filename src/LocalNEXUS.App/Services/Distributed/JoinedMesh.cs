@@ -62,6 +62,8 @@ public sealed partial class JoinedMesh : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StateText))]
     [NotifyPropertyChangedFor(nameof(StateDetail))]
+    [NotifyPropertyChangedFor(nameof(RowDetail))]
+    [NotifyPropertyChangedFor(nameof(RowStateBrushKey))]
     private JoinState _state = JoinState.NodeStopped;
 
     /// <summary>
@@ -120,6 +122,21 @@ public sealed partial class JoinedMesh : ObservableObject
 
     /// <summary>When it was joined, as a person reads it.</summary>
     public string JoinedText => JoinedAt.ToLocalTime().ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
+
+    /// <summary>What the mesh list shows for this row.</summary>
+    public string RowTitle => DisplayName;
+
+    /// <summary>The second half of the row: its identity and where it has got to.</summary>
+    public string RowDetail => $"{ShortId} · {StateText}";
+
+    /// <summary>The colour of its dot, which is how far joining has got.</summary>
+    public string RowStateBrushKey => $"JoinState.{State}.Brush";
+
+    /// <summary>Leaving is a per row thing, because you can be in several.</summary>
+    public bool HasRowAction => true;
+
+    /// <summary>What that action says.</summary>
+    public string RowActionText => "Leave";
 
     private string? ReadId()
     {

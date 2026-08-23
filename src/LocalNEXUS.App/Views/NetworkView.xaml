@@ -2,32 +2,30 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:net="clr-namespace:LocalNEXUS.App.ViewModels.Network"
+             xmlns:distributed="clr-namespace:LocalNEXUS.App.Services.Distributed"
              xmlns:behaviors="clr-namespace:LocalNEXUS.App.Infrastructure.Behaviors"
              xmlns:vm="clr-namespace:LocalNEXUS.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:NetworkViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             Background="Transparent">
+             Background="{DynamicResource Surface.Window.Brush}">
 
     <!--
-        Every model the network can serve, one per row, sortable.
+        The Network tab.
 
-        The coverage bar is a segment per section of the pipeline, coloured by what the mesh
-        reports about that section, so the shape of a split model and the health of each piece of
-        it are the same picture. A model still being assembled has blue segments, never red:
-        something coming up has not failed at anything.
+        Two states rather than one. With the node off there is nothing to watch, so the middle is a
+        start screen that says what a mesh is and offers the three things somebody can do. With it
+        on, the middle is what the mesh holds: models first, because they are the reason the tab
+        exists, and the meshes themselves as one grouped list under them.
 
-        Four columns say "not reported" instead of a number. The mesh does not tell us a model's
-        size on disk or its throughput, and a table that made those up would be lying exactly where
-        somebody would trust it.
-    -->
+        Host settings are not on this screen. They are a form somebody edits rarely and applies,
+        and they used to be the permanent middle of the left rail, which put a memory policy and a
+        restart warning in front of anybody who came to look at a model. They open over the tab
+        from the header instead.
 
-    <!--
-        No fill of its own, so the window base layer shows behind the table and a theme that can
-        be seen through is seen through here as it is on the canvas. The status strip, the column
-        headings and the note underneath keep the fill they were inheriting and stay opaque, the
-        same treatment the tab strip and the request bar get on the Workspace.
+        Opaque on purpose. This sits over the canvas, and with a see through theme the graph's text
+        was legible through the table.
     -->
 
     <UserControl.Resources>
@@ -42,654 +40,583 @@
                     Background="{Binding Coverage, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
         </DataTemplate>
 
+        <!--
+            One row of the mesh list, whichever kind of mesh it is. A template selector by type
+            would be three templates saying the same thing, so the row reads the shared shape and
+            each kind fills it in.
+        -->
+        <DataTemplate x:Key="MeshRow">
+            <Border Padding="34,6,16,6" Background="Transparent">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource LinkButton}"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Content="{Binding RowActionText}"
+                            Command="{Binding DataContext.MeshRowActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}"
+                            Visibility="{Binding HasRowAction, Converter={StaticResource BooleanToVisibility}}" />
+
+                    <TextBlock DockPanel.Dock="Right"
+                               Style="{StaticResource MonoText}"
+                               Margin="10,0,0,0"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource Text.Muted.Brush}"
+                               Text="{Binding RowDetail}" />
+
+                    <Ellipse Style="{StaticResource StateDot}"
+                             Width="6" Height="6"
+                             Margin="0,0,8,0"
+                             VerticalAlignment="Center"
+                             Fill="{Binding RowStateBrushKey, Converter={StaticResource BrushKey}}" />
+
+                    <TextBlock Text="{Binding RowTitle}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
     </UserControl.Resources>
 
-    <DockPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
         <!--
-            Escape backs out of whatever the inspector is pinned to, which is what escape means
-            everywhere else in this window.
+            The one place node and membership state is said. It was here, in the inspector, in a
+            table column and twice in the status bar, so none of the five read as the important one.
         -->
-        <DockPanel.InputBindings>
-            <KeyBinding Key="Escape" Command="{Binding ClearInspectorCommand}" />
-        </DockPanel.InputBindings>
-
-        <!-- What the mesh itself is doing, above the table. -->
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource Surface.Window.Brush}"
+        <Border Grid.Row="0"
+                Background="{DynamicResource Surface.Panel.Brush}"
                 BorderBrush="{DynamicResource Surface.Border.Brush}"
                 BorderThickness="0,0,0,1"
-                Padding="16,9">
+                Padding="16,10">
             <DockPanel>
-                <Grid DockPanel.Dock="Right" Width="200">
-                    <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource SmallButton}"
+                            MinWidth="104"
+                            VerticalAlignment="Center"
+                            Content="{Binding StartButtonText}"
+                            Command="{Binding ToggleMeshCommand}" />
 
-                    <!-- A watermark, because a filter box that looks like an empty box is furniture. -->
-                    <TextBlock Text="Filter models"
-                               Margin="9,0,0,0"
-                               VerticalAlignment="Center"
-                               IsHitTestVisible="False"
-                               FontSize="{StaticResource Font.Size.Small}"
-                               Foreground="{DynamicResource Text.Muted.Brush}"
-                               Visibility="{Binding FilterText, Converter={StaticResource StringToVisibility}, ConverterParameter=Invert}" />
-                </Grid>
-
-                <!--
-                    Turning the node on lives here, beside the line that says it is off, rather
-                    than in Settings where it was. Nothing else about the mesh is in Settings that
-                    somebody needs mid use, and a start button on a different screen from the one
-                    the feature lives on is a start button nobody finds.
-                -->
-                <!--
-                    Asking the public directory who else is out there. A button rather than
-                    something that happens on its own, because it is the only thing here that
-                    reaches past the local network without a model being run.
-                -->
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource SmallButton}"
-                        Margin="10,0,0,0"
-                        MinWidth="110"
-                        VerticalAlignment="Center"
-                        Content="{Binding FindMeshesText}"
-                        ToolTip="Asks the public directory which meshes are out there and lists them here. Nothing about this machine is published by asking."
-                        Command="{Binding FindMeshesCommand}" />
-
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource SmallButton}"
-                        Margin="10,0,0,0"
-                        MinWidth="110"
-                        VerticalAlignment="Center"
-                        Content="{Binding StartButtonText}"
-                        ToolTip="Starts the mesh node with the settings on the left, or stops it if it is already up."
-                        Command="{Binding ToggleMeshCommand}" />
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Content="Host settings"
+                            ToolTip="Mesh name, publishing, what this machine offers, and the invite."
+                            Command="{Binding OpenHostSettingsCommand}" />
+                </StackPanel>
 
                 <Ellipse Style="{StaticResource StateDot}"
                          Margin="0,0,9,0"
+                         VerticalAlignment="Center"
                          Fill="{Binding Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
 
-                <TextBlock Text="{Binding Mesh.MeshName}"
+                <TextBlock VerticalAlignment="Center"
                            FontWeight="SemiBold"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0" />
-
-                <TextBlock Style="{StaticResource MutedText}"
-                           VerticalAlignment="Center"
                            Text="{Binding Mesh.StatusText}" />
 
-                <!--
-                    Which mesh this is, which the node state does not say. Joining sets a token and
-                    changes nothing visible until the node restarts, so without this somebody who
-                    joined one saw exactly what they saw before.
-                -->
                 <TextBlock Style="{StaticResource MutedText}"
-                           VerticalAlignment="Center"
                            Margin="10,0,0,0"
-                           Foreground="{DynamicResource Text.Muted.Brush}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
                            Text="{Binding MembershipText}" />
             </DockPanel>
         </Border>
 
         <!--
-            What the last thing pressed here did. This tab wrote its answers to the activity feed,
-            which is only drawn in the Workspace, so joining a mesh reported itself twice into a
-            panel this section never shows and read as a button that did nothing.
+            The toolbar, which replaced four filter groups in the rail. A search box and one status,
+            because status is the only one anybody reaches for and the other three inferred their
+            answers from what the mesh reports.
         -->
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource Surface.Panel.Brush}"
+        <Border Grid.Row="1"
+                Background="{DynamicResource Surface.Window.Brush}"
                 BorderBrush="{DynamicResource Surface.Border.Brush}"
                 BorderThickness="0,0,0,1"
                 Padding="16,8"
-                Visibility="{Binding HasNotice, Converter={StaticResource BooleanToVisibility}}">
+                Visibility="{Binding IsNodeOn, Converter={StaticResource BooleanToVisibility}}">
             <DockPanel>
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource IconButton}"
-                        Margin="10,0,0,0"
-                        Content="&#xE711;"
-                        ToolTip="Dismiss"
-                        AutomationProperties.Name="Dismiss"
-                        Command="{Binding DismissNoticeCommand}" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource SmallButton}"
+                            VerticalAlignment="Center"
+                            Content="Join with an invite"
+                            Command="{Binding JoinWithInviteCommand}" />
 
-                <TextBlock TextWrapping="Wrap"
-                           VerticalAlignment="Center"
-                           Text="{Binding Notice}"
-                           Foreground="{DynamicResource Text.Primary.Brush}"
-                           Visibility="{Binding NoticeIsProblem, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="8,0,0,0"
+                            MinWidth="104"
+                            VerticalAlignment="Center"
+                            Content="{Binding FindMeshesText}"
+                            ToolTip="Asks the public directory which meshes are out there. Nothing about this machine is published by asking."
+                            Command="{Binding FindMeshesCommand}" />
+                </StackPanel>
 
-                <TextBlock TextWrapping="Wrap"
-                           VerticalAlignment="Center"
-                           Text="{Binding Notice}"
-                           Foreground="{DynamicResource Status.Danger.Brush}"
-                           Visibility="{Binding NoticeIsProblem, Converter={StaticResource BooleanToVisibility}}" />
+                <ComboBox DockPanel.Dock="Right"
+                          Width="150"
+                          Margin="10,0,0,0"
+                          VerticalAlignment="Center"
+                          ItemsSource="{Binding StatusFilters}"
+                          SelectedItem="{Binding StatusFilter}"
+                          AutomationProperties.Name="Filter by status" />
+
+                <TextBox Width="220"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Center"
+                         behaviors:TextBoxHelper.Placeholder="Search models"
+                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="Search models" />
             </DockPanel>
         </Border>
 
         <!--
-            Two tables, and a handle between them. Which one matters depends entirely on what
-            somebody is doing, so neither gets to be the fixed one: a search with thirty results
-            wants the top, and being in six meshes wants the bottom.
+            The start screen. The node is off by default and this tab is optional, so this is what
+            most people see first, and it is the one place the three shaping facts are said.
         -->
-        <Grid>
+        <Border Grid.Row="2"
+                Background="{DynamicResource Surface.Window.Brush}"
+                Padding="16"
+                Visibility="{Binding IsNodeOff, Converter={StaticResource BooleanToVisibility}}">
+            <StackPanel MaxWidth="560"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource PrimaryButton}"
+                            Margin="16,0,0,0"
+                            VerticalAlignment="Center"
+                            Content="Turn on"
+                            Command="{Binding ToggleMeshCommand}" />
+
+                    <TextBlock FontSize="{StaticResource Font.Size.Large}"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Text="Node is off. Everything runs locally." />
+                </DockPanel>
+
+                <TextBlock Style="{StaticResource HintText}"
+                           Margin="0,12,0,0"
+                           TextWrapping="Wrap"
+                           Text="A mesh pools GPUs across machines to run a model none could run alone. It is optional, and it is slower, not faster." />
+
+                <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
+                    <Button Style="{StaticResource SmallButton}"
+                            MinWidth="120"
+                            Content="Host a mesh"
+                            Command="{Binding HostAMeshCommand}" />
+
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="8,0,0,0"
+                            MinWidth="140"
+                            Content="Join with an invite"
+                            Command="{Binding JoinWithInviteCommand}" />
+
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="8,0,0,0"
+                            MinWidth="140"
+                            Content="Browse public meshes"
+                            Command="{Binding FindMeshesCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- The live view: models, then the meshes they come from. -->
+        <Grid Grid.Row="2" Visibility="{Binding IsNodeOn, Converter={StaticResource BooleanToVisibility}}">
             <Grid.RowDefinitions>
-                <!--
-                    All three proportional, which is what makes the two handles independent. With
-                    fixed heights on the lower two the rows could add up to more than the window
-                    had, so dragging the first handle pushed the third section off the bottom and
-                    looked like it had moved the second handle. Star rows always sum to the space
-                    available, so a drag moves the boundary it is on and nothing else.
-                -->
-                <RowDefinition Height="3*" MinHeight="120" />
+                <RowDefinition Height="2*" MinHeight="120" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" MinHeight="88" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" MinHeight="88" />
+                <RowDefinition Height="*" MinHeight="110" />
             </Grid.RowDefinitions>
 
-        <!--
-            One horizontal scroller around the headings and the rows together, because two would
-            drift apart the moment either was scrolled. With both side panels open the table is
-            wider than what is left of the window, and the last columns were simply unreachable:
-            no bar, no way across, and nothing saying anything had been cut off.
-
-            Vertical scrolling is disabled here and left to the list inside, so the headings stay
-            put while the rows move under them.
-        -->
-        <ScrollViewer Grid.Row="0"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled"
-                      behaviors:HorizontalWheelBehavior.IsEnabled="True">
-            <DockPanel MinWidth="1136">
-
-        <!-- Column headings. -->
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource Surface.Window.Brush}"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,0,0,1"
-                Padding="16,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <!--
-                        Widths are sized to the longest thing each column actually prints, which is
-                        "not reported" in three of them. They were sized to their headings instead,
-                        so the values were clipped to "not repo..." and ran into the column beside
-                        them. The name column keeps the slack, because a name is the one thing here
-                        that has no length anybody can predict.
-                    -->
-                    <ColumnDefinition Width="240" />
-                    <ColumnDefinition Width="96" />
-                    <ColumnDefinition Width="112" />
-                    <ColumnDefinition Width="76" />
-                    <ColumnDefinition Width="76" />
-                    <ColumnDefinition Width="104" />
-                    <ColumnDefinition Width="112" />
-                    <ColumnDefinition Width="*" MinWidth="220" />
-                    <ColumnDefinition Width="88" />
-                </Grid.ColumnDefinitions>
-
-                <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="NAME"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Name}" />
-                <Button Grid.Column="7" Style="{StaticResource ColumnHeader}" Content="CONTENTS"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Contents}" />
-                <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="SIZE"
-                        IsEnabled="False" ToolTip="Not reported by the mesh." />
-                <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="COVERAGE"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Coverage}" />
-                <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="SOURCES"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Sources}" />
-                <Button Grid.Column="4" Style="{StaticResource ColumnHeader}" Content="BACKUPS"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Spare}" />
-                <Button Grid.Column="5" Style="{StaticResource ColumnHeader}" Content="STATUS"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Status}" />
-                <Button Grid.Column="6" Style="{StaticResource ColumnHeader}" Content="CONTEXT"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Context}" />
-                <Button Grid.Column="8" Style="{StaticResource ColumnHeader}" Content="VERIFIED"
-                        IsEnabled="False" ToolTip="The last time the mesh saw a source holding part of this model." />
-            </Grid>
-        </Border>
-
-        <Grid>
-            <ListBox ItemsSource="{Binding VisibleRows}"
-                     SelectedItem="{Binding SelectedRow}"
-                     ItemContainerStyle="{StaticResource TableRow}"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <!-- The same widths as the headings above, or the two disagree. -->
-                                <ColumnDefinition Width="240" />
-                                <ColumnDefinition Width="96" />
-                                <ColumnDefinition Width="112" />
-                                <ColumnDefinition Width="76" />
-                                <ColumnDefinition Width="76" />
-                                <ColumnDefinition Width="104" />
-                                <ColumnDefinition Width="112" />
-                                <ColumnDefinition Width="*" MinWidth="220" />
-                                <ColumnDefinition Width="88" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Name, quantization, and a lock when it is listed but invite gated. -->
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0">
-                                <TextBlock Style="{StaticResource MonoText}"
-                                           FontSize="{StaticResource Font.Size.Normal}"
-                                           Text="&#xE72E;"
-                                           FontFamily="{StaticResource Font.Icons}"
-                                           Margin="0,0,6,0"
-                                           VerticalAlignment="Center"
-                                           Foreground="{DynamicResource Text.Muted.Brush}"
-                                           ToolTip="In a private mesh, so reachable only with an invite."
-                                           Visibility="{Binding IsInviteOnly, Converter={StaticResource BooleanToVisibility}}" />
-
-                                <TextBlock Style="{StaticResource MonoText}"
-                                           FontSize="{StaticResource Font.Size.Normal}"
-                                           Text="{Binding Name}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding ModelId}" />
-
-                                <Border Style="{StaticResource Tag}" Margin="8,0,0,0">
-                                    <TextBlock Style="{StaticResource TagText}" Text="{Binding Quantisation}" />
-                                </Border>
-                            </StackPanel>
-
-                            <TextBlock Grid.Column="1"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Foreground="{DynamicResource Text.Muted.Brush}"
-                                       Text="{Binding SizeText}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-
-                            <!-- One segment per section of the pipeline. -->
-                            <Grid Grid.Column="2" Margin="0,0,10,0">
-                                <ItemsControl ItemsSource="{Binding Sections}"
-                                              ItemTemplate="{StaticResource CoverageSegment}"
-                                              VerticalAlignment="Center">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-
-                                <Border Height="9"
-                                        Width="72"
-                                        HorizontalAlignment="Left"
-                                        CornerRadius="1"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource Surface.Track.Brush}"
-                                        ToolTip="The mesh has not reported how this model is assembled yet."
-                                        Visibility="{Binding HasSections, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-                            </Grid>
-
-                            <TextBlock Grid.Column="3"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Text="{Binding SourceCount}"
-                                       VerticalAlignment="Center" />
-
-                            <TextBlock Grid.Column="4"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Text="{Binding SpareCount}"
-                                       VerticalAlignment="Center"
-                                       Foreground="{Binding Strength, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
-
-                            <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
-                                <Ellipse Style="{StaticResource StateDot}"
-                                         Width="6" Height="6"
-                                         Margin="0,0,6,0"
-                                         Fill="{Binding Availability, Converter={StaticResource ResourceLookup}, ConverterParameter=ModelAvailability}" />
-                                <TextBlock Text="{Binding StatusText}"
-                                           FontSize="{StaticResource Font.Size.Small}"
-                                           Foreground="{Binding Availability, Converter={StaticResource ResourceLookup}, ConverterParameter=ModelAvailability}" />
-                            </StackPanel>
-
-                            <TextBlock Grid.Column="6"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Text="{Binding ContextText}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-
-                            <TextBlock Grid.Column="7"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Text="{Binding ContentsText}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip="{Binding ContentsText}" />
-
-
-                            <TextBlock Grid.Column="8"
-                                       Style="{StaticResource MonoText}"
-                                       Margin="0,0,14,0"
-                                       Foreground="{DynamicResource Text.Muted.Brush}"
-                                       Text="{Binding LastVerifiedText}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-
-            <TextBlock HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Margin="24"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       IsHitTestVisible="False"
-                       Foreground="{DynamicResource Text.Muted.Brush}"
-                       Text="{Binding Mesh.EmptyModelsText}"
-                       Visibility="{Binding VisibleRows.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
-        </Grid>
-            </DockPanel>
-        </ScrollViewer>
-
             <!--
-                The handle. Its own row rather than an overlay, so dragging it moves the boundary
-                rather than covering whichever table it was dropped on.
+                Models. Four columns, all of which the mesh actually reports, so nothing needs to
+                scroll sideways. Size, context, contents, backups and last verified moved into the
+                inspector, where a curious person looks, rather than being a wall of "not reported"
+                across every row.
             -->
-            <GridSplitter Grid.Row="1"
-                          Height="5"
-                          HorizontalAlignment="Stretch"
-                          VerticalAlignment="Center"
-                          ResizeBehavior="PreviousAndNext"
-                          ResizeDirection="Rows"
-                          AutomationProperties.Name="Resize the joined meshes section" />
-
-        <!--
-            The meshes this machine has joined, in the same shape as the table above it: headings,
-            rows, one line each. It is a table rather than a summary because a machine can be in
-            several meshes at once, which the engine has always allowed and this never showed.
-
-            Its own columns, because none of the ones above apply. A mesh you are in has no
-            coverage, no context and no size of its own to report; what it has is a name, an
-            identity, when you joined it and whether you are connected.
-        -->
-            <Border Grid.Row="2"
-                Background="{DynamicResource Surface.Window.Brush}"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,1,0,0">
-            <DockPanel>
-                <Border DockPanel.Dock="Top" Padding="16,10,16,8">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right"
-                                Style="{StaticResource SmallButton}"
-                                Margin="12,0,0,0"
-                                VerticalAlignment="Center"
-                                Content="Leave them all"
-                                ToolTip="Leaves every mesh below and goes back to hosting your own."
-                                Command="{Binding LeaveMeshCommand}"
-                                Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}}" />
-
-                        <TextBlock Text="Meshes you have joined"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-
-                        <TextBlock Style="{StaticResource MutedText}"
-                                   Margin="10,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MembershipText}" />
-                    </DockPanel>
-                </Border>
-
+            <DockPanel Grid.Row="0">
                 <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource Surface.Window.Brush}"
                         BorderBrush="{DynamicResource Surface.Border.Brush}"
                         BorderThickness="0,0,0,1"
-                        Padding="16,0"
-                        Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}}">
+                        Padding="16,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="240" />
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="112" />
-                            <ColumnDefinition Width="*" MinWidth="160" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" MinWidth="200" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="90" />
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="MESH" IsEnabled="False" />
-                        <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="MESH ID" IsEnabled="False" />
-                        <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="JOINED" IsEnabled="False" />
-                        <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="CONNECTION" IsEnabled="False" />
+                        <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="MODEL"
+                                Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Name}" />
+                        <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="COVERAGE"
+                                ToolTip="The model split into parts. A filled block means a machine is running that part."
+                                Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Coverage}" />
+                        <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="STATUS"
+                                Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Status}" />
+                        <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="MACHINES"
+                                Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Sources}" />
                     </Grid>
                 </Border>
 
-                <TextBlock DockPanel.Dock="Top"
-                           Style="{StaticResource HintText}"
-                           Margin="16,0,16,12"
-                           TextWrapping="Wrap"
-                           Text="{Binding JoinedEmptyText}"
-                           Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-
-                <!--
-                    No height of its own. It takes whatever the handle above gives it, which is the
-                    point of the handle; a cap here would quietly refuse the drag.
-                -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <!--
-                    A list rather than an items control, so a row can be selected and the inspector
-                    can show it. The two tables share the one inspector slot, and picking a row in
-                    either lets go of the other.
-                -->
-                <ListBox ItemsSource="{Binding Joined}"
-                         SelectedItem="{Binding SelectedJoined}"
-                         ItemContainerStyle="{StaticResource TableRow}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         Margin="0,0,0,6"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Padding="16,7"
-                                    Background="Transparent"
-                                    BorderBrush="{DynamicResource Surface.Border.Brush}"
-                                    BorderThickness="0,0,0,1">
+                <Grid>
+                    <ListBox ItemsSource="{Binding VisibleRows}"
+                             SelectedItem="{Binding SelectedRow}"
+                             ItemContainerStyle="{StaticResource TableRow}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="112" />
-                                        <ColumnDefinition Width="*" MinWidth="160" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" MinWidth="200" />
+                                        <ColumnDefinition Width="140" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="90" />
                                     </Grid.ColumnDefinitions>
 
+                                    <!--
+                                        The name as a person would recognise it. The mesh names a
+                                        local model by the hash of its file, so where the node says
+                                        which file it was asked for, that is what is shown, and the
+                                        full id is on the tool tip either way.
+                                    -->
                                     <TextBlock Grid.Column="0"
                                                Style="{StaticResource MonoText}"
                                                Margin="0,0,14,0"
                                                FontSize="{StaticResource Font.Size.Normal}"
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"
-                                               Text="{Binding DisplayName}" />
+                                               Text="{Binding Name}"
+                                               ToolTip="{Binding ModelId}" />
 
-                                    <TextBlock Grid.Column="1"
-                                               Style="{StaticResource MonoText}"
-                                               Margin="0,0,14,0"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               TextTrimming="CharacterEllipsis"
-                                               Text="{Binding ShortId}" />
+                                    <Grid Grid.Column="1" Margin="0,0,14,0">
+                                        <ItemsControl ItemsSource="{Binding Sections}"
+                                                      ItemTemplate="{StaticResource CoverageSegment}"
+                                                      VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
 
-                                    <TextBlock Grid.Column="2"
-                                               Style="{StaticResource MonoText}"
-                                               Margin="0,0,14,0"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               Text="{Binding JoinedText}" />
+                                        <Border Height="9"
+                                                Width="72"
+                                                HorizontalAlignment="Left"
+                                                CornerRadius="1"
+                                                VerticalAlignment="Center"
+                                                Background="{DynamicResource Surface.Track.Brush}"
+                                                ToolTip="The mesh has not reported how this model is assembled yet."
+                                                Visibility="{Binding HasSections, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+                                    </Grid>
 
-                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
                                         <Ellipse Style="{StaticResource StateDot}"
                                                  Width="6" Height="6"
-                                                 Margin="0,0,7,0"
-                                                 Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
-                                        <TextBlock Text="{Binding StateText}"
+                                                 Margin="0,0,6,0"
+                                                 Fill="{Binding Availability, Converter={StaticResource ResourceLookup}, ConverterParameter=ModelAvailability}" />
+                                        <TextBlock Text="{Binding StatusText}"
                                                    FontSize="{StaticResource Font.Size.Small}"
-                                                   Foreground="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{Binding Availability, Converter={StaticResource ResourceLookup}, ConverterParameter=ModelAvailability}" />
                                     </StackPanel>
 
-                                    <Button Grid.Column="4"
-                                            Style="{StaticResource LinkButton}"
-                                            VerticalAlignment="Center"
-                                            Content="Leave"
-                                            ToolTip="Leaves this one and stays in the others."
-                                            Command="{Binding DataContext.LeaveJoinedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" />
+                                    <TextBlock Grid.Column="3"
+                                               Style="{StaticResource MonoText}"
+                                               VerticalAlignment="Center"
+                                               Text="{Binding SourceCount}" />
                                 </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                </ScrollViewer>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="24"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               IsHitTestVisible="False"
+                               Foreground="{DynamicResource Text.Muted.Brush}"
+                               Text="{Binding Mesh.EmptyModelsText}"
+                               Visibility="{Binding VisibleRows.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
+                </Grid>
             </DockPanel>
-        </Border>
 
-
-            <GridSplitter Grid.Row="3"
+            <GridSplitter Grid.Row="1"
                           Height="5"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Center"
                           ResizeBehavior="PreviousAndNext"
                           ResizeDirection="Rows"
-                          AutomationProperties.Name="Resize the hosted mesh section" />
+                          AutomationProperties.Name="Resize the meshes list" />
 
             <!--
-                The mesh this machine hosts, in the same shape as the two above it. One row, because
-                an install hosts one mesh, and a table anyway: the questions asked of a mesh you host
-                are the same shape as the ones asked of a mesh you joined, and answering them in a
-                different shape means learning two layouts for one idea.
-
-                Its own columns again. Who can see it, who is in it and what this machine puts in
-                are the things a host decides, and none of them apply to a mesh somebody else runs.
+                The meshes, as one grouped list. Yours, joined and found were a one row table,
+                another table, and rows mixed into the model table. They are the same kind of thing
+                at three distances, so they are three groups of one list and the model table is
+                left to models.
             -->
-            <Border Grid.Row="4"
-                    Background="{DynamicResource Surface.Window.Brush}"
+            <DockPanel Grid.Row="2" Background="{DynamicResource Surface.Window.Brush}">
+                <Border DockPanel.Dock="Top"
+                        BorderBrush="{DynamicResource Surface.Border.Brush}"
+                        BorderThickness="0,1,0,1"
+                        Padding="16,7">
+                    <TextBlock Text="Meshes" FontWeight="SemiBold" />
+                </Border>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding MeshGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type net:MeshGroup}">
+                                <StackPanel>
+                                    <!-- The heading is the control that opens the group. -->
+                                    <Button Style="{StaticResource GroupHeader}"
+                                            Command="{Binding ToggleCommand}">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Style="{StaticResource MonoText}"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       Text="{Binding Count}" />
+
+                                            <TextBlock FontFamily="{StaticResource Font.Icons}"
+                                                       FontSize="10"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       Text="{Binding Chevron}" />
+
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </Button>
+
+                                    <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibility}}">
+                                        <TextBlock Style="{StaticResource HintText}"
+                                                   Margin="34,2,16,8"
+                                                   TextWrapping="Wrap"
+                                                   Text="{Binding EmptyText}"
+                                                   Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibility}}" />
+
+                                        <ItemsControl ItemsSource="{Binding Items}"
+                                                      ItemTemplate="{StaticResource MeshRow}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+
+        <!--
+            Host settings, over the tab rather than in it. A form that is edited rarely and applied,
+            and which was the permanent middle of the left rail.
+        -->
+        <Grid Grid.RowSpan="3"
+              Visibility="{Binding IsHostSettingsOpen, Converter={StaticResource BooleanToVisibility}}">
+            <Border Background="{DynamicResource Surface.Scrim.Brush}">
+                <Border.InputBindings>
+                    <MouseBinding MouseAction="LeftClick" Command="{Binding CloseHostSettingsCommand}" />
+                </Border.InputBindings>
+            </Border>
+
+            <Border Width="380"
+                    HorizontalAlignment="Right"
+                    Background="{DynamicResource Surface.Panel.Brush}"
                     BorderBrush="{DynamicResource Surface.Border.Brush}"
-                    BorderThickness="0,1,0,0">
+                    BorderThickness="1,0,0,0">
                 <DockPanel>
-                    <Border DockPanel.Dock="Top" Padding="16,10,16,8">
-                        <DockPanel>
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Style="{StaticResource SmallButton}"
-                                        Margin="12,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Content="Copy the invite"
-                                        ToolTip="Puts the invite on the clipboard. Anybody with it can join this mesh."
-                                        Command="{Binding CopyInviteCommand}"
-                                        Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
-
-                                <Button Style="{StaticResource SmallButton}"
-                                        Margin="8,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Content="New invite"
-                                        ToolTip="Rotates this node's key, which makes every invite handed out so far stop working."
-                                        Command="{Binding RegenerateInviteCommand}"
-                                        Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
-                            </StackPanel>
-
-                            <TextBlock Text="The mesh you host"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center" />
-
-                            <TextBlock Style="{StaticResource MutedText}"
-                                       Margin="10,0,0,0"
-                                       VerticalAlignment="Center"
-                                       Text="Yours. Anybody you give the invite to joins this one." />
-                        </DockPanel>
-                    </Border>
-
                     <Border DockPanel.Dock="Top"
                             BorderBrush="{DynamicResource Surface.Border.Brush}"
                             BorderThickness="0,0,0,1"
-                            Padding="16,0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="240" />
-                                <ColumnDefinition Width="160" />
-                                <ColumnDefinition Width="160" />
-                                <ColumnDefinition Width="160" />
-                                <ColumnDefinition Width="*" MinWidth="180" />
-                            </Grid.ColumnDefinitions>
+                            Padding="16,12">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right"
+                                    Style="{StaticResource IconButton}"
+                                    Content="&#xE711;"
+                                    ToolTip="Close"
+                                    AutomationProperties.Name="Close host settings"
+                                    Command="{Binding CloseHostSettingsCommand}" />
 
-                            <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="MESH" IsEnabled="False" />
-                            <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="MESH ID" IsEnabled="False" />
-                            <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="WHO CAN FIND IT" IsEnabled="False" />
-                            <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="MEMBERS" IsEnabled="False" />
-                            <Button Grid.Column="4" Style="{StaticResource ColumnHeader}" Content="YOU ARE GIVING" IsEnabled="False" />
-                        </Grid>
+                            <TextBlock Text="Host settings" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
                     </Border>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ListBox ItemsSource="{Binding Hosted}"
-                                 SelectedItem="{Binding SelectedHosted}"
-                                 ItemContainerStyle="{StaticResource TableRow}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Padding="16,7"
-                                            Background="Transparent"
-                                            BorderBrush="{DynamicResource Surface.Border.Brush}"
-                                            BorderThickness="0,0,0,1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="240" />
-                                                <ColumnDefinition Width="160" />
-                                                <ColumnDefinition Width="160" />
-                                                <ColumnDefinition Width="160" />
-                                                <ColumnDefinition Width="*" MinWidth="180" />
-                                            </Grid.ColumnDefinitions>
+                    <!-- Applying is the point of the panel, so it is pinned rather than scrolled to. -->
+                    <Border DockPanel.Dock="Bottom"
+                            BorderBrush="{DynamicResource Surface.Border.Brush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="16,12">
+                        <StackPanel>
+                            <Button Style="{StaticResource PrimaryButton}"
+                                    HorizontalAlignment="Left"
+                                    Content="{Binding ApplyButtonText}"
+                                    Command="{Binding ApplySettingsCommand}" />
 
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
-                                                <Ellipse Style="{StaticResource StateDot}"
-                                                         Width="6" Height="6"
-                                                         Margin="0,0,7,0"
-                                                         Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
-                                                <TextBlock Style="{StaticResource MonoText}"
-                                                           FontSize="{StaticResource Font.Size.Normal}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Text="{Binding DisplayName}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,6,0,0"
+                                       Text="Changes apply on restart." />
+
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Text.Primary.Brush}"
+                                       Text="{Binding Notice}"
+                                       Visibility="{Binding HasNotice, Converter={StaticResource BooleanToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Mesh name" />
+                            <TextBox Text="{Binding MeshName, UpdateSourceTrigger=LostFocus}"
+                                     behaviors:TextBoxHelper.Placeholder="A name for the mesh you host" />
+
+                            <!-- Only when it is actually true, which is the only time it explains anything. -->
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="Ignored while you are joined to someone else's."
+                                       Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}}" />
+
+                            <CheckBox Style="{StaticResource ToggleSwitch}"
+                                      Margin="0,16,0,0"
+                                      Content="Publish this mesh publicly"
+                                      IsChecked="{Binding Publish}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Status.Warning.Brush}"
+                                       Text="Off: only this network can find it. On: listed publicly, but joining still needs the invite." />
+
+                            <CheckBox Style="{StaticResource ToggleSwitch}"
+                                      Margin="0,16,0,0"
+                                      Content="Offer this machine"
+                                      IsChecked="{Binding Contribute}" />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Memory" />
+                            <Grid Visibility="{Binding HasMemoryReading, Converter={StaticResource BooleanToVisibility}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Slider Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Minimum="0"
+                                        Maximum="{Binding MemoryMaximumGb}"
+                                        Value="{Binding MemoryShareGb}"
+                                        Ticks="{Binding MemoryTicks}"
+                                        IsSnapToTickEnabled="False"
+                                        AutomationProperties.Name="Memory to share" />
+
+                                <TextBlock Grid.Column="1"
+                                           Style="{StaticResource MonoText}"
+                                           Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding MemoryShareLabel}" />
+                            </Grid>
+
+                            <DockPanel Margin="0,4,0,0">
+                                <!-- The policy behind the number, on demand rather than as a paragraph. -->
+                                <TextBlock DockPanel.Dock="Right"
+                                           FontFamily="{StaticResource Font.Icons}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Text.Muted.Brush}"
+                                           Text="&#xE946;"
+                                           ToolTip="{Binding MemorySummary}" />
+
+                                <CheckBox Content="Share all of it"
+                                          IsChecked="{Binding OfferAllMemory}"
+                                          Visibility="{Binding HasMemoryReading, Converter={StaticResource BooleanToVisibility}}" />
+                            </DockPanel>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Models" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,0,0,4"
+                                       TextWrapping="Wrap"
+                                       Text="Nothing is shared until you tick one."
+                                       Visibility="{Binding IsOfferingNothing, Converter={StaticResource BooleanToVisibility}}" />
+
+                            <ItemsControl ItemsSource="{Binding OfferedModels}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,3"
+                                                  IsChecked="{Binding IsOffered}"
+                                                  AutomationProperties.Name="{Binding Name}">
+                                            <StackPanel Margin="2,0,0,0">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Style="{StaticResource MonoText}"
+                                                               Foreground="{DynamicResource Text.Muted.Brush}"
+                                                               Text="{Binding Quantisation}" />
+                                                    <TextBlock Style="{StaticResource MonoText}"
+                                                               Margin="8,0,0,0"
+                                                               Foreground="{DynamicResource Text.Muted.Brush}"
+                                                               Text="{Binding SizeLabel}" />
+                                                </StackPanel>
                                             </StackPanel>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
-                                            <TextBlock Grid.Column="1"
-                                                       Style="{StaticResource MonoText}"
-                                                       Margin="0,0,14,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource Text.Muted.Brush}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Text="{Binding ShortId}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="No models found on this machine. Add a folder in Settings, Models."
+                                       Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
 
-                                            <TextBlock Grid.Column="2"
-                                                       Style="{StaticResource MonoText}"
-                                                       Margin="0,0,14,0"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Text="{Binding VisibilityText}" />
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
+                            <TextBox Text="{Binding ApiPort, UpdateSourceTrigger=LostFocus}" MaxWidth="120" HorizontalAlignment="Left" />
 
-                                            <TextBlock Grid.Column="3"
-                                                       Style="{StaticResource MonoText}"
-                                                       Margin="0,0,14,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource Text.Muted.Brush}"
-                                                       Text="{Binding MembersText}" />
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Invite" />
+                            <TextBox Style="{StaticResource MonoTextBox}"
+                                     Text="{Binding InviteToken, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     MaxHeight="70"
+                                     TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
 
-                                            <TextBlock Grid.Column="4"
-                                                       Style="{StaticResource MonoText}"
-                                                       Margin="0,0,14,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource Text.Muted.Brush}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Text="{Binding SharingText}" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Text="Start the node to get one."
+                                       Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="0,8,0,0"
+                                        Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}">
+                                <Button Style="{StaticResource SmallButton}" Content="Copy" Command="{Binding CopyInviteCommand}" />
+                                <Button Style="{StaticResource SmallButton}"
+                                        Margin="8,0,0,0"
+                                        Content="New"
+                                        ToolTip="Rotates this node's key, which makes every invite handed out so far stop working."
+                                        Command="{Binding RegenerateInviteCommand}" />
+                            </StackPanel>
+
+                            <!-- Joining lives here too, since it is the other half of membership. -->
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Join another mesh" />
+                            <TextBox Text="{Binding TypedToken, UpdateSourceTrigger=PropertyChanged}"
+                                     FontFamily="{StaticResource Font.Mono}"
+                                     behaviors:TextBoxHelper.Placeholder="Paste invite token" />
+                            <Button Style="{StaticResource SmallButton}"
+                                    Margin="0,8,0,14"
+                                    HorizontalAlignment="Left"
+                                    Content="Join it"
+                                    Command="{Binding JoinMeshCommand}" />
+                        </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
             </Border>
-
         </Grid>
-    </DockPanel>
+    </Grid>
 </UserControl>

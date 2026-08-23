@@ -59,15 +59,6 @@
                                Foreground="{Binding InspectorHeader.StateKey, Converter={StaticResource BrushKey}}" />
 
                     <!--
-                        A way back out. Clicking into a coverage section pinned the inspector to it
-                        with nothing that went back up, and the Network picks a model on load, so
-                        there was never a state with nothing selected to return to. One press goes
-                        up a level, the next lets go entirely.
-
-                        Network only. In the Workspace the selection belongs to the canvas, and
-                        clicking empty space there already clears it.
-                    -->
-                    <!--
                         Network only. In the Workspace the selection belongs to the canvas and
                         clicking empty space there already clears it.
                     -->

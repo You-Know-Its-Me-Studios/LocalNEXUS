@@ -693,8 +693,8 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
 
         var complete = Models.Count(m => m.CanRun);
         StatusText = State == MeshNodeState.Serving
-            ? $"Serving in {DescribeMesh()}, {Sources.Count} source(s), {complete} model(s) ready"
-            : $"Routing in {DescribeMesh()}, {Sources.Count} source(s), {complete} model(s) ready";
+            ? $"Serving in {DescribeMesh()}, {Count(Sources.Count, "source")}, {complete} ready"
+            : $"Routing in {DescribeMesh()}, {Count(Sources.Count, "source")}, {complete} ready";
 
         // Only a genuine transition writes to the feed. A heartbeat must never write there on
         // every tick, because every entry is a blocking hop onto the UI thread.
@@ -703,9 +703,59 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
             _announcedReady = true;
             _feed.Info(
                 "Mesh node ready",
-                $"{DescribeMesh()} with {Sources.Count} source(s) and {complete} model(s) ready to serve.");
+                $"{DescribeMesh()} with {Count(Sources.Count, "source")} and {Count(complete, "model")} ready to serve.");
         }
     }
+
+    /// <summary>
+    /// Puts a readable name on the local models this node was asked to serve.
+    /// </summary>
+    /// <remarks>
+    /// The mesh names a local model by the hash of its file, which is meaningless to read. The node
+    /// reports the files it was asked for, and those are the same set in the same order, so the two
+    /// are paired by position.
+    ///
+    /// Only when the counts agree. Position is an inference rather than something the engine
+    /// promises, and a name put on the wrong model would be worse than a hash: a hash is unreadable
+    /// and a wrong name is believed. Anything else keeps its hash.
+    /// </remarks>
+    private static Dictionary<string, string> NameLocalModels(MeshSnapshot snapshot)
+    {
+        var named = new Dictionary<string, string>(StringComparer.Ordinal);
+        var paths = snapshot.RequestedModelPaths;
+
+        if (paths is null || paths.Count == 0)
+        {
+            return named;
+        }
+
+        var local = snapshot.Models
+            .Select(m => m.Id)
+            .Where(id => id.Contains("sha256-", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (local.Count != paths.Count)
+        {
+            return named;
+        }
+
+        for (var i = 0; i < local.Count; i++)
+        {
+            var name = Path.GetFileNameWithoutExtension(paths[i]);
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                named[local[i]] = name;
+            }
+        }
+
+        return named;
+    }
+
+    /// <summary>A count and its noun, pluralised properly rather than with a bracketed s.</summary>
+    private static string Count(int howMany, string noun)
+        => howMany == 1 ? $"1 {noun}" : $"{howMany} {noun}s";
 
     private string DescribeMesh()
     {
@@ -787,6 +837,7 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     private void ReconcileModels(MeshSnapshot snapshot)
     {
         var routable = snapshot.Models.ToDictionary(m => m.Id, StringComparer.Ordinal);
+        var friendly = NameLocalModels(snapshot);
 
         var identities = routable.Keys
             .Concat(snapshot.AnnouncedModelIds)
@@ -804,6 +855,8 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
                 entry = new NetworkServedModel(id);
                 Models.Add(entry);
             }
+
+            entry.FriendlyName = friendly.GetValueOrDefault(id);
 
             var isRoutable = routable.TryGetValue(id, out var model);
             if (isRoutable && model is not null)

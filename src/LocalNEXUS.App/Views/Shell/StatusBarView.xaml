@@ -39,6 +39,12 @@
                 <TextBlock FontSize="{StaticResource Font.Size.Micro}" Text="{Binding Feed.RunState}" />
             </StackPanel>
 
+            <!--
+                A dot and nothing else. The sentence beside it repeated what the Network tab says
+                across its whole header, so between the two of them and the tab's own inspector the
+                same fact was on screen three times and none of them read as the one to trust.
+                The tool tip keeps it reachable from any tab.
+            -->
             <StackPanel Orientation="Horizontal"
                         Margin="0,0,16,0"
                         ToolTip="{Binding Network.Mesh.StatusText}">
@@ -46,7 +52,7 @@
                          Width="6" Height="6"
                          Margin="0,0,6,0"
                          Fill="{Binding Network.Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
-                <TextBlock FontSize="{StaticResource Font.Size.Micro}" Text="{Binding Network.Mesh.StatusText}" />
+                <TextBlock FontSize="{StaticResource Font.Size.Micro}" Text="Mesh" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal"

@@ -24,6 +24,7 @@ namespace LocalNEXUS.App.Services.Distributed;
 /// <param name="LlamaReady">True once a local model runtime is up and able to answer.</param>
 /// <param name="IsClient">True when this node has attached to a mesh as a consumer.</param>
 /// <param name="NostrDiscovery">True when the node is listed on the public relays.</param>
+/// <param name="RequestedModelPaths">The model files this node was asked to serve, in the order it was asked.</param>
 public sealed record MeshSnapshot(
     string NodeId,
     string NodeState,
@@ -40,7 +41,8 @@ public sealed record MeshSnapshot(
     string DaemonState = "",
     bool LlamaReady = false,
     bool IsClient = false,
-    bool NostrDiscovery = false);
+    bool NostrDiscovery = false,
+    IReadOnlyList<string>? RequestedModelPaths = null);
 
 /// <summary>A node in the mesh other than this one, exactly as the engine reports it.</summary>
 /// <param name="Id">The peer's public key, which is its stable identity.</param>

@@ -160,6 +160,21 @@ public sealed partial class HostedMeshRow : ObservableObject
     /// <summary>True once there is an invite to pass on.</summary>
     public bool HasInvite => _mesh.HasInviteToken;
 
+    /// <summary>What the mesh list shows for this row.</summary>
+    public string RowTitle => DisplayName;
+
+    /// <summary>The second half of the row, which for a mesh you host is who can reach it.</summary>
+    public string RowDetail => $"{VisibilityText} · {MembersText} · {SharingText}";
+
+    /// <summary>The colour of its dot, which is the node's own state.</summary>
+    public string RowStateBrushKey => $"MeshNodeState.{State}.Brush";
+
+    /// <summary>Nothing to do to your own mesh from a row. Its settings are a panel.</summary>
+    public bool HasRowAction => false;
+
+    /// <summary>Unused while there is no action, and bound anyway so the template stays one template.</summary>
+    public string RowActionText => string.Empty;
+
     /// <summary>Re-reads everything, since all of it is derived from the node and the settings.</summary>
     public void Refresh() => OnPropertyChanged(string.Empty);
 }

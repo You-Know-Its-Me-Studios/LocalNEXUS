@@ -103,6 +103,21 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
         _ => Name
     };
 
+    /// <summary>What the mesh list shows for this row.</summary>
+    public string RowTitle => Mesh.DisplayName;
+
+    /// <summary>The second half of the row: how big it is and what it runs.</summary>
+    public string RowDetail => $"{Mesh.CapacityText} · {Mesh.NodeCount} of them · {Mesh.ServingText}";
+
+    /// <summary>Grey, because a mesh you have not joined is neither working nor broken.</summary>
+    public string RowStateBrushKey => "ModelAvailability.NotJoined.Brush";
+
+    /// <summary>Joining is the only thing to do to a mesh you found.</summary>
+    public bool HasRowAction => true;
+
+    /// <summary>What that action says.</summary>
+    public string RowActionText => "Join";
+
     /// <inheritdoc />
     /// <remarks>Nothing here depends on this install's mesh, so there is nothing to re-read.</remarks>
     public void RefreshMeshState()

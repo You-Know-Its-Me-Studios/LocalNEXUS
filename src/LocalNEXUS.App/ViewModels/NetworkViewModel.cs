@@ -112,6 +112,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MemoryReadout))]
     [NotifyPropertyChangedFor(nameof(MemorySummary))]
+    [NotifyPropertyChangedFor(nameof(MemoryShareLabel))]
     private double _memoryShareGb;
 
     /// <summary>
@@ -182,8 +183,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             () => Publish));
         catalog.Models.CollectionChanged += (_, _) => RebuildOfferedModels();
 
-        Groups = BuildFilterGroups();
-
         Mesh.Models.CollectionChanged += OnModelsChanged;
         Mesh.Sources.CollectionChanged += OnSourcesChanged;
         Mesh.PropertyChanged += OnMeshChanged;
@@ -204,8 +203,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// <summary>The rows the filters and the sort leave, which is what the table draws.</summary>
     public ObservableCollection<INetworkRow> VisibleRows { get; } = new();
 
-    /// <summary>The filter headings in the sidebar, above the contribute card.</summary>
-    public IReadOnlyList<ModelFilterGroup> Groups { get; }
 
     /// <summary>The machines in the mesh, which are both a filter and something to inspect.</summary>
     public ObservableCollection<InferenceSource> Machines { get; } = new();
@@ -218,13 +215,20 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// beats a model, because that is the order of how specific the question is: someone who
     /// clicked an uncovered section is asking about that section.
     /// </summary>
+    /// <remarks>
+    /// Falls through to the mesh this machine hosts rather than to nothing. That was a table of one
+    /// row, which is a card wearing a table's chrome, and this is where its content already had a
+    /// panel. It also means the inspector is never empty on this tab, so the default answer to
+    /// "what am I looking at" is the thing somebody most likely wants.
+    /// </remarks>
     public object? InspectorTarget
         => (object?)SelectedSection
            ?? (object?)SelectedSource
            ?? (object?)SelectedHosted
            ?? (object?)SelectedJoined
            ?? (object?)SelectedDirectoryMesh
-           ?? SelectedModel;
+           ?? (object?)SelectedModel
+           ?? Hosted.FirstOrDefault();
 
     /// <summary>The joined mesh the inspector is showing, or null.</summary>
     /// <remarks>
@@ -292,7 +296,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                     : $"{blocked} blocked";
             }
 
-            return starting > 0 ? $"{starting} starting" : $"{Rows.Count} model(s) complete";
+            if (starting > 0)
+            {
+                return starting == 1 ? "1 model starting" : $"{starting} models starting";
+            }
+
+            return Rows.Count == 1 ? "1 model ready" : $"{Rows.Count} models ready";
         }
     }
 
@@ -313,6 +322,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// rather than colouring itself red at somebody who is halfway through a decision.
     /// </remarks>
     public bool IsOfferingNothing => Contribute && OfferedCount == 0;
+
+    /// <summary>
+    /// The slider's readout: what is given and what is kept, and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// The numbers are the useful part and the policy behind them is not, so the policy went to a
+    /// tool tip. It was four sentences under the slider, permanently.
+    /// </remarks>
+    public string MemoryShareLabel => HasMemoryReading
+        ? $"{MemoryShareGb:0.#} GB shared, {Math.Max(0d, MemoryCeilingGb - MemoryShareGb):0.#} GB kept"
+        : "not reported";
 
     /// <summary>What this machine's graphics card reports, or null when no driver answered.</summary>
     public GraphicsMemory? Memory => AcceleratorProbe.DetectMemory();
@@ -379,22 +399,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         ApplyFilters();
     }
 
-    /// <summary>Puts one filter in force within its group.</summary>
-    [RelayCommand]
-    private void ApplyFilter(ModelFilter? filter)
-    {
-        if (filter is null)
-        {
-            return;
-        }
-
-        foreach (var group in Groups.Where(g => g.Filters.Contains(filter)))
-        {
-            group.Select(filter);
-        }
-
-        ApplyFilters();
-    }
 
     /// <summary>
     /// Steps the inspector back one level, and off entirely once there is nowhere left to go.
@@ -557,6 +561,55 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         SelectedModel = null;
     }
 
+    /// <summary>
+    /// Every mesh in one list, grouped by what it is to this machine.
+    /// </summary>
+    /// <remarks>
+    /// Yours, joined and found were three separate surfaces: a table, another table, and rows
+    /// mixed into the model table. They are the same kind of thing seen from three distances, so
+    /// they are one list with three groups and the model table is left to models.
+    /// </remarks>
+    public ObservableCollection<MeshGroup> MeshGroups { get; } = new();
+
+    /// <summary>The three groups, held so their contents can be replaced without rebuilding them.</summary>
+    private readonly MeshGroup _yours = new("Yours", "No mesh yet. Start the node and one is created.");
+    private readonly MeshGroup _joinedGroup = new("Joined", "Not in anyone else's mesh yet.");
+    private readonly MeshGroup _found = new("Found", "Nothing yet. Find meshes looks in the public directory.", isExpanded: false);
+
+    /// <summary>
+    /// Puts every mesh into the group it belongs in.
+    /// </summary>
+    /// <remarks>
+    /// Called whenever any of the three sources changes, and it rebuilds all three rather than
+    /// working out which one moved. Three short lists cost nothing to rebuild and a partial update
+    /// is where a list goes wrong.
+    /// </remarks>
+    private void RebuildMeshGroups()
+    {
+        if (MeshGroups.Count == 0)
+        {
+            MeshGroups.Add(_yours);
+            MeshGroups.Add(_joinedGroup);
+            MeshGroups.Add(_found);
+        }
+
+        Replace(_yours, Hosted);
+        Replace(_joinedGroup, Joined);
+        Replace(_found, _discovered);
+    }
+
+    private static void Replace(MeshGroup group, System.Collections.IEnumerable items)
+    {
+        group.Items.Clear();
+
+        foreach (var item in items)
+        {
+            group.Items.Add(item);
+        }
+
+        group.Refresh();
+    }
+
     /// <summary>True when this machine has joined anything, which is what the table is for.</summary>
     public bool HasJoined => Joined.Count > 0;
 
@@ -643,6 +696,30 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Whatever the action on a mesh row does, for whichever kind of mesh it is.
+    /// </summary>
+    /// <remarks>
+    /// One command rather than one per kind, because the row template is one template. Which thing
+    /// happens is decided by what the row is, which the row already knows and the list does not
+    /// have to.
+    /// </remarks>
+    [RelayCommand]
+    private async Task MeshRowActionAsync(object? row)
+    {
+        switch (row)
+        {
+            case JoinedMesh joined:
+                await LeaveJoinedAsync(joined).ConfigureAwait(true);
+                break;
+
+            case DiscoveredMeshRow found:
+                SelectedDirectoryMesh = found.Mesh;
+                await JoinDiscoveredAsync().ConfigureAwait(true);
+                break;
+        }
+    }
+
     /// <summary>Leaves one mesh, keeping any others.</summary>
     [RelayCommand]
     private async Task LeaveJoinedAsync(JoinedMesh? mesh)
@@ -664,6 +741,54 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         await ApplySettingsAsync().ConfigureAwait(true);
     }
+
+    /// <summary>
+    /// True when there is no node running, which is the state this tab is in by default.
+    /// </summary>
+    /// <remarks>
+    /// What the whole screen keys off. With the node off there is nothing to watch and nothing to
+    /// filter, so showing empty tables beside a full settings form asked somebody to read an
+    /// expert surface before they had done anything. Off gets a start screen instead.
+    /// </remarks>
+    public bool IsNodeOff => !Mesh.IsRunning;
+
+    /// <summary>True when there is something to watch, which is everything except the start screen.</summary>
+    public bool IsNodeOn => Mesh.IsRunning;
+
+    /// <summary>
+    /// True while the host settings are open over the tab.
+    /// </summary>
+    /// <remarks>
+    /// A form somebody edits rarely and applies, rather than something to stare at. It was the
+    /// permanent middle of the left rail, which put the restart hints and the memory policy in
+    /// front of anybody who came here to look at a model.
+    /// </remarks>
+    [ObservableProperty]
+    private bool _isHostSettingsOpen;
+
+    /// <summary>Opens the host settings.</summary>
+    [RelayCommand]
+    private void OpenHostSettings() => IsHostSettingsOpen = true;
+
+    /// <summary>Closes them without applying, which leaves the fields as they are.</summary>
+    /// <remarks>
+    /// Nothing is discarded, because nothing was in force: these are read when the node starts, so
+    /// closing changes no more than opening did.
+    /// </remarks>
+    [RelayCommand]
+    private void CloseHostSettings() => IsHostSettingsOpen = false;
+
+    /// <summary>Starts the node and opens the settings, which is the host path from the start screen.</summary>
+    [RelayCommand]
+    private void HostAMesh() => IsHostSettingsOpen = true;
+
+    /// <summary>Opens the settings with the invite field ready, which is the join path.</summary>
+    [RelayCommand]
+    private void JoinWithInvite() => IsJoinOpen = true;
+
+    /// <summary>True while the join box is showing in the toolbar.</summary>
+    [ObservableProperty]
+    private bool _isJoinBoxOpen;
 
     /// <summary>True while the public directory is being asked.</summary>
     [ObservableProperty]
@@ -994,53 +1119,24 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// The filter groups. Two of them infer their answer from what the engine does report rather
     /// than being told it directly, and each says so in its note rather than pretending otherwise.
     /// </summary>
-    private IReadOnlyList<ModelFilterGroup> BuildFilterGroups() => new[]
+    /// <summary>
+    /// The one filter anybody reaches for, as a list to choose from.
+    /// </summary>
+    /// <remarks>
+    /// Four groups with live counts, in a rail, above a table that usually holds one row. Status is
+    /// the only one that answers a question somebody actually has, and the other three inferred
+    /// their answers from what the mesh reports and had to say so in tooltips nobody hovers.
+    /// </remarks>
+    public IReadOnlyList<string> StatusFilters { get; } = new[]
     {
-        new ModelFilterGroup(
-            "STATUS",
-            "Whether the network can run the model right now.",
-            new[]
-            {
-                new ModelFilter("All", _ => true, ApplyFilterCommand, isSelected: true),
-                new ModelFilter("Complete", r => r.Availability == ModelAvailability.Complete, ApplyFilterCommand),
-                new ModelFilter("Starting", r => r.Availability == ModelAvailability.Starting, ApplyFilterCommand),
-                new ModelFilter("Blocked", r => r.Availability == ModelAvailability.Blocked, ApplyFilterCommand),
-                new ModelFilter("Found, not joined", r => r.Availability == ModelAvailability.NotJoined, ApplyFilterCommand)
-            }),
-
-        new ModelFilterGroup(
-            "FORMAT",
-            "Worked out from the quantization label. The mesh reports a quantization rather than a format, so "
-            + "anything without a label a GGUF file would carry is left as not reported.",
-            new[]
-            {
-                new ModelFilter("All", _ => true, ApplyFilterCommand, isSelected: true),
-                new ModelFilter("GGUF", r => r.LooksLikeGguf, ApplyFilterCommand),
-                new ModelFilter("Not reported", r => !r.LooksLikeGguf, ApplyFilterCommand)
-            }),
-
-        new ModelFilterGroup(
-            "PROVIDER",
-            "Where the model is served from. Cloud models are set up on a model node and are not part of "
-            + "the mesh, so none appear here.",
-            new[]
-            {
-                new ModelFilter("All", _ => true, ApplyFilterCommand, isSelected: true),
-                new ModelFilter("Mesh", _ => true, ApplyFilterCommand),
-                new ModelFilter("Cloud", _ => false, ApplyFilterCommand)
-            }),
-
-        new ModelFilterGroup(
-            "SHARING",
-            "A private mesh is joined by invitation, so everything in it is invite only. Publishing the "
-            + "mesh makes all of it public at once.",
-            new[]
-            {
-                new ModelFilter("All", _ => true, ApplyFilterCommand, isSelected: true),
-                new ModelFilter("Public", r => r.Sharing == ModelSharing.Public, ApplyFilterCommand),
-                new ModelFilter("Invite only", r => r.Sharing == ModelSharing.InviteOnly, ApplyFilterCommand)
-            })
+        "All", "Complete", "Starting", "Blocked", "Found, not joined"
     };
+
+    /// <summary>Which of those is chosen.</summary>
+    [ObservableProperty]
+    private string _statusFilter = "All";
+
+    partial void OnStatusFilterChanged(string value) => ApplyFilters();
 
     private void OnModelsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -1115,6 +1211,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 // there is a node up. So does every joined mesh's own state.
                 OnPropertyChanged(nameof(ApplyButtonText));
                 OnPropertyChanged(nameof(StartButtonText));
+
+                // The whole screen keys off whether there is a node, so the start screen and the
+                // live view swap here rather than being asked for separately.
+                OnPropertyChanged(nameof(IsNodeOff));
+                OnPropertyChanged(nameof(IsNodeOn));
+
                 RefreshJoinedStates();
                 RefreshHosted();
                 break;
@@ -1125,12 +1227,14 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     {
         // A row republishes everything when the engine updates it, so the counts and the ordering
         // are recomputed rather than guessed at from which property changed.
-        RefreshCounts();
+
         OnPropertyChanged(nameof(CoverageSummary));
     }
 
     private void RebuildRows()
     {
+        RebuildMeshGroups();
+
         var wanted = Mesh.Models.ToList();
 
         foreach (var gone in _rows.Keys.Except(wanted).ToList())
@@ -1141,14 +1245,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         }
 
         Rows.Clear();
-
-        // What the directory listed goes in the same table, above what the mesh itself reports,
-        // because a mesh you could join is an answer to "what can I reach" with one more step
-        // attached and a second table would make somebody guess which one to look in first.
-        foreach (var discovered in _discovered)
-        {
-            Rows.Add(discovered);
-        }
 
         foreach (var model in wanted)
         {
@@ -1166,40 +1262,43 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CoverageSummary));
     }
 
-    private void RefreshCounts()
-    {
-        foreach (var group in Groups)
-        {
-            foreach (var filter in group.Filters)
-            {
-                filter.Count = Rows.Count(filter.Keeps);
-            }
-        }
-    }
-
+    /// <summary>
+    /// Narrows the rows to what the toolbar asks for.
+    /// </summary>
+    /// <remarks>
+    /// A search box and one status, which is what the four filter groups collapsed into. The rows
+    /// themselves are unchanged; only which of them are visible is.
+    /// </remarks>
     private void ApplyFilters()
     {
-        RefreshCounts();
-
         var text = FilterText.Trim();
 
-        IEnumerable<INetworkRow> kept = Rows.Where(row =>
-            Groups.All(group => group.Keeps(row))
-            && (text.Length == 0
-                || row.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
-                || row.Quantisation.Contains(text, StringComparison.OrdinalIgnoreCase)));
+        var kept = Rows.Where(row =>
+            MatchesStatus(row)
+            && (text.Length == 0 || row.Name.Contains(text, StringComparison.OrdinalIgnoreCase)));
 
-        kept = SortDescending
+        var ordered = SortDescending
             ? kept.OrderByDescending(r => r.SortKey(SortColumn))
             : kept.OrderBy(r => r.SortKey(SortColumn));
 
         VisibleRows.Clear();
 
-        foreach (var row in kept)
+        foreach (var row in ordered)
         {
             VisibleRows.Add(row);
         }
     }
+
+    /// <summary>True when this row survives the status dropdown.</summary>
+    private bool MatchesStatus(INetworkRow row) => StatusFilter switch
+    {
+        "Complete" => row.Availability == ModelAvailability.Complete,
+        "Starting" => row.Availability == ModelAvailability.Starting,
+        "Blocked" => row.Availability == ModelAvailability.Blocked,
+        "Found, not joined" => row.Availability == ModelAvailability.NotJoined,
+        _ => true
+    };
+
 
     private void SaveSettings()
     {
