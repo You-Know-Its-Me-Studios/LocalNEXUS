@@ -109,8 +109,16 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
     /// <summary>The second half of the row: how big it is and what it runs.</summary>
     public string RowDetail => $"{Mesh.CapacityText} · {Mesh.NodeCount} of them · {Mesh.ServingText}";
 
-    /// <summary>Grey, because a mesh you have not joined is neither working nor broken.</summary>
-    public string RowStateBrushKey => "ModelAvailability.NotJoined.Brush";
+    /// <summary>
+    /// Grey for a mesh that is running, and the working colour for one that is asking for help.
+    /// </summary>
+    /// <remarks>
+    /// A mesh short of a model is the one worth joining, so it is the one that gets a colour. Both
+    /// are neutral facts rather than problems, which is why neither is a warning.
+    /// </remarks>
+    public string RowStateBrushKey => Mesh.IsLookingForModels
+        ? "ModelAvailability.Starting.Brush"
+        : "ModelAvailability.NotJoined.Brush";
 
     /// <summary>Joining is the only thing to do to a mesh you found.</summary>
     public bool HasRowAction => true;

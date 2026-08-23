@@ -719,7 +719,7 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     /// promises, and a name put on the wrong model would be worse than a hash: a hash is unreadable
     /// and a wrong name is believed. Anything else keeps its hash.
     /// </remarks>
-    private static Dictionary<string, string> NameLocalModels(MeshSnapshot snapshot)
+    private static Dictionary<string, string> NameLocalModels(MeshSnapshot snapshot, IReadOnlyList<string> identities)
     {
         var named = new Dictionary<string, string>(StringComparer.Ordinal);
         var paths = snapshot.RequestedModelPaths;
@@ -729,8 +729,10 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
             return named;
         }
 
-        var local = snapshot.Models
-            .Select(m => m.Id)
+        // Every model the mesh knows about, not only the ones it can route to. A model waiting on a
+        // peer is announced and not routable, which is exactly the model somebody is staring at
+        // wondering what it is, and reading the routable list left it as a hash.
+        var local = identities
             .Where(id => id.Contains("sha256-", StringComparison.OrdinalIgnoreCase))
             .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -837,7 +839,6 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     private void ReconcileModels(MeshSnapshot snapshot)
     {
         var routable = snapshot.Models.ToDictionary(m => m.Id, StringComparer.Ordinal);
-        var friendly = NameLocalModels(snapshot);
 
         var identities = routable.Keys
             .Concat(snapshot.AnnouncedModelIds)
@@ -846,6 +847,8 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        var friendly = NameLocalModels(snapshot, identities);
 
         foreach (var id in identities)
         {

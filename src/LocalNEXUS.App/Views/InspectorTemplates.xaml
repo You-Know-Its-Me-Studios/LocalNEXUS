@@ -59,12 +59,12 @@
 
                 <StackPanel Grid.Row="0" Grid.Column="2">
                     <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Context" />
-                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ContextLength, TargetNullValue=not reported}" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ContextText}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="0">
                     <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Parameters" />
-                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ParameterSize, TargetNullValue=not reported}" />
+                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding ParametersText}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="2">
@@ -333,6 +333,18 @@
             <TextBlock Style="{StaticResource HintText}"
                        TextWrapping="Wrap"
                        Text="Models it wants and does not have. If your machine holds one of these, joining fills a real gap rather than adding another spare." />
+
+            <!--
+                Said plainly for the case that matters. A mesh serving nothing and wanting something
+                is not an empty mesh, it is one that cannot start without help, and that is the
+                clearest reason in the whole directory to join one.
+            -->
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Status.Info.Brush}"
+                       Text="This mesh is not serving anything yet. It is waiting for a machine that has one of the models above."
+                       Visibility="{Binding IsLookingForModels, Converter={StaticResource BooleanToVisibility}}" />
 
             <Border Style="{StaticResource Card}" Margin="0,14,0,0">
                 <StackPanel>

@@ -132,6 +132,18 @@ public sealed partial class NetworkServedModel : ObservableObject
         }
     }
 
+    /// <summary>The context window, or that the mesh did not report one.</summary>
+    /// <remarks>
+    /// Zero is what the engine sends when it has nothing to say, and a model with a window of no
+    /// tokens is not a thing, so it is reported as unreported rather than shown as a number.
+    /// </remarks>
+    public string ContextText => ContextLength > 0
+        ? ContextLength.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)
+        : "not reported";
+
+    /// <summary>The parameter count, or that the mesh did not report one.</summary>
+    public string ParametersText => string.IsNullOrWhiteSpace(ParameterSize) ? "not reported" : ParameterSize;
+
     /// <summary>How many machines could take the weakest section over, pluralised properly.</summary>
     private string SpareText => WeakestSpare == 1 ? "1 spare machine" : $"{WeakestSpare} spare machines";
 

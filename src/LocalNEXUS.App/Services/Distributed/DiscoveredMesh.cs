@@ -42,10 +42,43 @@ public sealed record DiscoveredMesh(
     /// <summary>What to call it on screen.</summary>
     public string DisplayName => HasName ? Name : Unnamed;
 
-    /// <summary>One line naming what it holds, for a row that has one line to say it in.</summary>
-    public string ServingText => Serving.Count == 0
-        ? "no models loaded"
-        : string.Join(", ", Serving.Select(ShortModelName));
+    /// <summary>
+    /// One line naming what it is about, for a row that has one line to say it in.
+    /// </summary>
+    /// <remarks>
+    /// What it serves, and when it serves nothing, what it wants. A mesh that is trying to run a
+    /// model and cannot is the whole reason the directory is worth reading: it is short of exactly
+    /// what somebody browsing might have. Reporting it as "no models loaded" said the opposite, and
+    /// the mesh most worth joining read as the emptiest.
+    ///
+    /// A mesh with neither is genuinely empty and says so.
+    /// </remarks>
+    public string ServingText
+    {
+        get
+        {
+            if (Serving.Count > 0)
+            {
+                return string.Join(", ", Serving.Select(ShortModelName));
+            }
+
+            if (Wanted.Count > 0)
+            {
+                return "wants " + string.Join(", ", Wanted.Select(ShortModelName));
+            }
+
+            return OnDisk.Count > 0
+                ? "has " + string.Join(", ", OnDisk.Select(ShortModelName))
+                : "no models yet";
+        }
+    }
+
+    /// <summary>True when the line above is about what it wants rather than what it runs.</summary>
+    /// <remarks>
+    /// Worth colouring differently, because wanting a model is an invitation and serving one is a
+    /// statement, and somebody scanning the list is looking for the first.
+    /// </remarks>
+    public bool IsLookingForModels => Serving.Count == 0 && Wanted.Count > 0;
 
     /// <summary>How big it is, in one line.</summary>
     public string SizeSummary
