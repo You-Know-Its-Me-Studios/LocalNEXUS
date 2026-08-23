@@ -387,7 +387,7 @@
         -->
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
-                   Text="This node starts from a prompt chosen for the kind of project that was open when it was added: a Unity one is told it is writing for Unity, anything else is not. It is this node's own from then on, so changing it here changes only this node, and opening a different project does not change it back." />
+                   Text="Set from the project kind when the node was added. Changing it here affects this node only." />
 
         <!--
             On by default, because a model asked for a file wraps it in a fence whatever the prompt

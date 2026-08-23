@@ -8,15 +8,15 @@
              mc:Ignorable="d">
 
     <!--
-        The agent has almost nothing to configure, and that is the point of it. Its model, its
-        extensions and its search key all come from the Model node wired into it, so the only
-        things here are how long it may go on for and what it is told it is.
+        Almost nothing to configure, which is the point. The model, the extensions and the search
+        key all come from the Model node wired into it, so what is left is how long it may run for
+        and how it is told to work.
     -->
 
     <StackPanel>
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
-                   Text="Wire a Model node into the Model pin and type a request. It decides each step for itself: reading files, writing them, compiling, searching the project, and calling whatever tools that Model node has selected. Everything it writes goes through the same rules the Output node writes through." />
+                   Text="Wire a Model node into the Model pin and type a request. It works out the steps itself: reading and writing files, compiling, searching the project, and using whatever tools that Model node has selected. Writes go through the same project rules the Output node uses." />
 
         <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Limit" />
 
@@ -25,7 +25,7 @@
                  ToolTip="One turn is one model call and the tools it asked for" />
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
-                   Text="The budget for the whole task, not for one file. When it runs out, everything already written stays written and everything refused stays waiting, and it says where it got to." />
+                   Text="The budget for the whole task, not per file. If it runs out, anything already written stays written and the run reports where it stopped." />
 
         <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Prompt" />
 
@@ -36,6 +36,6 @@
                  MaxHeight="300" />
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
-                   Text="What each tool does is on the tool itself, where the model reads it, so this says only the things no tool description can: look before changing anything, a refusal is an answer, and not every request needs a file written." />
+                   Text="How this agent is told to work. What each tool does is described on the tool, so this only covers how to go about the job." />
     </StackPanel>
 </UserControl>
