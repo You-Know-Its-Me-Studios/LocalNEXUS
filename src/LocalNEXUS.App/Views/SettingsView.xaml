@@ -889,53 +889,81 @@
                                TextWrapping="Wrap"
                                Text="{Binding History.StatusText}" />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="What it is using" />
+                    <!--
+                        The limits before the buttons that enforce them, which is the order they
+                        have to be read in. A button called Apply the caps now, sitting above the
+                        only place the word cap is defined, is a button nobody can safely press.
+                    -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="How much to keep" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Two things are recorded for every run. The transcript, which is what happened in words, and a snapshot of each file before it was changed, which is the only thing that makes a run undoable. Transcripts are small and are kept forever; snapshots are whole copies of your files, so they are the ones with limits." />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,6,0,0"
+                               TextWrapping="Wrap"
+                               Text="A run past either limit loses its snapshots and keeps its transcript. You can still read everything it did; you can no longer undo it." />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Runs that keep their snapshots" />
+                    <TextBox Text="{Binding SnapshotRunLimit, UpdateSourceTrigger=LostFocus}"
+                             MaxWidth="160"
+                             HorizontalAlignment="Left"
+                             AutomationProperties.Name="How many runs keep their snapshots" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="The most recent this many runs stay undoable. Older ones give up their snapshots however new they are." />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Days to keep a snapshot" />
+                    <TextBox Text="{Binding SnapshotAgeDays, UpdateSourceTrigger=LostFocus}"
+                             MaxWidth="160"
+                             HorizontalAlignment="Left"
+                             AutomationProperties.Name="How many days a snapshot is kept" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="A snapshot older than this goes, even if the run is one of the most recent. Whichever limit is reached first wins." />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"
+                               Text="Both are applied on their own at the end of every run, so under ordinary use there is nothing here to press." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,24,0,0" Text="What it is using" />
 
                     <Border Style="{StaticResource Card}" Margin="0,6,0,0">
                         <StackPanel>
                             <TextBlock TextWrapping="Wrap" Text="{Binding HistoryUsage.Summary}" />
 
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                 <Button Style="{StaticResource SmallButton}"
                                         MinWidth="90"
-                                        Content="Refresh"
+                                        Content="Recount"
+                                        ToolTip="Measure the database again. It does not change anything."
                                         Command="{Binding RefreshHistoryUsageCommand}" />
                                 <Button Style="{StaticResource SmallButton}"
                                         MinWidth="120"
                                         Margin="8,0,0,0"
-                                        Content="Apply the caps now"
+                                        Content="Delete old snapshots"
+                                        ToolTip="Applies the two limits above right now, instead of waiting for the next run to do it."
                                         Command="{Binding PruneSnapshotsCommand}" />
                                 <Button Style="{StaticResource SmallButton}"
                                         MinWidth="130"
                                         Margin="8,0,0,0"
-                                        Content="Clear the snapshots"
+                                        Content="Delete all snapshots"
+                                        ToolTip="Every snapshot, whatever the limits say. Transcripts are kept."
                                         Command="{Binding ClearSnapshotsCommand}" />
                                 <Button Style="{StaticResource DangerButton}"
                                         MinWidth="130"
                                         Margin="8,0,0,0"
-                                        Content="Clear the history"
+                                        Content="Delete everything"
+                                        ToolTip="Every transcript and every snapshot for this project."
                                         Command="{Binding ClearHistoryCommand}" />
                             </StackPanel>
 
                             <TextBlock Style="{StaticResource HintText}"
-                                       Margin="0,8,0,0"
+                                       Margin="0,10,0,0"
                                        TextWrapping="Wrap"
-                                       Text="Clearing the snapshots keeps every transcript and gives up the ability to undo those runs. Clearing the history removes both." />
+                                       Text="Recount measures again and changes nothing. Delete old snapshots applies the two limits above right now rather than waiting for the next run. Delete all snapshots takes every one of them whatever the limits say, keeping the transcripts, so nothing can be undone but everything can still be read. Delete everything takes the transcripts as well and cannot be reversed." />
                         </StackPanel>
                     </Border>
-
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="How much to keep" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               TextWrapping="Wrap"
-                               Text="Text is small and file snapshots are not, so only the snapshots are capped. A run past either limit keeps its whole transcript and can no longer be undone." />
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Runs that keep their snapshots" />
-                    <TextBox Text="{Binding SnapshotRunLimit, UpdateSourceTrigger=LostFocus}"
-                             AutomationProperties.Name="How many runs keep their snapshots" />
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Days to keep a snapshot" />
-                    <TextBox Text="{Binding SnapshotAgeDays, UpdateSourceTrigger=LostFocus}"
-                             AutomationProperties.Name="How many days a snapshot is kept" />
 
                     <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="What undo reaches" />
                     <TextBlock Style="{StaticResource HintText}"
@@ -947,17 +975,30 @@
                 <StackPanel Visibility="{Binding Section, Converter={StaticResource EnumToVisibility}, ConverterParameter=Behaviour}">
                     <TextBlock Style="{StaticResource SectionHeader}" FontSize="{StaticResource Font.Size.Title}" Text="Behaviour" />
                     <TextBlock Style="{StaticResource HintText}"
-                               Text="What a newly added node starts from. Graphs you have already saved keep their own values." />
+                               TextWrapping="Wrap"
+                               Text="Starting values for nodes you add from here on. Every one of them can be changed on the node itself, and a graph you have already saved keeps whatever was set on it, so nothing here reaches backwards." />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Compiler check" />
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Compiler check" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="The Compiler check node compiles what a model wrote before anything is written to disk. When it does not build, the errors go back to the model that produced the code and it tries again." />
 
                     <TextBlock Style="{StaticResource FieldLabel}" Text="Repair attempts after the first failure" />
                     <TextBox Text="{Binding DefaultRetryLimit, UpdateSourceTrigger=LostFocus}" MaxWidth="120" HorizontalAlignment="Left" />
-                    <TextBlock Style="{StaticResource HintText}" Text="Zero checks the code without trying to fix it." />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="How many more times to hand the errors back before giving up. Zero checks the code and reports what is wrong without trying to fix it. Each attempt is another request to the model, so this is the setting that decides how long a bad first answer takes to resolve." />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Plan context budget" />
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,24,0,0" Text="Plan context budget" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="How much of your project the Triage node is allowed to put in front of a model when it works out what to change. A model can only read so much at once, so this is a deliberate allowance split three ways rather than an attempt to send everything." />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,6,0,0"
+                               TextWrapping="Wrap"
+                               Text="All three are in characters, roughly four characters to a token. Raising them costs money on a hosted model and time on a local one. Anything that does not fit is dropped in rank order and the run says what was dropped, so a budget that is too small is visible rather than silent." />
 
-                    <Grid Margin="0,8,0,0">
+                    <Grid Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="12" />
@@ -969,23 +1010,38 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,4" Text="Project map" />
                             <TextBox Text="{Binding DefaultMapCharacters, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="One line per type in the whole project, so the model knows what already exists and does not write a second copy of it." />
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
                             <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,4" Text="Candidate detail" />
                             <TextBox Text="{Binding DefaultCandidateCharacters, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="The actual contents of the files the request looks like it is about. The largest of the three, because this is what a change is written against." />
                         </StackPanel>
 
                         <StackPanel Grid.Column="4">
                             <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,4" Text="Signatures this run" />
                             <TextBox Text="{Binding DefaultEmittedCharacters, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="What earlier files in this same run declared, so the fifth file can call into the first by its real name instead of guessing." />
                         </StackPanel>
                     </Grid>
 
                     <TextBlock Style="{StaticResource FieldLabel}" Text="Candidate files offered before any is read" />
                     <TextBox Text="{Binding DefaultCandidateLimit, UpdateSourceTrigger=LostFocus}" MaxWidth="120" HorizontalAlignment="Left" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="How many files get shortlisted by ranking before any of them is opened. Only what survives the shortlist spends any of the candidate detail budget above. Files you never mentioned but which the work depends on still make the list." />
 
-                    <TextBlock Style="{StaticResource HintText}" Text="{Binding DefaultBudgetSummary}" />
+                    <TextBlock Style="{StaticResource HintText}" Margin="0,12,0,0" TextWrapping="Wrap" Text="{Binding DefaultBudgetSummary}" />
 
 
                 </StackPanel>
