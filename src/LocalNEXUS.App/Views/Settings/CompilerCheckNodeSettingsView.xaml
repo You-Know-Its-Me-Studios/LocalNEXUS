@@ -55,11 +55,9 @@
         <StackPanel Margin="0,6,0,0">
             <RadioButton Content="Leave it for later and carry on"
                          GroupName="CompileFailure"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding FailureBehaviour, Converter={StaticResource EnumToBoolean}, ConverterParameter=StageForLater}" />
             <RadioButton Content="Fault the run"
                          GroupName="CompileFailure"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding FailureBehaviour, Converter={StaticResource EnumToBoolean}, ConverterParameter=FaultTheRun}" />
             <RadioButton Content="Continue with a warning"
                          GroupName="CompileFailure"

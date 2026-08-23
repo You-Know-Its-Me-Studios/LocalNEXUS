@@ -268,7 +268,7 @@
                                   Visibility="Collapsed"
                                   Stretch="None" />
                         </Border>
-                        <ContentPresenter Margin="7,0,0,0" VerticalAlignment="Center" />
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
@@ -291,7 +291,13 @@
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary.Brush}" />
         <Setter Property="FontSize" Value="{StaticResource Font.Size.Normal}" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Margin" Value="0,0,14,0" />
+
+        <!--
+            Both gaps, because a group of these wraps. The right margin keeps one label off the
+            next ring, and the bottom one keeps a wrapped row off the one above it: a set that fits
+            on one line looked fine and the same set on two lines was a wall.
+        -->
+        <Setter Property="Margin" Value="0,0,18,8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">

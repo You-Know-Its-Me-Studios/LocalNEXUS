@@ -12,23 +12,18 @@
         <WrapPanel Margin="0,6,0,0">
             <RadioButton Content="Local"
                          GroupName="Provider"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding Provider, Converter={StaticResource EnumToBoolean}, ConverterParameter=Local}" />
             <RadioButton Content="Network"
                          GroupName="Provider"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding Provider, Converter={StaticResource EnumToBoolean}, ConverterParameter=Network}" />
             <RadioButton Content="Self hosted"
                          GroupName="Provider"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding Provider, Converter={StaticResource EnumToBoolean}, ConverterParameter=SelfHosted}" />
             <RadioButton Content="OpenRouter"
                          GroupName="Provider"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding Provider, Converter={StaticResource EnumToBoolean}, ConverterParameter=OpenRouter}" />
             <RadioButton Content="Cloud"
                          GroupName="Provider"
-                         Margin="0,0,0,4"
                          ToolTip="A hosted provider you have an account with."
                          IsChecked="{Binding Provider, Converter={StaticResource EnumToBoolean}, ConverterParameter=Cloud}" />
         </WrapPanel>
@@ -167,8 +162,7 @@
                                 ToolTip="A safetensors model is a folder holding config.json beside its weight files, so it is picked as a folder"
                                 Command="{Binding BrowseForModelFolderCommand}" />
                         <Button Style="{StaticResource SmallButton}"
-                                Margin="0,0,0,4"
-                                Content="Use the catalogue"
+                                       Content="Use the catalogue"
                                 ToolTip="Drop this node's own model and go back to the selection above"
                                 Command="{Binding ClearModelFileCommand}" />
                     </WrapPanel>
@@ -306,8 +300,7 @@
                                 ToolTip="Deletes the environment and builds it from the cached downloads"
                                 Command="{Binding ResetCommand}" />
                         <Button Style="{StaticResource SmallButton}"
-                                Margin="0,0,0,4"
-                                Content="Open runtime folder"
+                                       Content="Open runtime folder"
                                 Command="{Binding OpenFolderCommand}" />
                     </WrapPanel>
                 </StackPanel>
@@ -413,11 +406,9 @@
         <StackPanel Margin="0,6,0,0">
             <RadioButton Content="Automatic"
                          GroupName="EditFormat"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding EditFormat, Converter={StaticResource EnumToBoolean}, ConverterParameter=Automatic}" />
             <RadioButton Content="Always the whole file"
                          GroupName="EditFormat"
-                         Margin="0,0,0,4"
                          IsChecked="{Binding EditFormat, Converter={StaticResource EnumToBoolean}, ConverterParameter=WholeFile}" />
             <RadioButton Content="Always a diff"
                          GroupName="EditFormat"
