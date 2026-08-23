@@ -291,6 +291,7 @@ public sealed partial class AppSettingsViewModel : ObservableObject
         _search = search;
 
         OnPropertyChanged(nameof(HasSearchKey));
+        OnPropertyChanged(nameof(SearchKeyState));
         OnPropertyChanged(nameof(SearchStatus));
     }
 
@@ -306,6 +307,33 @@ public sealed partial class AppSettingsViewModel : ObservableObject
 
     /// <summary>Where a key is obtained, for the link.</summary>
     public string SearchKeyUrl => Services.Search.WebSearchService.KeyUrl;
+
+    /// <summary>
+    /// Whether there is a key, in the two words a provider row uses.
+    /// </summary>
+    /// <remarks>
+    /// Beside the full sentence rather than instead of it. The row says what state it is in and
+    /// the line under the list says what that means, which is how the model provider rows read.
+    /// </remarks>
+    public string SearchKeyState => HasSearchKey ? "key stored" : "no key yet";
+
+    /// <summary>Opens the page a key comes from.</summary>
+    [RelayCommand]
+    private void OpenSearchKeyUrl()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = SearchKeyUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _dialogs.ShowError("The page could not be opened", $"{SearchKeyUrl}: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Stores or clears the search key.
