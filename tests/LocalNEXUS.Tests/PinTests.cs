@@ -23,17 +23,20 @@ public sealed class PinTests
         => Assert.Equal(expected, PinTypeCompatibility.CanFlow(source, target));
 
     /// <summary>
-    /// Code into Text is the one exception, and it only goes one way.
+    /// Code and Text do not mix, in either direction.
     /// </summary>
     /// <remarks>
-    /// Without it a model node, which takes Text and emits Code, could only ever be fed by an
-    /// input node. With it going the other way, arbitrary prose could reach the pin that writes
-    /// files.
+    /// Code into Text used to be allowed, so that a model, which takes Text and emits Code, could
+    /// feed something other than a file writer. What it produced in practice was a Code pin wired
+    /// into anything that reads prose, and a model asked a question answering with a class. The
+    /// model node grew its own Text output instead, which is the honest way to say the same thing:
+    /// the node has two things to offer and they are different, rather than one that can be read
+    /// as either.
     /// </remarks>
     [Fact]
-    public void CodeFlowsIntoTextButNotTheReverse()
+    public void CodeAndTextDoNotMixInEitherDirection()
     {
-        Assert.True(PinTypeCompatibility.CanFlow(PinType.Code, PinType.Text));
+        Assert.False(PinTypeCompatibility.CanFlow(PinType.Code, PinType.Text));
         Assert.False(PinTypeCompatibility.CanFlow(PinType.Text, PinType.Code));
     }
 

@@ -42,6 +42,7 @@ Nodes light up in turn, the reply streams into the feed, the last line names the
 | Model          | Calls an LLM. Local, mesh, or hosted                                                   |
 | Debate         | Two models argue an approach over several rounds, and send on what they settled        |
 | Judge          | Reads a debate, or two models arguing separately, and makes the determination          |
+| Loop           | Runs everything wired to it once per item in a list, and can stop between items        |
 | Reshape        | Reshapes the text going by. Inject standing text, extract what matters, replace, trim  |
 | Compiler check | Compiles against the project's real references, hands failures back for repair         |
 | Output         | Writes files, subject to the Unity binding rules                                       |
@@ -114,7 +115,7 @@ The engine binaries are not in the repository. Fetch them into `vendor/` first, 
 
 ## Roadmap
 
-Breakpoints on wires, so a run can be stopped between nodes and a value inspected. A Loop node, once a node can drive the nodes downstream of it. Deleting files from the Output node, which writes and edits but cannot remove. Semantic search over run history, which is keyword matching today. And running this across two physical machines, which is the one that has been on the list longest.
+Breakpoints on wires, so a run can be stopped between nodes and a value inspected. Deleting files from the Output node, which writes and edits but cannot remove. Semantic search over run history, which is keyword matching today. And running this across two physical machines, which is the one that has been on the list longest.
 
 The longer goal is a network where people pool compute to run models none of them could run alone. That shapes decisions now. Sources are interchangeable rather than mine and theirs, identity is a persistent public key so reputation can attach later, and coverage is computed properly even with two machines where it always passes.
 

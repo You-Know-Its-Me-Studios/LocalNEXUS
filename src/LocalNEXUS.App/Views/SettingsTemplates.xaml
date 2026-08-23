@@ -37,6 +37,10 @@
         <settings:JudgeNodeSettingsView />
     </DataTemplate>
 
+    <DataTemplate DataType="{x:Type nodes:LoopNode}">
+        <settings:LoopNodeSettingsView />
+    </DataTemplate>
+
     <DataTemplate DataType="{x:Type nodes:ReshapeNode}">
         <settings:ReshapeNodeSettingsView />
     </DataTemplate>

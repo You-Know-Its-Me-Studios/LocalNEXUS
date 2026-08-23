@@ -104,12 +104,15 @@ public sealed class NodeSearchTests
         var search = placements.SearchOn(services.Factory);
 
         search.Open(240, 130);
-        search.Query = "output";
+
+        // Named exactly, because two node types are called something output and the point being
+        // pinned here is where a node lands rather than which one a partial word finds.
+        search.Query = "compiler check";
         search.PlaceCommand.Execute(null);
 
         var placed = Assert.Single(placements.Placed);
 
-        Assert.Equal("Output", placed.TypeKey);
+        Assert.Equal("CompilerCheck", placed.TypeKey);
         Assert.Equal(240, placed.X);
         Assert.Equal(130, placed.Y);
         Assert.Null(placed.From);

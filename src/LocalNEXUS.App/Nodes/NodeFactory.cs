@@ -215,6 +215,15 @@ public sealed class NodeFactory
             Array.Empty<string>(),
             _ => new JudgeNode()),
 
+        // Iteration already happens wherever a list meets a node. This is the same thing made
+        // visible, and the only way to stop between items rather than only before or after them.
+        new BuiltInNode(
+            "Loop",
+            "Loop",
+            "Runs everything wired to it once per item in a list, saying which item it is on. Put a breakpoint on its wire to stop between items.",
+            Array.Empty<string>(),
+            _ => new LoopNode()),
+
         new BuiltInNode(
             "Reshape",
             "Reshape",

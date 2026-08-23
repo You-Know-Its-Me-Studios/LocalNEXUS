@@ -116,6 +116,15 @@ public sealed class GraphExecutor
                 continue;
             }
 
+            // The other node runs this one, once per item, so running it again here would run it a
+            // final time against whatever the last iteration left behind. Asked of the topology,
+            // which answers by asking a capability, so this still knows nothing about what any
+            // node is.
+            if (GraphTopology.IsDrivenByAnother(run.Graph, node))
+            {
+                continue;
+            }
+
             try
             {
                 await run.WaitWhilePausedAsync(ct).ConfigureAwait(false);
@@ -178,11 +187,17 @@ public sealed class GraphExecutor
         node.State = NodeState.Completed;
         _feed.Add(ActivityKind.NodeCompleted, node.Title, node.StatusMessage, node.Id);
 
-        await HoldAtBreakpointsAsync(node, run, ct).ConfigureAwait(false);
+        // A node that ran its own downstream chain already held on its own wires, once for each
+        // item that travelled down them, which is the only place between items exists. Holding
+        // again here would stop a second time on a wire nothing is about to travel down.
+        if (node is not IIterationDriver)
+        {
+            await HoldAtBreakpointsAsync(node, context, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
-    /// Holds on each marked wire leaving this node, in turn, and records what was released.
+    /// Holds on each marked wire leaving this node, in turn.
     /// </summary>
     /// <remarks>
     /// After the node rather than before the next one, and that is the difference between showing
@@ -190,23 +205,15 @@ public sealed class GraphExecutor
     /// producer and the thing on it has been produced and not yet read, so it can be changed with
     /// nothing to undo.
     ///
-    /// Each marked wire is held separately even when several leave the same pin, because the point
-    /// of a breakpoint on a wire rather than on a node is that the branches can differ.
+    /// The holding itself belongs to the context, because a node that publishes a value more than
+    /// once has to stop each time and this is only reached once. Nothing about which wires or in
+    /// what order differs between the two callers, so there is one implementation.
     /// </remarks>
-    private async Task HoldAtBreakpointsAsync(NodeBase node, RunContext run, CancellationToken ct)
+    private static async Task HoldAtBreakpointsAsync(NodeBase node, NodeExecutionContext context, CancellationToken ct)
     {
-        var marked = run.Graph.Connections
-            .Where(c => c.HasBreakpoint && c.Source.Owner == node)
-            .ToList();
-
-        foreach (var connection in marked)
+        foreach (var pin in node.Outputs)
         {
-            var value = run.TryGetValue(connection.Source, out var produced) ? produced : null;
-            var released = await _services.Breakpoints.HoldAsync(connection, value, ct).ConfigureAwait(false);
-
-            // Written even when nothing changed, so that what the wire carries is decided in one
-            // place rather than depending on whether somebody happened to type into the box.
-            run.SetWireValue(connection, released);
+            await context.HoldAtBreakpointsAsync(pin, ct).ConfigureAwait(false);
         }
     }
 

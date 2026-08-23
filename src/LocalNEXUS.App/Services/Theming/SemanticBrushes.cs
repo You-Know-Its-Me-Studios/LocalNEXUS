@@ -89,6 +89,7 @@ public static class SemanticBrushes
         ("NodeType.Output.Brush", "NodeType.OutputColor"),
         ("NodeType.TextOutput.Brush", "NodeType.TextOutputColor"),
         ("NodeType.Agent.Brush", "NodeType.AgentColor"),
+        ("NodeType.Loop.Brush", "NodeType.LoopColor"),
 
         // Node execution state, as the model records it.
         ("NodeState.Pending.Brush", "Accent.NeutralColor"),

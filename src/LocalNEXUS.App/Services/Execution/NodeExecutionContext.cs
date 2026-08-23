@@ -198,16 +198,64 @@ public sealed class NodeExecutionContext
         _run.SetValue(outputPin, value);
     }
 
-    /// <summary>Every wire leaving the given output pin.</summary>
+    /// <summary>
+    /// Holds on each marked wire leaving the given pin, in turn, and records what was released.
+    /// </summary>
     /// <remarks>
-    /// A node that holds a run on its own wire needs the wire, not the node at the far end of it.
-    /// A breakpoint belongs to a connection, because the point of putting one there rather than on
-    /// a node is that two branches out of the same pin can differ.
+    /// A breakpoint belongs to a wire rather than to a node, because the point of putting one there
+    /// is that two branches out of the same pin can be stopped at differently. Each marked wire is
+    /// held separately for that reason.
+    ///
+    /// Held here rather than only by the executor, because a node that publishes a value several
+    /// times has to stop each time. A breakpoint that fired once on a wire a hundred values
+    /// travelled down would be a breakpoint on the node in everything but where it was drawn.
+    ///
+    /// The released value is written back even when nothing was changed, so what the wire carries
+    /// is decided in one place rather than depending on whether somebody typed into the box.
     /// </remarks>
-    public IReadOnlyList<Connection> OutgoingConnections(Pin outputPin)
+    public async Task HoldAtBreakpointsAsync(Pin outputPin, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(outputPin);
 
-        return _run.Graph.Connections.Where(c => c.Source == outputPin).ToList();
+        var marked = _run.Graph.Connections.Where(c => c.HasBreakpoint && c.Source == outputPin).ToList();
+
+        foreach (var connection in marked)
+        {
+            var value = _run.TryGetValue(connection.Source, out var produced) ? produced : null;
+            var released = await Services.Breakpoints.HoldAsync(connection, value, ct).ConfigureAwait(false);
+
+            _run.SetWireValue(connection, released);
+        }
+    }
+
+    /// <summary>
+    /// Every node reachable by following wires forward from an output pin, in execution order.
+    /// </summary>
+    /// <remarks>
+    /// For a node that runs its own downstream chain. The order is the run's own topological
+    /// order filtered down, rather than a second ordering worked out here, so a chain driven by a
+    /// node runs in exactly the order the executor would have run it in.
+    /// </remarks>
+    public IReadOnlyList<NodeBase> DownstreamOf(Pin outputPin)
+    {
+        ArgumentNullException.ThrowIfNull(outputPin);
+
+        var reached = GraphTopology.Downstream(_run.Graph, outputPin);
+        var sort = GraphTopology.Sort(_run.Graph);
+
+        return sort.Ordered.Where(reached.Contains).ToList();
+    }
+
+    /// <summary>True when this node is something the graph reads rather than something it runs.</summary>
+    /// <remarks>
+    /// Asked by a node running its own chain, so that a model handed to one of the driven nodes is
+    /// read as configuration there exactly as it would be in the ordinary pass. Without it a model
+    /// wired into a driven node would be executed once per item with nothing on its prompt pin.
+    /// </remarks>
+    public bool IsReferenceOnly(NodeBase node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        return GraphTopology.IsReferenceOnly(_run.Graph, node);
     }
 }

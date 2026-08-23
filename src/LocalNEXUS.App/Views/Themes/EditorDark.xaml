@@ -47,6 +47,7 @@
     <Color x:Key="NodeType.OutputColor">#FFDCDCAA</Color>
     <Color x:Key="NodeType.TextOutputColor">#FFB5CEA8</Color>
     <Color x:Key="NodeType.AgentColor">#FF4EC9B0</Color>
+    <Color x:Key="NodeType.LoopColor">#FFC586C0</Color>
 
     <Color x:Key="Pin.TextColor">#FF569CD6</Color>
     <Color x:Key="Pin.CodeColor">#FFCE9178</Color>

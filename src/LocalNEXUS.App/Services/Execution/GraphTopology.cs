@@ -69,6 +69,78 @@ public static class GraphTopology
         return wired;
     }
 
+    /// <summary>
+    /// Every node reachable by following wires forward from an output pin.
+    /// </summary>
+    /// <remarks>
+    /// The whole reachable closure rather than the immediate neighbours, because a node fed by a
+    /// driven node is itself driven. Anything short of the closure leaves a node reading the value
+    /// the last iteration happened to leave on its input and running once against it.
+    ///
+    /// Model wires are followed like any other. A model handed to a driven node is read as
+    /// configuration by <see cref="IsReferenceOnly"/> and never executed, so including it here
+    /// costs nothing and excluding it would depend on the two rules agreeing forever.
+    /// </remarks>
+    public static IReadOnlyCollection<NodeBase> Downstream(GraphModel graph, Pin outputPin)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(outputPin);
+
+        var reached = new HashSet<NodeBase>();
+        var pending = new Queue<NodeBase>();
+
+        foreach (var connection in graph.Connections.Where(c => c.Source == outputPin))
+        {
+            if (reached.Add(connection.Target.Owner))
+            {
+                pending.Enqueue(connection.Target.Owner);
+            }
+        }
+
+        while (pending.Count > 0)
+        {
+            var node = pending.Dequeue();
+
+            foreach (var connection in graph.Connections.Where(c => c.Source.Owner == node))
+            {
+                if (reached.Add(connection.Target.Owner))
+                {
+                    pending.Enqueue(connection.Target.Owner);
+                }
+            }
+        }
+
+        // A driver wired back into itself is a cycle, which the sort refuses before any of this
+        // runs. Discarding it here as well means this answers sensibly whatever it is handed.
+        reached.Remove(outputPin.Owner);
+
+        return reached;
+    }
+
+    /// <summary>
+    /// True when another node runs this one itself, so the ordinary pass must leave it alone.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as <see cref="IsReferenceOnly"/>: a question about the graph, answered by
+    /// asking a capability rather than by recognising a node type. Nothing here can tell a loop
+    /// from anything else, and the executor above it still cannot either.
+    /// </remarks>
+    public static bool IsDrivenByAnother(GraphModel graph, NodeBase node)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(node);
+
+        foreach (var driver in graph.Nodes.OfType<IIterationDriver>())
+        {
+            if (!ReferenceEquals(driver, node) && Downstream(graph, driver.IterationOutput).Contains(node))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static SortResult Sort(GraphModel graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
