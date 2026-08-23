@@ -82,8 +82,27 @@ public sealed partial class NetworkModelRow : ObservableObject, INetworkRow, IDi
         ? Model.ContextLength.ToString("N0", CultureInfo.CurrentCulture)
         : Unreported;
 
-    /// <summary>Parameter count as the engine words it.</summary>
-    public string ParametersText => string.IsNullOrWhiteSpace(Model.ParameterSize) ? Unreported : Model.ParameterSize;
+    /// <summary>
+    /// The machines holding this model, which is what it is actually running on.
+    /// </summary>
+    /// <remarks>
+    /// Named rather than counted, because the count is already in a column of its own and the
+    /// question this answers is which machines, not how many. Distinct, since one machine holding
+    /// three sections of a split model is still one machine.
+    /// </remarks>
+    public string ContentsText
+    {
+        get
+        {
+            var named = Sections
+                .Select(a => a.Source?.DisplayName)
+                .OfType<string>()
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            return named.Count == 0 ? Unreported : string.Join(", ", named);
+        }
+    }
 
     /// <summary>Layer count, which is what gets divided into sections.</summary>
     public string LayersText => Model.LayerCount > 0
@@ -92,9 +111,6 @@ public sealed partial class NetworkModelRow : ObservableObject, INetworkRow, IDi
 
     /// <summary>Size on disk. The mesh does not report it, so this says so rather than guessing.</summary>
     public string SizeText => Unreported;
-
-    /// <summary>Tokens per second. Not reported either, and not inferable from anything that is.</summary>
-    public string ThroughputText => Unreported;
 
     /// <summary>
     /// When the mesh last saw a source holding part of this model, which is the closest thing to
@@ -155,8 +171,7 @@ public sealed partial class NetworkModelRow : ObservableObject, INetworkRow, IDi
         ModelColumn.Spare => SpareCount,
         ModelColumn.Status => StatusText,
         ModelColumn.Context => Model.ContextLength,
-        ModelColumn.Parameters => Model.ParameterSize,
-        ModelColumn.Layers => Model.LayerCount,
+        ModelColumn.Contents => ContentsText,
         _ => Name
     };
 

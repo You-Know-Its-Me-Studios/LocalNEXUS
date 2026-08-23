@@ -54,11 +54,15 @@ public interface INetworkRow : INotifyPropertyChanged
     /// <summary>Context window, or that it was not reported.</summary>
     string ContextText { get; }
 
-    /// <summary>Parameter count, or that it was not reported.</summary>
-    string ParametersText { get; }
-
-    /// <summary>Throughput, or that it was not reported.</summary>
-    string ThroughputText { get; }
+    /// <summary>
+    /// What this row is made of: the models a mesh serves, or the machines holding a model.
+    /// </summary>
+    /// <remarks>
+    /// One column answering the same question of both kinds of row. It replaced parameter count
+    /// and throughput, which the mesh reports for nothing and which therefore spent every pixel
+    /// they had printing the words "not reported" twice.
+    /// </remarks>
+    string ContentsText { get; }
 
     /// <summary>When it was last seen.</summary>
     string LastVerifiedText { get; }

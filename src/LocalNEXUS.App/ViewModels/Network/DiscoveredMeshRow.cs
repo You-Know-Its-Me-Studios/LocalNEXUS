@@ -66,15 +66,11 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
 
     /// <inheritdoc />
     /// <remarks>
-    /// A directory entry describes a mesh rather than a model, so it has no parameter count to
-    /// give. This briefly showed how many people were using the mesh, which put a fact about the
-    /// mesh under a heading that says parameters. That number is on the panel, where it can be
-    /// labelled.
+    /// The models it serves, which is the whole reason to look at a mesh you are not in. The
+    /// publisher and branch are dropped, because a table has one line and unsloth/Qwen3-8B-GGUF
+    /// at main colon Q4_K_M is mostly not the model's name.
     /// </remarks>
-    public string ParametersText => Unreported;
-
-    /// <inheritdoc />
-    public string ThroughputText => Unreported;
+    public string ContentsText => Mesh.ServingText;
 
     /// <inheritdoc />
     public string LastVerifiedText => Mesh.Freshness.Length > 0 ? Mesh.Freshness : Unreported;

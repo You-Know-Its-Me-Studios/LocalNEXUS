@@ -28,9 +28,6 @@ public enum ModelColumn
     /// <summary>Context window.</summary>
     Context,
 
-    /// <summary>Parameter count.</summary>
-    Parameters,
-
-    /// <summary>Layer count.</summary>
-    Layers
+    /// <summary>What the row is made of: models for a mesh, machines for a model.</summary>
+    Contents
 }
