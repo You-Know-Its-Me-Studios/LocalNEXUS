@@ -79,9 +79,23 @@
                     somebody needs mid use, and a start button on a different screen from the one
                     the feature lives on is a start button nobody finds.
                 -->
+                <!--
+                    Asking the public directory who else is out there. A button rather than
+                    something that happens on its own, because it is the only thing here that
+                    reaches past the local network without a model being run.
+                -->
                 <Button DockPanel.Dock="Right"
                         Style="{StaticResource SmallButton}"
-                        Margin="10,0,12,0"
+                        Margin="10,0,0,0"
+                        MinWidth="110"
+                        VerticalAlignment="Center"
+                        Content="{Binding FindMeshesText}"
+                        ToolTip="Asks the public directory which meshes are out there and lists them here. Nothing about this machine is published by asking."
+                        Command="{Binding FindMeshesCommand}" />
+
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource SmallButton}"
+                        Margin="10,0,0,0"
                         MinWidth="110"
                         VerticalAlignment="Center"
                         Content="{Binding StartButtonText}"
@@ -197,7 +211,7 @@
                                            Text="{Binding Name}"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding Model.ModelId}" />
+                                           ToolTip="{Binding ModelId}" />
 
                                 <Border Style="{StaticResource Tag}" Margin="8,0,0,0">
                                     <TextBlock Style="{StaticResource TagText}" Text="{Binding Quantisation}" />
@@ -242,7 +256,7 @@
                                        Style="{StaticResource MonoText}"
                                        Text="{Binding SpareCount}"
                                        VerticalAlignment="Center"
-                                       Foreground="{Binding Model.Strength, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
+                                       Foreground="{Binding Strength, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
 
                             <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Ellipse Style="{StaticResource StateDot}"

@@ -262,7 +262,12 @@ public partial class App : Application
         var feedViewModel = new ActivityFeedViewModel(executor, graph, feed, Dispatcher, cost, staging, recorder, conversation, history, search, vision);
         var catalogViewModel = new ModelCatalogViewModel(catalog, dialogs);
         var pythonViewModel = new PythonEnvironmentViewModel(pythonEnvironment, dialogs);
-        var networkViewModel = new NetworkViewModel(mesh, catalog, config, feed, dialogs);
+        // The public directory of other people's meshes. Built here so the Network tab can offer
+        // it, and asked only when somebody presses the button, because it is the one thing that
+        // reaches past the local network without a model being run.
+        var meshDirectory = new MeshDirectory(feed, children);
+
+        var networkViewModel = new NetworkViewModel(mesh, catalog, config, feed, dialogs, meshDirectory);
         _network = networkViewModel;
 
         // Reading the project again is the settings panel's business but the work belongs to the

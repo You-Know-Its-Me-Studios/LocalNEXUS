@@ -122,7 +122,7 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     {
         MeshNodeState.Starting => "Starting the mesh node. Models appear here as the mesh reports them.",
         MeshNodeState.Failed => "The mesh node is not running. Its last error is under This machine.",
-        MeshNodeState.Stopped => "The mesh node is not running. Start it to see what the network can serve.",
+        MeshNodeState.Stopped => "The mesh node is not running. Start it to see what your own mesh can serve, or find meshes to see who else is out there.",
         _ => "The mesh node is up and has not reported a model yet."
     };
 

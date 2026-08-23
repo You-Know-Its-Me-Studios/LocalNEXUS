@@ -51,5 +51,5 @@ public sealed partial class ModelFilterGroup : ObservableObject
     }
 
     /// <summary>True when this row survives whatever this group has in force.</summary>
-    public bool Keeps(NetworkModelRow row) => Selected.Keeps(row);
+    public bool Keeps(INetworkRow row) => Selected.Keeps(row);
 }

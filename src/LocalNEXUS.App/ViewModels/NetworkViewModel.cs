@@ -38,6 +38,9 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogs;
     private readonly Dictionary<NetworkServedModel, NetworkModelRow> _rows = new();
 
+    /// <summary>Meshes the public directory listed, which live alongside the mesh's own models.</summary>
+    private readonly List<DiscoveredMeshRow> _discovered = new();
+
     private bool _disposed;
 
     /// <summary>The model whose coverage the inspector shows. Selecting a complete one arms it for use.</summary>
@@ -50,7 +53,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
     /// <summary>The row backing <see cref="SelectedModel"/>, which is what the table highlights.</summary>
     [ObservableProperty]
-    private NetworkModelRow? _selectedRow;
+    private INetworkRow? _selectedRow;
 
     /// <summary>The machine the sidebar has selected, or null.</summary>
     [ObservableProperty]
@@ -122,8 +125,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _publish;
 
-    public NetworkViewModel(MeshManager mesh, ModelCatalog catalog, AppConfig config, IActivityFeed feed, IDialogService dialogs)
+    private readonly MeshDirectory? _directory;
+
+    public NetworkViewModel(
+        MeshManager mesh,
+        ModelCatalog catalog,
+        AppConfig config,
+        IActivityFeed feed,
+        IDialogService dialogs,
+        MeshDirectory? directory = null)
     {
+        _directory = directory;
         Mesh = mesh;
         Catalog = catalog;
         _config = config;
@@ -162,10 +174,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     public ModelCatalog Catalog { get; }
 
     /// <summary>Every model the mesh knows about, as table rows.</summary>
-    public ObservableCollection<NetworkModelRow> Rows { get; } = new();
+    public ObservableCollection<INetworkRow> Rows { get; } = new();
 
     /// <summary>The rows the filters and the sort leave, which is what the table draws.</summary>
-    public ObservableCollection<NetworkModelRow> VisibleRows { get; } = new();
+    public ObservableCollection<INetworkRow> VisibleRows { get; } = new();
 
     /// <summary>The filter headings in the sidebar, above the contribute card.</summary>
     public IReadOnlyList<ModelFilterGroup> Groups { get; }
@@ -181,7 +193,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// beats a model, because that is the order of how specific the question is: someone who
     /// clicked an uncovered section is asking about that section.
     /// </summary>
-    public object? InspectorTarget => (object?)SelectedSection ?? (object?)SelectedSource ?? SelectedModel;
+    public object? InspectorTarget
+        => (object?)SelectedSection ?? (object?)SelectedSource ?? (object?)SelectedDirectoryMesh ?? SelectedModel;
+
+    /// <summary>The directory entry the inspector is showing, or null.</summary>
+    /// <remarks>
+    /// A fourth thing the one slot can hold. It is not a model and not a source: it is a mesh
+    /// somebody else runs, and the only thing to do about it is join.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    private DiscoveredMesh? _selectedDirectoryMesh;
 
     /// <summary>True when the inspector is pinned to something inside a model rather than the model.</summary>
     /// <remarks>
@@ -393,6 +415,108 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// </remarks>
     public string StartButtonText => Mesh.IsRunning ? "Stop the node" : "Start the node";
 
+    /// <summary>True while the public directory is being asked.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindMeshesText))]
+    private bool _isSearchingDirectory;
+
+    /// <summary>What the find button says, so a search in progress is visible on the button itself.</summary>
+    public string FindMeshesText => IsSearchingDirectory ? "Searching..." : "Find meshes";
+
+    /// <summary>
+    /// Asks the public directory what meshes exist and puts them in the table.
+    /// </summary>
+    /// <remarks>
+    /// On the button and nowhere else. This is the only thing in the application that reaches past
+    /// the local network without a model being run, so it happens when somebody asks and never as
+    /// a side effect of opening a tab or starting up.
+    ///
+    /// Results replace the previous ones rather than accumulating, because a directory listing is
+    /// a reading of a moment and a mesh that has gone should go with it.
+    /// </remarks>
+    [RelayCommand]
+    private async Task FindMeshesAsync()
+    {
+        if (_directory is null || IsSearchingDirectory)
+        {
+            return;
+        }
+
+        IsSearchingDirectory = true;
+
+        try
+        {
+            var found = await _directory.ListAsync(CancellationToken.None).ConfigureAwait(true);
+
+            _discovered.Clear();
+
+            foreach (var mesh in found)
+            {
+                _discovered.Add(new DiscoveredMeshRow(mesh));
+            }
+
+            _feed.Info(
+                found.Count == 1 ? "1 mesh found" : $"{found.Count} meshes found",
+                found.Count == 0
+                    ? "The public directory answered with nothing. Meshes appear here only while they are publishing."
+                    : "Listed with the models each one serves. Joining one still needs its invite, which is fetched when you join.");
+
+            ApplyFilters();
+        }
+        finally
+        {
+            IsSearchingDirectory = false;
+        }
+    }
+
+    /// <summary>
+    /// Joins the mesh the inspector is showing.
+    /// </summary>
+    /// <remarks>
+    /// The token is fetched now rather than kept from the listing, because the listing prints it
+    /// truncated and a truncated token is not one. A mesh that named itself is asked for by name;
+    /// one that did not is asked for by a model it serves, which is the best the directory can
+    /// express and is said on the panel rather than hidden here.
+    /// </remarks>
+    [RelayCommand]
+    private async Task JoinDiscoveredAsync()
+    {
+        if (_directory is null || SelectedDirectoryMesh is not { } mesh || IsSearchingDirectory)
+        {
+            return;
+        }
+
+        IsSearchingDirectory = true;
+
+        try
+        {
+            var token = await _directory
+                .ResolveTokenAsync(
+                    mesh.HasName ? mesh.Name : null,
+                    mesh.Serving.FirstOrDefault(),
+                    CancellationToken.None)
+                .ConfigureAwait(true);
+
+            if (token is null)
+            {
+                _feed.Error(
+                    "Could not join that mesh",
+                    "The directory did not return an invite for it. It may have stopped publishing since the list was taken.");
+
+                return;
+            }
+
+            JoinToken = token;
+            _feed.Info($"Joining {mesh.DisplayName}", "The invite was fetched and the node is restarting with it.");
+
+            await ApplySettingsAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            IsSearchingDirectory = false;
+        }
+    }
+
     /// <summary>Starts or stops this install's mesh node.</summary>
     [RelayCommand]
     private async Task ToggleMeshAsync()
@@ -530,11 +654,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// was pinned to. Selection lives on the lists rather than behind commands so that the
     /// keyboard works in them for free.
     /// </summary>
-    partial void OnSelectedRowChanged(NetworkModelRow? value)
+    partial void OnSelectedRowChanged(INetworkRow? value)
     {
         SelectedSection = null;
         SelectedSource = null;
-        SelectedModel = value?.Model;
+        SelectedModel = (value as NetworkModelRow)?.Model;
+        SelectedDirectoryMesh = (value as DiscoveredMeshRow)?.Mesh;
     }
 
     partial void OnSelectedSourceChanged(InferenceSource? value)
@@ -682,6 +807,14 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         Rows.Clear();
 
+        // What the directory listed goes in the same table, above what the mesh itself reports,
+        // because a mesh you could join is an answer to "what can I reach" with one more step
+        // attached and a second table would make somebody guess which one to look in first.
+        foreach (var discovered in _discovered)
+        {
+            Rows.Add(discovered);
+        }
+
         foreach (var model in wanted)
         {
             if (!_rows.TryGetValue(model, out var row))
@@ -715,7 +848,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         var text = FilterText.Trim();
 
-        IEnumerable<NetworkModelRow> kept = Rows.Where(row =>
+        IEnumerable<INetworkRow> kept = Rows.Where(row =>
             Groups.All(group => group.Keeps(row))
             && (text.Length == 0
                 || row.Name.Contains(text, StringComparison.OrdinalIgnoreCase)

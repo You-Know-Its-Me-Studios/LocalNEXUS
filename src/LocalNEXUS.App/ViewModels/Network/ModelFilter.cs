@@ -13,7 +13,7 @@ namespace LocalNEXUS.App.ViewModels.Network;
 /// </remarks>
 public sealed partial class ModelFilter : ObservableObject
 {
-    private readonly Func<NetworkModelRow, bool> _predicate;
+    private readonly Func<INetworkRow, bool> _predicate;
 
     /// <summary>How many rows this filter would leave, out of everything the mesh knows.</summary>
     [ObservableProperty]
@@ -23,7 +23,7 @@ public sealed partial class ModelFilter : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
-    public ModelFilter(string label, Func<NetworkModelRow, bool> predicate, ICommand apply, bool isSelected = false)
+    public ModelFilter(string label, Func<INetworkRow, bool> predicate, ICommand apply, bool isSelected = false)
     {
         Label = label;
         _predicate = predicate;
@@ -42,5 +42,5 @@ public sealed partial class ModelFilter : ObservableObject
     public ICommand Apply { get; }
 
     /// <summary>True when this filter keeps a row.</summary>
-    public bool Keeps(NetworkModelRow row) => _predicate(row);
+    public bool Keeps(INetworkRow row) => _predicate(row);
 }

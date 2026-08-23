@@ -19,7 +19,7 @@ namespace LocalNEXUS.App.ViewModels.Network;
 /// table lie in exactly the place a person would trust it. Last verified is real: it is the most
 /// recent time the mesh saw any source holding a piece of this model.
 /// </remarks>
-public sealed partial class NetworkModelRow : ObservableObject, IDisposable
+public sealed partial class NetworkModelRow : ObservableObject, INetworkRow, IDisposable
 {
     /// <summary>What a GGUF quantization label looks like, which is how format is inferred.</summary>
     private static readonly Regex GgufQuantisation = new(
@@ -43,6 +43,18 @@ public sealed partial class NetworkModelRow : ObservableObject, IDisposable
 
     /// <summary>The readable tail of the model id, which is what the row leads with.</summary>
     public string Name => Model.Name;
+
+    /// <summary>The full identifier, which the name is a readable tail of.</summary>
+    public string ModelId => Model.ModelId;
+
+    /// <summary>Colour of the weakest link in the chain.</summary>
+    public SectionCoverage Strength => Model.Strength;
+
+    /// <summary>False. This is something the mesh reports, not something from the directory.</summary>
+    public bool IsDiscovered => false;
+
+    /// <summary>The model itself, which is what the inspector shows for this row.</summary>
+    public object InspectorTarget => Model;
 
     /// <summary>Quantization label as the engine reports it.</summary>
     public string Quantisation => Model.Quantization;
