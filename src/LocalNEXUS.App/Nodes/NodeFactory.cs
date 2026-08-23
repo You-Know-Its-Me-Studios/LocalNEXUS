@@ -29,6 +29,7 @@ public sealed class NodeFactory
     private readonly ICredentialStore _credentials;
     private readonly ProjectSettingsService? _project;
     private readonly Services.Inference.LlamaServerManager? _servers;
+    private readonly Services.Inference.ToolSupportProbe? _probe;
 
     public NodeFactory(
         ModelCatalog catalog,
@@ -40,9 +41,11 @@ public sealed class NodeFactory
         ICredentialStore credentials,
         ProjectSettingsService? project = null,
         System.Windows.Threading.Dispatcher? dispatcher = null,
-        Services.Inference.LlamaServerManager? servers = null)
+        Services.Inference.LlamaServerManager? servers = null,
+        Services.Inference.ToolSupportProbe? probe = null)
     {
         _servers = servers;
+        _probe = probe;
         _project = project;
         _credentials = credentials;
         _catalog = catalog;
@@ -192,7 +195,8 @@ public sealed class NodeFactory
                 factory._dialogs,
                 factory._toolset,
                 factory._credentials,
-                factory._servers)
+                factory._servers,
+                factory._probe)
             {
                 SystemPrompt = ModelNode.PromptFor(factory._project?.Kind ?? ProjectKind.None)
             }),

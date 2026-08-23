@@ -146,9 +146,22 @@ public partial class App : Application
         // and a load parameter is fixed at the moment the server starts.
         _llamaServers = new LlamaServerManager(children);
 
+        // One router over three adapters. Everything upstream still asks for a completion
+        // against an endpoint; which protocol answers is decided from the endpoint itself.
+        _modelClient = new ModelClientRouter(
+            new OpenAiCompatibleClient(),
+            new AnthropicClient(),
+            new GeminiClient());
+
+        // Whether a model actually calls tools, which is established by asking it to rather than
+        // by reading what its template claims. One instance, so the answer is measured once and
+        // the panel and the run path agree about it.
+        var toolSupport = new ToolSupportProbe(_modelClient);
+
         var factory = new NodeFactory(
             catalog, mesh, dialogs, config, extensions, extensionHost, credentials, projectSettings, Dispatcher,
-            _llamaServers);
+            _llamaServers,
+            toolSupport);
         var serializer = new GraphSerializer(factory);
 
         // Restoring the node is deliberately not awaited: composition must not block on a
@@ -164,13 +177,6 @@ public partial class App : Application
         // Order is the order runtimes are asked, and each answers for exactly one format, so
         // adding a third changes this line and nothing else.
         var runtimes = new RuntimeResolver(_llamaServers, _pythonRuntime);
-
-        // One router over three adapters. Everything upstream still asks for a completion
-        // against an endpoint; which protocol answers is decided from the endpoint itself.
-        _modelClient = new ModelClientRouter(
-            new OpenAiCompatibleClient(),
-            new AnthropicClient(),
-            new GeminiClient());
 
         // Roslyn against the open project's own Unity references. The reference set is cached
         // behind this and rebuilt only when the project's compiled assemblies change.
@@ -219,7 +225,7 @@ public partial class App : Application
             history,
             conversation,
             extensions,
-            new ToolSupportProbe(OpenAiCompatibleClient.CreateDefaultHttpClient()),
+            toolSupport,
             credentials,
             cost)
         {

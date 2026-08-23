@@ -250,6 +250,15 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// rather than widening an interface every runtime would have to answer null to.
     /// </remarks>
     private readonly LlamaServerManager? _servers;
+
+    /// <summary>
+    /// What establishes whether a model actually calls tools, shared so it is asked once.
+    /// </summary>
+    /// <remarks>
+    /// The same instance the run path uses, so an answer measured here is the answer a run gets
+    /// and neither of them pays for it twice.
+    /// </remarks>
+    private readonly ToolSupportProbe? _probe;
     private readonly ICredentialStore? _credentials;
 
     /// <summary>Extensions whose tools this node may call. Empty means the node offers no tools.</summary>
@@ -466,13 +475,37 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
         try
         {
-            var endpoint = new ModelEndpoint(
-                string.IsNullOrWhiteSpace(BaseUrl) ? LoopbackProbeUrl : BaseUrl,
-                ModelDisplayName,
-                null);
+            if (_probe is null)
+            {
+                ToolSupportDetail = "Nothing here can ask.";
+                return;
+            }
 
-            var probe = new ToolSupportProbe(OpenAiCompatibleClient.CreateDefaultHttpClient());
-            var (support, detail) = await probe.ProbeAsync(endpoint, CancellationToken.None).ConfigureAwait(true);
+            // A real answer means asking the model, so there has to be something to ask. A local
+            // model with no server up is not a model that cannot call tools; it is one nothing has
+            // been established about, which is a different state and is said as one.
+            var address = BaseUrl;
+
+            if (string.IsNullOrWhiteSpace(address) && Provider == ModelProvider.Local)
+            {
+                if (_servers?.Describe(EffectiveLocalModelPath) is not { } running)
+                {
+                    ToolSupport = ToolSupport.Unknown;
+                    ToolSupportDetail = "The model is not loaded, so it cannot be asked yet. Run once, then check.";
+
+                    return;
+                }
+
+                address = $"http://127.0.0.1:{running.Port}/v1";
+            }
+
+            ToolSupportDetail = "Asking the model to call a tool.";
+
+            var endpoint = new ModelEndpoint(address, ModelDisplayName, null);
+
+            var (support, detail) = await _probe
+                .ProbeAsync(endpoint, ToolSupportKey, CancellationToken.None)
+                .ConfigureAwait(true);
 
             ToolSupport = support;
             ToolSupportDetail = detail;
@@ -483,6 +516,19 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
             ToolSupportDetail = $"The model's server could not be asked: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// What a tool support answer is remembered against.
+    /// </summary>
+    /// <remarks>
+    /// The model file for a local one, because the address of a local server is a port picked when
+    /// it started and the model behind it is the thing being asked about. Anything else is the
+    /// address and the model id, which together are what somebody is pointing at.
+    /// </remarks>
+    private string ToolSupportKey => Provider == ModelProvider.Local
+        && EffectiveLocalModelPath is { Length: > 0 } file
+            ? file
+            : $"{BaseUrl}|{ModelDisplayName}";
 
     /// <summary>
     /// Where a check looks when the node has no address of its own.
@@ -613,14 +659,25 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// Before a run rather than after it. Selecting tools for a model that will ignore them is a
     /// silent waste of the context they were paid for, and the run that discovers it has already
     /// spent it.
+    ///
+    /// The answer comes from giving the model a tool and seeing whether it calls one, because the
+    /// capability its server reports is about the chat template and not about the model. A model
+    /// that reports both tool flags true and then writes the call out as text in a code fence is
+    /// the ordinary case rather than the odd one.
     /// </remarks>
     public string ToolSupportText => ToolSupport switch
     {
-        ToolSupport.Supported => "This model can call tools.",
-        ToolSupport.Unsupported =>
-            "This model cannot call tools, so anything selected here will be ignored. "
-            + ToolSupportDetail,
-        _ => "Whether this model can call tools has not been checked. Check it before relying on them."
+        ToolSupport.Supported => ToolSupportDetail.Length > 0
+            ? ToolSupportDetail
+            : "This model calls tools.",
+
+        ToolSupport.Unsupported => ToolSupportDetail.Length > 0
+            ? ToolSupportDetail
+            : "This model does not call tools, so anything selected here is context spent for nothing.",
+
+        _ => ToolSupportDetail.Length > 0
+            ? ToolSupportDetail
+            : "Whether this model calls tools has not been established. Check it before relying on them."
     };
 
     public ModelNode(
@@ -629,10 +686,12 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         IDialogService dialogs,
         ExtensionToolset? toolset = null,
         ICredentialStore? credentials = null,
-        LlamaServerManager? servers = null)
+        LlamaServerManager? servers = null,
+        ToolSupportProbe? probe = null)
         : base("Model")
     {
         _servers = servers;
+        _probe = probe;
         Catalog = catalog;
         Mesh = mesh;
         _dialogs = dialogs;
@@ -1394,14 +1453,14 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// like one where the model chose not to search. Asked here, at the point the tools are
     /// assembled, so the answer is in the feed before the first token.
     /// </remarks>
-    private static async Task<IReadOnlyList<ToolDefinition>> WithSupportCheckAsync(
+    private async Task<IReadOnlyList<ToolDefinition>> WithSupportCheckAsync(
         NodeExecutionContext ctx,
         ModelEndpoint endpoint,
         IReadOnlyList<ToolDefinition> tools,
         CancellationToken ct)
     {
         var (support, detail) = await ctx.Services.ToolSupport
-            .ProbeAsync(endpoint, ct)
+            .ProbeAsync(endpoint, ToolSupportKey, ct)
             .ConfigureAwait(false);
 
         if (support == ToolSupport.Unsupported)

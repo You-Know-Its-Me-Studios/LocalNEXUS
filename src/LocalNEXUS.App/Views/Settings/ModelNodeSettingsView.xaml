@@ -482,7 +482,7 @@
                     Style="{StaticResource SmallButton}"
                     Margin="6,0,0,0"
                     Content="Check support"
-                    ToolTip="Asks the model's own server whether its template can call tools"
+                    ToolTip="Gives the model one small tool and sees whether it actually calls it. The model has to be loaded."
                     Command="{Binding CheckToolSupportCommand}" />
 
             <TextBlock Style="{StaticResource HintText}"

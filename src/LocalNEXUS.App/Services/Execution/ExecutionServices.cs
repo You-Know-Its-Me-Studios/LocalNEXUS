@@ -36,8 +36,11 @@ public sealed class ExecutionServices
         Extensions = extensions;
         Credentials = credentials;
         Cost = cost ?? new RunCostTracker();
-        ToolSupport = toolSupport ?? new ToolSupportProbe(new System.Net.Http.HttpClient());
         ModelClient = modelClient;
+
+        // The same client the run uses, because what is being established is whether a tool call
+        // survives the path a real request takes rather than whether a server says it would.
+        ToolSupport = toolSupport ?? new ToolSupportProbe(modelClient);
         Runtimes = runtimes;
         Mesh = mesh;
         Compiler = compiler;
