@@ -456,6 +456,11 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         }
 
         choice.Listing = ToolListingState.Listed;
+
+        // Asking an extension what it has is a statement of intent to use it. Leaving it unticked
+        // after showing somebody its eighty tools is how a run started with none of them.
+        choice.IsSelected = true;
+
         choice.RefreshSummary();
 
         RaiseToolCostChanged();

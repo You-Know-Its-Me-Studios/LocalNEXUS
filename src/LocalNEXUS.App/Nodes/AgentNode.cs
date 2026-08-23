@@ -152,7 +152,23 @@ public sealed partial class AgentNode : NodeBase
             {
                 StatusMessage = $"finished in {turn} turn(s), {calls} tool call(s)";
 
-                ctx.Feed.Info($"{Title} finished", $"{turn} turn(s), {calls} tool call(s).");
+                if (calls == 0)
+                {
+                    // Nothing was called, so nothing was read, written or run, whatever the answer
+                    // says. A model that describes work it did not do reads as a completed run,
+                    // and the only way to tell from the outside is that no tool was ever used.
+                    ctx.Feed.Error(
+                        $"{Title} finished without using a tool",
+                        "It answered in one turn and called nothing, so nothing was read, written or "
+                        + "run. If the answer claims work was done, it was not done here. That is "
+                        + "usually a model that cannot emit tool calls: check tool support on the "
+                        + "Model node. It is also the right answer when there was genuinely nothing "
+                        + $"to do.{Environment.NewLine}{Environment.NewLine}{summary}");
+                }
+                else
+                {
+                    ctx.Feed.Info($"{Title} finished", $"{turn} turn(s), {calls} tool call(s).");
+                }
 
                 return Emit(summary, toolbox);
             }

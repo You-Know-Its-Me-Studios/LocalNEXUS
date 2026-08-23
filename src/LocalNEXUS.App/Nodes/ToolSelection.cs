@@ -116,14 +116,40 @@ public sealed partial class ExtensionChoice : ObservableObject
     /// Not listed is not a failure and does not read as one. An extension is a process, and one is
     /// not started to fill in a panel somebody opened to change the temperature.
     /// </remarks>
-    public string Summary => Listing switch
+    public string Summary
     {
-        ToolListingState.Listing => "starting it and asking",
-        ToolListingState.Unavailable => Problem ?? "it could not be reached",
-        ToolListingState.Listed when Tools.Count == 0 => "it has no tools",
-        ToolListingState.Listed => $"{Tools.Count(t => t.IsSelected)} of {Tools.Count} tools, about {SelectedTokens} tokens",
-        _ => IsUsable ? "tools not listed yet" : StateText
-    };
+        get
+        {
+            if (Listing == ToolListingState.Listing)
+            {
+                return "starting it and asking";
+            }
+
+            if (Listing == ToolListingState.Unavailable)
+            {
+                return Problem ?? "it could not be reached";
+            }
+
+            // Whether it is ticked comes first, and it used to come nowhere. Listing an
+            // extension's tools shows the count without offering any of them, so a row reading
+            // "80 of 80 tools" beside an unticked box said the opposite of what was true, and a
+            // run then started with none of them.
+            if (!IsSelected)
+            {
+                return Listing == ToolListingState.Listed
+                    ? $"not ticked, so none of its {Tools.Count} tools are offered"
+                    : "not ticked, so none of its tools are offered";
+            }
+
+            return Listing switch
+            {
+                ToolListingState.Listed when Tools.Count == 0 => "it has no tools",
+                ToolListingState.Listed =>
+                    $"{Tools.Count(t => t.IsSelected)} of {Tools.Count} tools, about {SelectedTokens} tokens",
+                _ => IsUsable ? "every tool it has, once it has been asked what they are" : StateText
+            };
+        }
+    }
 
     /// <summary>Roughly what the selected tools of this extension cost every turn.</summary>
     public int SelectedTokens => Tools.Where(t => t.IsSelected).Sum(t => t.TokenEstimate);
@@ -136,7 +162,11 @@ public sealed partial class ExtensionChoice : ObservableObject
         OnPropertyChanged(nameof(Summary));
     }
 
-    partial void OnIsSelectedChanged(bool value) => _changed(this);
+    partial void OnIsSelectedChanged(bool value)
+    {
+        _changed(this);
+        OnPropertyChanged(nameof(Summary));
+    }
 }
 
 /// <summary>
