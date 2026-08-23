@@ -229,6 +229,15 @@ public sealed class NodeFactory
             new[] { "CompileCheck", "Compile" },
             factory => new CompilerCheckNode { RetryLimit = factory._config.DefaultRetryLimit }),
 
+        // Not everything is a file. This is the end of a chain that answers a question rather
+        // than writing one, so nothing about the write path is involved.
+        new BuiltInNode(
+            "TextOutput",
+            "Text output",
+            "Shows the reply so you can read and copy it. Writes nothing to disk.",
+            Array.Empty<string>(),
+            factory => new TextOutputNode(factory._dialogs)),
+
         new BuiltInNode(
             "Output",
             "Output",

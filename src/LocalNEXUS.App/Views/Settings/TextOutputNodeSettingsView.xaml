@@ -1,0 +1,44 @@
+<UserControl x:Class="LocalNEXUS.App.Views.Settings.TextOutputNodeSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nodes="clr-namespace:LocalNEXUS.App.Nodes"
+             d:DataContext="{d:DesignInstance Type=nodes:TextOutputNode}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!--
+        The answer, where there is room to read it. The node itself shows the first line so the
+        canvas stays a diagram of the work rather than a page of prose, and the whole of it is
+        here, in the one slot that always means what can I do about the thing I just clicked.
+    -->
+
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top"
+                   Style="{StaticResource HintText}"
+                   TextWrapping="Wrap"
+                   Text="Whatever reached this node. Nothing is written to disk and nothing leaves the application, so none of the project write rules apply to it." />
+
+        <DockPanel DockPanel.Dock="Top" Margin="0,10,0,0">
+            <Button DockPanel.Dock="Right"
+                    Style="{StaticResource SmallButton}"
+                    Margin="6,0,0,0"
+                    Content="Copy"
+                    ToolTip="Puts the whole answer on the clipboard"
+                    Command="{Binding CopyCommand}" />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       VerticalAlignment="Center"
+                       Text="Nothing has run yet."
+                       Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+        </DockPanel>
+
+        <TextBox Margin="0,8,0,0"
+                 Style="{StaticResource MonoTextBox}"
+                 Text="{Binding Text, Mode=OneWay}"
+                 IsReadOnly="True"
+                 MinHeight="200"
+                 VerticalScrollBarVisibility="Auto"
+                 Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
+    </DockPanel>
+</UserControl>

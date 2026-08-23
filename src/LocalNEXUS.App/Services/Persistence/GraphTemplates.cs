@@ -56,6 +56,10 @@ public sealed class GraphTemplates
             "The smallest graph that writes a file. Type a request, a model answers, the answer is written.",
             new Action<Builder>(Minimal)),
 
+        ("ask", "Ask a question",
+            "Type a question, a model answers, and the answer is shown so you can read and copy it. Nothing is written to disk.",
+            new Action<Builder>(Ask)),
+
         ("multi-file", "Plan several files",
             "Reads your project first and works out which files to edit and which to write new, then writes them in dependency order.",
             new Action<Builder>(MultiFile)),
@@ -179,6 +183,24 @@ public sealed class GraphTemplates
 
         b.Wire(prompt, "Text", model, "Text");
         b.Wire(model, "Code", output, "Code");
+    }
+
+    /// <summary>
+    /// The smallest graph there is: ask, read.
+    /// </summary>
+    /// <remarks>
+    /// First in the list after the one that writes a file, because it is the thing most people
+    /// would try first and until now there was no graph that did it. Three nodes and two wires, and
+    /// nothing it does can touch the project.
+    /// </remarks>
+    private static void Ask(Builder b)
+    {
+        var prompt = b.Add("Prompt", 40, 140);
+        var model = b.Add("Model", 300, 140);
+        var answer = b.Add("TextOutput", 560, 140);
+
+        b.Wire(prompt, "Text", model, "Text");
+        b.Wire(model, "Code", answer, "Text");
     }
 
     /// <summary>
