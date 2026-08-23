@@ -731,80 +731,17 @@
                     <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 
                     <!--
-                        Written for somebody who has never heard of any of this. Every field said
-                        what it was called and nothing said what it was for, which is fine once you
-                        already know and useless before then.
+                        The mesh moved out of here entirely. Every field on it is something somebody
+                        touches while using the mesh rather than a preference set once, and half of
+                        it was already in the Network tab, so the two halves argued about which was
+                        the real one. Settings keeps the things this install runs; the mesh is a
+                        thing this install does.
                     -->
                     <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Mesh node" />
-
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,6,0,0"
                                TextWrapping="Wrap"
-                               Text="A mesh pools the graphics cards of several machines so they can run a model together that none of them could run alone. It is entirely optional. With the node stopped, this application works exactly as it does now and every model runs on this machine." />
-
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,6,0,0"
-                               TextWrapping="Wrap"
-                               Text="Machines find each other over your local network on their own, so there are no addresses to type. Nothing is split across machines unless a model does not fit on one: crossing between machines costs time, so it buys capability rather than speed." />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                        <Ellipse Style="{StaticResource StateDot}"
-                                 Margin="0,0,8,0"
-                                 Fill="{Binding Network.Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
-                        <TextBlock Text="{Binding Network.Mesh.StatusText}" />
-                    </StackPanel>
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Mesh name" />
-                    <TextBox behaviors:TextBoxHelper.Placeholder="A name for the mesh this machine hosts"
-                             Text="{Binding Network.MeshName, UpdateSourceTrigger=LostFocus}" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Text="What the mesh this machine hosts is called, and what anybody you invite will see. It matters only while you are hosting; joining somebody else's mesh uses theirs." />
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Join another mesh" />
-                    <TextBox behaviors:TextBoxHelper.Placeholder="Invite token from the machine hosting the mesh"
-                             Text="{Binding Network.JoinToken, UpdateSourceTrigger=LostFocus}"
-                             FontFamily="{StaticResource Font.Mono}" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Text="Paste the invite token from the machine that is hosting, then press the save button below. Whoever is hosting finds their token in the Network tab, under Invite token, with a Copy button beside it. Leave this empty to host a mesh of your own instead of joining one." />
-
-                    <CheckBox Style="{StaticResource ToggleSwitch}"
-                              Margin="0,14,0,0"
-                              Content="Publish this mesh publicly"
-                              IsChecked="{Binding Network.Publish}" />
-
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Foreground="{DynamicResource Status.Warning.Brush}"
-                               Text="The only setting here that reaches beyond your local network. Off, the node speaks only to machines on the same network as this one and a stranger cannot see it exists. On, the mesh is listed publicly and anyone can ask to use what you have chosen to share." />
-
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,8,0,0"
-                               TextWrapping="Wrap"
-                               Text="What this machine shares, which models and how much memory, is set in the Network tab rather than here. Nothing is shared until you tick it." />
-
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,8,0,0"
-                               TextWrapping="Wrap"
-                               Text="Turning the node on and off is in the Network tab, beside the line that says whether it is running. It is an everyday action rather than a setting, so it lives where the mesh is used." />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                        <Button Style="{StaticResource SmallButton}"
-                                Margin="0,0,8,0"
-                                Content="{Binding Network.ApplyButtonText}"
-                                ToolTip="Saves everything above. Restarts the node too, when there is one running to restart."
-                                Command="{Binding Network.ApplySettingsCommand}" />
-                        <Button Style="{StaticResource SmallButton}" Content="Leave the mesh" Command="{Binding Network.LeaveMeshCommand}" />
-                    </StackPanel>
-
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,6,0,0"
-                               TextWrapping="Wrap"
-                               Text="Everything above is read once, when the node starts. The first button saves it, and restarts the node as well when one is running, because a running node cannot pick any of this up without coming back up. With the node stopped it only saves, and says so. Leave the mesh clears the invite token and goes back to hosting your own." />
+                               Text="All of it is in the Network tab: what the mesh is called, joining somebody else's, what this machine shares, publishing, and starting and stopping the node. It used to be split between here and there, which meant looking in two places to answer one question." />
 
                     <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 

@@ -1,6 +1,7 @@
 <UserControl x:Class="LocalNEXUS.App.Views.Shell.NetworkSideBarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:behaviors="clr-namespace:LocalNEXUS.App.Infrastructure.Behaviors"
              xmlns:vm="clr-namespace:LocalNEXUS.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:NetworkViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -25,6 +26,46 @@
                 BorderThickness="0,1,0,0"
                 Padding="14,12">
             <StackPanel>
+
+                <!--
+                    What the mesh is, before what this machine gives it. These four were in Settings
+                    and the contribution below them was here, so answering one question meant
+                    looking in two places and neither half said the other existed.
+                -->
+                <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Mesh name" />
+                <TextBox Text="{Binding MeshName, UpdateSourceTrigger=LostFocus}"
+                         behaviors:TextBoxHelper.Placeholder="A name for the mesh this machine hosts" />
+                <TextBlock Style="{StaticResource HintText}"
+                           TextWrapping="Wrap"
+                           Text="What this machine's own mesh is called, and what anybody you invite sees. Ignored while you are joined to somebody else's." />
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="Join another mesh" />
+                <TextBox Text="{Binding JoinToken, UpdateSourceTrigger=LostFocus}"
+                         FontFamily="{StaticResource Font.Mono}"
+                         behaviors:TextBoxHelper.Placeholder="Invite token from the hosting machine" />
+                <TextBlock Style="{StaticResource HintText}"
+                           TextWrapping="Wrap"
+                           Text="Paste a token to join somebody else's mesh instead of hosting your own. Empty means host your own." />
+
+                <Button Style="{StaticResource SmallButton}"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Left"
+                        Content="Leave the mesh"
+                        ToolTip="Clears the invite token and goes back to hosting your own mesh."
+                        Command="{Binding LeaveMeshCommand}" />
+
+                <CheckBox Style="{StaticResource ToggleSwitch}"
+                          Margin="0,14,0,0"
+                          Content="Publish this mesh publicly"
+                          IsChecked="{Binding Publish}" />
+
+                <TextBlock Style="{StaticResource HintText}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Status.Warning.Brush}"
+                           Text="The only thing here that reaches past your own network. Off, only machines on this network can find the mesh. On, it is listed publicly so anybody can find it, though joining still needs the token." />
+
+                <Rectangle Height="1" Margin="0,14,0,12" Fill="{DynamicResource Surface.Border.Brush}" />
+
                 <CheckBox Style="{StaticResource ToggleSwitch}"
                           Content="Offer this machine"
                           IsChecked="{Binding Contribute}" />
