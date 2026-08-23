@@ -43,7 +43,7 @@
                          BorderThickness="0">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Margin="0,3" />
+                            <TextBlock Text="{Binding Converter={StaticResource SettingsSectionName}}" Margin="0,3" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -316,7 +316,33 @@
 
                     <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Cloud providers" />
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Warn before an expensive run" />
+                    <TextBlock Style="{StaticResource HintText}" Text="{Binding Providers.ThresholdSummary}" TextWrapping="Wrap" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Ask above" />
+                    <TextBox Text="{Binding Providers.CostWarningThreshold, UpdateSourceTrigger=LostFocus}"
+                             AutomationProperties.Name="Cost warning threshold in dollars" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Dollars. What a run is measured against is a ceiling, being the whole input plus the most each node is allowed to write, so the real cost is usually lower and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it." />
+                </StackPanel>
+
+                <!--
+                    API keys.
+
+                    They were under Models, which is where a model provider key belongs and where a
+                    search provider key plainly does not, and the search one had ended up in the
+                    Project section besides, so it was invisible with no project open. Grouping them
+                    by what they are rather than by what they are for is what makes the second kind
+                    findable, and the third kind after that.
+                -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EnumToVisibility}, ConverterParameter=ApiKeys}">
+                    <TextBlock Style="{StaticResource SectionHeader}" FontSize="{StaticResource Font.Size.Title}" Text="API keys" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Every key this application holds, encrypted for this Windows account. Nothing here is bundled and nothing is sent anywhere but the provider it belongs to." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Models" />
                     <TextBlock Style="{StaticResource HintText}"
                                TextWrapping="Wrap"
                                Text="Use the accounts you already pay for. Keys are encrypted for this Windows account and never written into a saved graph, so a graph can be shared without taking your key with it." />
@@ -401,15 +427,32 @@
                         <Button Grid.Column="2" Margin="8,0,0,0" MinWidth="64" Content="Add" Command="{Binding Providers.AddCustomCommand}" />
                     </Grid>
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Warn before an expensive run" />
-                    <TextBlock Style="{StaticResource HintText}" Text="{Binding Providers.ThresholdSummary}" TextWrapping="Wrap" />
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Search providers" />
 
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Ask above" />
-                    <TextBox Text="{Binding Providers.CostWarningThreshold, UpdateSourceTrigger=LostFocus}"
-                             AutomationProperties.Name="Cost warning threshold in dollars" />
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Web search key" />
                     <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
                                TextWrapping="Wrap"
-                               Text="Dollars. What a run is measured against is a ceiling, being the whole input plus the most each node is allowed to write, so the real cost is usually lower and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it." />
+                               Text="{Binding SearchStatus}" />
+                    <DockPanel Margin="0,6,0,0">
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="6,0,0,0"
+                                Content="Forget"
+                                Command="{Binding ClearSearchKeyCommand}"
+                                Visibility="{Binding HasSearchKey, Converter={StaticResource BooleanToVisibility}}" />
+                        <PasswordBox x:Name="SearchKeyBox" Padding="8,6" />
+                    </DockPanel>
+                    <Button Margin="0,6,0,0"
+                            HorizontalAlignment="Left"
+                            Style="{StaticResource SmallButton}"
+                            Content="Save key"
+                            Command="{Binding SetSearchKeyCommand}"
+                            CommandParameter="{Binding Password, ElementName=SearchKeyBox}" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,14"
+                               TextWrapping="Wrap"
+                               Text="The key is yours and is stored encrypted for this Windows account, beside the model keys. Nothing is bundled, because a bundled key would bill every installation's searches to one account." />
                 </StackPanel>
 
                 <!-- Project -->
@@ -523,31 +566,6 @@
                                Margin="0,4,0,14"
                                TextWrapping="Wrap"
                                Text="Paste or drop an image on the request box and this reads it into text, which joins your request. The image never enters the graph, so the coding model does not have to be able to see. Pick a local vision model and this starts it for you the first time you paste an image. A vision model is published as two files, the weights and an mmproj projector; keep both in the same folder and the projector is found on its own, because a model without one will load and then refuse every image. The address and model id below are for a hosted model, or for a server you are already running yourself." />
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Web search key" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Text="{Binding SearchStatus}" />
-                    <DockPanel Margin="0,6,0,0">
-                        <Button DockPanel.Dock="Right"
-                                Style="{StaticResource SmallButton}"
-                                Margin="6,0,0,0"
-                                Content="Forget"
-                                Command="{Binding ClearSearchKeyCommand}"
-                                Visibility="{Binding HasSearchKey, Converter={StaticResource BooleanToVisibility}}" />
-                        <PasswordBox x:Name="SearchKeyBox" Padding="8,6" />
-                    </DockPanel>
-                    <Button Margin="0,6,0,0"
-                            HorizontalAlignment="Left"
-                            Style="{StaticResource SmallButton}"
-                            Content="Save key"
-                            Command="{Binding SetSearchKeyCommand}"
-                            CommandParameter="{Binding Password, ElementName=SearchKeyBox}" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,14"
-                               TextWrapping="Wrap"
-                               Text="The key is yours and is stored encrypted for this Windows account, beside the model keys. Nothing is bundled, because a bundled key would bill every installation's searches to one account." />
 
                     <TextBlock Style="{StaticResource FieldLabel}" Text="Answer MCP tool calls" />
                     <CheckBox Margin="0,2,0,0"

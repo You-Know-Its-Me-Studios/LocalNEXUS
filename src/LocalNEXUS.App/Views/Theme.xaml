@@ -19,6 +19,7 @@
     <converters:StringToVisibilityConverter x:Key="StringToVisibility" />
     <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
     <converters:NullToVisibilityConverter x:Key="NullToVisibility" />
+    <converters:SettingsSectionNameConverter x:Key="SettingsSectionName" />
     <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
     <converters:BooleanToInverseConverter x:Key="BooleanToInverse" />
 

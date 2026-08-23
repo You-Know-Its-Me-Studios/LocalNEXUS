@@ -11,6 +11,14 @@ public enum SettingsSection
     /// <summary>Where models are looked for, and how cloud providers are reached.</summary>
     Models,
 
+    /// <summary>Every credential this installation holds, grouped by what it is for.</summary>
+    /// <remarks>
+    /// Its own section rather than a heading under Models, because a search key is not a model
+    /// setting and the next kind of key will not be either. Grouping them by what they are is what
+    /// makes the second one findable.
+    /// </remarks>
+    ApiKeys,
+
     /// <summary>
     /// The open project: what it is, where its generated code goes, and what is known about it.
     /// </summary>
