@@ -170,11 +170,18 @@
         -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" MinHeight="120" />
+                <!--
+                    All three proportional, which is what makes the two handles independent. With
+                    fixed heights on the lower two the rows could add up to more than the window
+                    had, so dragging the first handle pushed the third section off the bottom and
+                    looked like it had moved the second handle. Star rows always sum to the space
+                    available, so a drag moves the boundary it is on and nothing else.
+                -->
+                <RowDefinition Height="3*" MinHeight="120" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="190" MinHeight="76" />
+                <RowDefinition Height="*" MinHeight="88" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="150" MinHeight="76" />
+                <RowDefinition Height="*" MinHeight="88" />
             </Grid.RowDefinitions>
 
         <!--
