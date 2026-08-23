@@ -87,10 +87,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
     /// <summary>Invite token typed into the join form.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MembershipText))]
     private string _joinToken = string.Empty;
 
     /// <summary>Name this install gives the mesh it hosts.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MembershipText))]
     private string _meshName;
 
     /// <summary>Whether this machine offers its own compute rather than only routing.</summary>
@@ -415,6 +417,54 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// </remarks>
     public string StartButtonText => Mesh.IsRunning ? "Stop the node" : "Start the node";
 
+    /// <summary>
+    /// What the last thing pressed on this tab did, shown on the tab itself.
+    /// </summary>
+    /// <remarks>
+    /// The Network tab writes to the activity feed like everything else, and the activity feed is
+    /// only drawn in the Workspace. So joining a mesh reported what it did, twice, into a panel
+    /// this section never shows: the button went grey, came back, and said nothing. An action gets
+    /// its answer where it was taken.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    private string _notice = string.Empty;
+
+    /// <summary>True when there is something to say about the last thing pressed.</summary>
+    public bool HasNotice => Notice.Length > 0;
+
+    /// <summary>Whether the last thing pressed went wrong, so the strip can say so in colour.</summary>
+    [ObservableProperty]
+    private bool _noticeIsProblem;
+
+    /// <summary>Puts the strip away.</summary>
+    [RelayCommand]
+    private void DismissNotice() => Notice = string.Empty;
+
+    /// <summary>Says what just happened, on the tab and in the feed both.</summary>
+    private void Say(string title, string detail, bool problem = false)
+    {
+        Notice = string.IsNullOrWhiteSpace(detail) ? title : $"{title}. {detail}";
+        NoticeIsProblem = problem;
+
+        if (problem)
+        {
+            _feed.Error(title, detail);
+            return;
+        }
+
+        _feed.Info(title, detail);
+    }
+
+    /// <summary>Which mesh this install is in, or means to be in once the node starts.</summary>
+    /// <remarks>
+    /// Joining sets a token and nothing visible changes until the node restarts, so without this
+    /// somebody who joined a mesh and had the node stopped saw exactly what they saw before.
+    /// </remarks>
+    public string MembershipText => string.IsNullOrWhiteSpace(JoinToken)
+        ? $"hosting {(string.IsNullOrWhiteSpace(MeshName) ? "a mesh" : MeshName)}"
+        : "joined another mesh by invite";
+
     /// <summary>True while the public directory is being asked.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FindMeshesText))]
@@ -455,11 +505,11 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 _discovered.Add(new DiscoveredMeshRow(mesh));
             }
 
-            _feed.Info(
+            Say(
                 found.Count == 1 ? "1 mesh found" : $"{found.Count} meshes found",
                 found.Count == 0
-                    ? "The public directory answered with nothing. Meshes appear here only while they are publishing."
-                    : "Listed with the models each one serves. Joining one still needs its invite, which is fetched when you join.");
+                    ? "Meshes only appear here while they are publishing themselves."
+                    : "They are in the table, above your own models.");
 
             // Rebuild, not filter. The table is assembled in one place, and what was discovered is
             // put into it there; filtering only decides which of an already assembled list shows,
@@ -502,17 +552,39 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
             if (token is null)
             {
-                _feed.Error(
+                Say(
                     "Could not join that mesh",
-                    "The directory did not return an invite for it. It may have stopped publishing since the list was taken.");
+                    "The directory had no invite for it. It may have stopped publishing since the list was taken.",
+                    problem: true);
 
                 return;
             }
 
             JoinToken = token;
-            _feed.Info($"Joining {mesh.DisplayName}", "The invite was fetched and the node is restarting with it.");
+            SaveSettings();
+
+            // Joining is a request to be in that mesh, so it starts the node rather than only
+            // saving the invite. Apply on its own restarts a node that is up and does nothing at
+            // all to one that is down, which is exactly the case somebody is in when they have
+            // just found a mesh worth joining.
+            if (!Mesh.IsRunning)
+            {
+                try
+                {
+                    await Mesh.StartAsync(CancellationToken.None).ConfigureAwait(true);
+                    Say($"Joined {mesh.DisplayName}", "The node started in it. Its models appear here as the mesh reports them.");
+                }
+                catch (ModelClientException ex)
+                {
+                    Say("Joined, but the node would not start", ex.Message, problem: true);
+                }
+
+                return;
+            }
 
             await ApplySettingsAsync().ConfigureAwait(true);
+
+            Say($"Joined {mesh.DisplayName}", "The node restarted in it. Its models appear here as the mesh reports them.");
         }
         finally
         {
@@ -564,9 +636,9 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         if (!Mesh.IsRunning)
         {
-            _feed.Info(
-                "Mesh settings saved",
-                "The node is not running, so there was nothing to restart. Start it and it will come up with these.");
+            Say(
+                "Saved",
+                "The node is not running, so nothing was restarted. Start it and it will come up with these settings.");
 
             return;
         }
@@ -576,11 +648,11 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             await Mesh.StopAsync();
             await Mesh.StartAsync(CancellationToken.None);
 
-            _feed.Info("Mesh settings applied", "The node was restarted, so it is running with them now.");
+            Say("Applied", "The node restarted, so it is running with these settings now.");
         }
         catch (ModelClientException ex)
         {
-            _feed.Error("Mesh node failed", ex.Message);
+            Say("The mesh node failed", ex.Message, problem: true);
         }
     }
 

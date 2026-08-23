@@ -114,6 +114,51 @@
                 <TextBlock Style="{StaticResource MutedText}"
                            VerticalAlignment="Center"
                            Text="{Binding Mesh.StatusText}" />
+
+                <!--
+                    Which mesh this is, which the node state does not say. Joining sets a token and
+                    changes nothing visible until the node restarts, so without this somebody who
+                    joined one saw exactly what they saw before.
+                -->
+                <TextBlock Style="{StaticResource MutedText}"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"
+                           Foreground="{DynamicResource Text.Muted.Brush}"
+                           Text="{Binding MembershipText}" />
+            </DockPanel>
+        </Border>
+
+        <!--
+            What the last thing pressed here did. This tab wrote its answers to the activity feed,
+            which is only drawn in the Workspace, so joining a mesh reported itself twice into a
+            panel this section never shows and read as a button that did nothing.
+        -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource Surface.Panel.Brush}"
+                BorderBrush="{DynamicResource Surface.Border.Brush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8"
+                Visibility="{Binding HasNotice, Converter={StaticResource BooleanToVisibility}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource IconButton}"
+                        Margin="10,0,0,0"
+                        Content="&#xE711;"
+                        ToolTip="Dismiss"
+                        AutomationProperties.Name="Dismiss"
+                        Command="{Binding DismissNoticeCommand}" />
+
+                <TextBlock TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Text="{Binding Notice}"
+                           Foreground="{DynamicResource Text.Primary.Brush}"
+                           Visibility="{Binding NoticeIsProblem, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+
+                <TextBlock TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Text="{Binding Notice}"
+                           Foreground="{DynamicResource Status.Danger.Brush}"
+                           Visibility="{Binding NoticeIsProblem, Converter={StaticResource BooleanToVisibility}}" />
             </DockPanel>
         </Border>
 
