@@ -118,10 +118,8 @@
         </Border>
 
         <!--
-            What each heading means, in the order the headings appear. Every column here is either
-            a word nobody can define by looking at it, or a number that is only meaningful once you
-            know what it counts, and prose underneath made somebody read a paragraph to find the one
-            they were asking about.
+            What each heading means, in the order they appear. Plain sentences: somebody reading
+            this is asking what a word means, and an answer they have to decode twice is not one.
 
             Anything the mesh does not measure says so here rather than in the cell, so the table
             keeps its shape and the reason is in one place.
@@ -143,70 +141,70 @@
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="NAME" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="The model, or the mesh when the row came from the directory." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="The model name, or the mesh name for a search result." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="SIZE" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Memory. For a directory mesh, what its machines have between them." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="How much memory it takes. For a mesh, how much its machines have in total." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="COVERAGE" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="One block per section of the model. Filled means a machine holds it." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="The model split into parts. A filled block means a machine is running that part." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="SOURCES" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Machines holding part of it." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="How many machines are running it." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="BACKUPS" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Machines that could take a section over if the one holding it goes away. Zero means no stand in." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Spare machines ready to take over if one drops out. Zero means no safety net." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="STATUS" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Whether it can be used right now." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Whether you can use it right now." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="CTX" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Context window the model was loaded with." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="How much text the model can take in at once." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="PARAMS" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Parameter count." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="The model's size in parameters." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="THROUGHPUT" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="Speed. The mesh does not measure this." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="How fast it answers. The mesh does not measure this." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
                         <TextBlock Style="{StaticResource MonoText}"
                                    Margin="0,0,7,0"
                                    Foreground="{DynamicResource Text.Secondary.Brush}"
                                    Text="VERIFIED" />
-                        <TextBlock Style="{StaticResource MutedText}" Text="When the mesh last confirmed any of the above." />
+                        <TextBlock Style="{StaticResource MutedText}" Text="When the mesh last checked on it." />
                     </StackPanel>
             </ItemsControl>
         </Border>
