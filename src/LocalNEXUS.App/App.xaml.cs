@@ -116,8 +116,8 @@ public partial class App : Application
         _mesh = mesh;
 
         // Extensions are per project, so the registry starts empty and is pointed at a project
-        // when one is opened. The host starts nothing here: extension processes are lazy, and an
-        // install with a dozen of them has to cost nothing at launch.
+        // when one is opened. The host starts nothing here, because at this point no project is
+        // open and there is nothing registered to start; opening one starts everything it has.
         // Keys, encrypted for this Windows account. Built before anything that resolves an
         // endpoint, because a run cannot reach a hosted provider without it.
         var credentials = new DpapiCredentialStore(feed);
@@ -128,15 +128,27 @@ public partial class App : Application
 
         var extensions = new ExtensionRegistry(feed);
         extensions.OpenProject(project.ProjectPath);
-        project.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ProjectService.ProjectPath))
-            {
-                extensions.OpenProject(project.ProjectPath);
-            }
-        };
+
         var extensionHost = new ExtensionHost(children, feed);
         _extensionHost = extensionHost;
+
+        project.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(ProjectService.ProjectPath))
+            {
+                return;
+            }
+
+            extensions.OpenProject(project.ProjectPath);
+
+            // Closing one, rather than opening another. Opening another stops these on its way in,
+            // but closing has nothing coming after it, and a worker left up is a process pointed at
+            // a folder nobody is looking at any more.
+            if (!project.HasProject)
+            {
+                extensionHost.StopAll();
+            }
+        };
 
         // What the project has been told about itself, as opposed to what was guessed. Before the
         // factory, because a newly added Output node is seeded from it.

@@ -27,8 +27,11 @@ namespace LocalNEXUS.App.Services.Extensions;
 /// definition.
 /// </para>
 /// <para>
-/// Starting is lazy. Nothing runs at application launch, so an install with twelve extensions
-/// costs nothing until something actually needs one.
+/// Nothing runs at application launch, because at that point no project is open and extensions
+/// belong to projects. Opening one starts everything it has registered and holds them up for as
+/// long as it stays open, so a run never waits on a cold start and a package runner never
+/// downloads in the middle of somebody's work. Closing the project or opening another stops them,
+/// which is what <see cref="StopAll"/> is for.
 /// </para>
 /// </remarks>
 public sealed class ExtensionHost : IDisposable
@@ -133,6 +136,26 @@ public sealed class ExtensionHost : IDisposable
 
             _sessions.Remove(key);
             StopSession(session);
+        }
+    }
+
+    /// <summary>
+    /// Stops every session this host is holding, whatever extension it belongs to.
+    /// </summary>
+    /// <remarks>
+    /// For closing a project or opening a different one. An extension exists because of a project
+    /// and is started in it, so a worker left up while somebody works somewhere else is a process
+    /// pointed at a folder nobody is looking at. The workers for the new project are started by the
+    /// same pass that stops these.
+    /// </remarks>
+    public void StopAll()
+    {
+        foreach (var key in _sessions.Keys.ToList())
+        {
+            if (_sessions.Remove(key, out var session))
+            {
+                StopSession(session);
+            }
         }
     }
 

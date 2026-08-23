@@ -17,10 +17,16 @@ namespace LocalNEXUS.App.Services.Extensions;
 /// deliberately the same code: the panel's button calls <see cref="ConnectAsync"/> too, so what
 /// pressing it does and what opening a project does cannot come apart.
 ///
-/// Each one is started, asked, and stopped again, which is what Test connect always did and what
-/// keeps the lazy start intact. Nothing is left running at launch, because an install with a dozen
-/// extensions must not cost a dozen processes for a session that uses none of them. What is kept is
-/// the answer: the tool list, and whether it answered at all.
+/// What answers is left running for as long as the project stays open. Test connect used to start
+/// one only to ask and shut it straight down again, which meant the panel said Running about a
+/// process that was not, and the first run of the session paid for a cold start anyway. Holding
+/// them up costs a process per installed extension and buys a run that never waits on a package
+/// runner deciding to download something.
+///
+/// One that does not answer is stopped, because a half started worker is not something to keep.
+/// So is everything, when the project closes or a different one is opened: an extension exists
+/// because of a project and is started in it, so one left up is pointed at a folder nobody is
+/// looking at.
 ///
 /// One at a time rather than all at once. A package runner is a launcher that may download before
 /// it runs, and a dozen of those racing at the moment a project opens is the worst time for it.
@@ -62,9 +68,10 @@ public sealed class ExtensionStarter
     /// Connects every enabled extension this project has, in turn.
     /// </summary>
     /// <remarks>
-    /// A pass already running is cancelled first, because opening a second project while the first
-    /// one's extensions are still being asked would otherwise write the old project's answers onto
-    /// the new project's panel.
+    /// Anything the previous project left running is stopped first, and a pass still in flight is
+    /// cancelled, because opening a second project while the first one's extensions are still being
+    /// asked would otherwise write the old project's answers onto the new project's panel and leave
+    /// its workers up behind them.
     ///
     /// Nothing waits on this and nothing fails because of it. An extension that will not answer is
     /// recorded as unreachable with its reason, which is exactly the state it was in before, so the
@@ -75,6 +82,8 @@ public sealed class ExtensionStarter
         var previous = Interlocked.Exchange(ref _pass, new CancellationTokenSource());
         previous?.Cancel();
         previous?.Dispose();
+
+        _host.StopAll();
 
         var pass = _pass!;
         var ct = pass.Token;
@@ -115,12 +124,12 @@ public sealed class ExtensionStarter
     }
 
     /// <summary>
-    /// Starts one extension, reads what it can do, and shuts it down again.
+    /// Starts one extension and reads what it can do, leaving it running.
     /// </summary>
     /// <returns>True when it answered.</returns>
     /// <remarks>
     /// The point of this is to move the moment a bad configuration is discovered from the middle of
-    /// a run to the moment the project is opened.
+    /// a run to the moment the project is opened, and the moment a worker starts along with it.
     /// </remarks>
     public async Task<bool> ConnectAsync(InstalledExtension extension, CancellationToken ct)
     {
@@ -163,6 +172,8 @@ public sealed class ExtensionStarter
             extension.State = ExtensionState.Running;
             extension.StateDetail = null;
 
+            // Left running, so Running on the row means a live process rather than one that
+            // answered once and went away.
             return true;
         }
         catch (OperationCanceledException)
@@ -171,6 +182,7 @@ public sealed class ExtensionStarter
             // saying it failed would leave a red row about a project nobody is looking at.
             extension.State = ExtensionState.Unreachable;
             extension.StateDetail = "Not started yet.";
+            _host.Stop(extension.Manifest.Id);
 
             return false;
         }
@@ -178,14 +190,16 @@ public sealed class ExtensionStarter
         {
             extension.State = ExtensionState.Unreachable;
             extension.StateDetail = ex.Message;
+
+            // A worker that started and then would not answer is worse than one that never
+            // started, because nothing will ever ask it anything again.
+            _host.Stop(extension.Manifest.Id);
             _feed.Error($"{extension.Manifest.Name} did not answer", ex.Message);
 
             return false;
         }
         finally
         {
-            // Started only to ask. Leaving it running would be a process nobody asked for.
-            _host.Stop(extension.Manifest.Id);
             _registry.Save();
         }
     }
