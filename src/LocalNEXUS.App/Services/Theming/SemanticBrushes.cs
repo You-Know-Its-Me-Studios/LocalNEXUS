@@ -142,6 +142,12 @@ public static class SemanticBrushes
         // sitting there waiting to be asked for.
         ("ModelAvailability.NotJoined.Brush", "Accent.NeutralColor"),
 
+        // How far a mesh this machine joined has got. Connecting is work in progress rather than
+        // trouble, and a node that is simply stopped is neither.
+        ("JoinState.NotConnected.Brush", "Accent.NeutralColor"),
+        ("JoinState.Joining.Brush", "Status.InfoColor"),
+        ("JoinState.Joined.Brush", "Status.SuccessColor"),
+
         // A local model's own server. Starting and restarting are work in progress rather than
         // trouble: one is a model loading and the other is a load setting that changed, and neither
         // is a failure. Not loaded is the ordinary state before a first run, so it is neutral.

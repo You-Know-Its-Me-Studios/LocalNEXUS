@@ -39,13 +39,20 @@
                            TextWrapping="Wrap"
                            Text="What this machine's own mesh is called, and what anybody you invite sees. Ignored while you are joined to somebody else's." />
 
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Join another mesh" />
-                <TextBox Text="{Binding JoinToken, UpdateSourceTrigger=LostFocus}"
+                <TextBlock Style="{StaticResource FieldLabel}" Text="Join by invite" />
+                <TextBox Text="{Binding TypedToken, UpdateSourceTrigger=PropertyChanged}"
                          FontFamily="{StaticResource Font.Mono}"
                          behaviors:TextBoxHelper.Placeholder="Invite token from the hosting machine" />
+
+                <Button Style="{StaticResource SmallButton}"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Left"
+                        Content="Join it"
+                        Command="{Binding JoinMeshCommand}" />
+
                 <TextBlock Style="{StaticResource HintText}"
                            TextWrapping="Wrap"
-                           Text="Paste a token to join somebody else's mesh instead of hosting your own. Empty means host your own." />
+                           Text="For a mesh somebody sent you an invite to. Anything you join is listed under the table, and you can be in several at once." />
 
                 <CheckBox Style="{StaticResource ToggleSwitch}"
                           Margin="0,14,0,0"

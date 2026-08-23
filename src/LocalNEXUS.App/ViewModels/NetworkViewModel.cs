@@ -85,14 +85,19 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isJoinOpen;
 
-    /// <summary>Invite token typed into the join form.</summary>
+
+    /// <summary>The mesh being joined right now, for as long as that takes.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MembershipText))]
-    [NotifyPropertyChangedFor(nameof(MembershipHeading))]
-    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
-    [NotifyPropertyChangedFor(nameof(MembershipMeshName))]
-    [NotifyPropertyChangedFor(nameof(IsGuestInAnotherMesh))]
-    private string _joinToken = string.Empty;
+    private string _joiningName = string.Empty;
+
+    /// <summary>An invite somebody has pasted in but not joined yet.</summary>
+    /// <remarks>
+    /// Its own field rather than the membership itself, which is what it used to be. Typing into a
+    /// box was joining a mesh, and clearing the box was leaving one.
+    /// </remarks>
+    [ObservableProperty]
+    private string _typedToken = string.Empty;
 
     /// <summary>Name this install gives the mesh it hosts.</summary>
     [ObservableProperty]
@@ -151,7 +156,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         _meshName = string.IsNullOrWhiteSpace(config.MeshName) ? "LocalNEXUS" : config.MeshName;
         _contribute = config.MeshContribute;
         _publish = config.MeshPublish;
-        _joinToken = config.MeshJoinToken ?? string.Empty;
+        foreach (var record in config.MeshJoined)
+        {
+            Joined.Add(new JoinedMesh(record.Name, record.Token, record.JoinedAt));
+        }
         _apiPort = config.MeshApiPort.ToString(CultureInfo.InvariantCulture);
         _offerAllMemory = config.MeshOfferAllMemory;
 
@@ -161,6 +169,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         _memoryShareGb = Math.Clamp(share, 0d, Math.Max(SafeCeilingGb, _offerAllMemory ? MemoryCeilingGb : SafeCeilingGb));
 
         RebuildOfferedModels();
+        RefreshJoinedStates();
         catalog.Models.CollectionChanged += (_, _) => RebuildOfferedModels();
 
         Groups = BuildFilterGroups();
@@ -461,87 +470,73 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Which mesh this install is in, said as a heading rather than as a state word.
+    /// Every mesh this machine has joined, which is a list because a machine can be in several.
     /// </summary>
     /// <remarks>
-    /// The node state says what the process is doing and never which mesh it is doing it in, so
-    /// somebody who joined one and somebody hosting their own read exactly the same line. This is
-    /// the other half of that question.
+    /// The engine's join argument repeats, so this was only ever one mesh because the interface
+    /// made it one: joining a second replaced the first with nothing said.
     /// </remarks>
-    public string MembershipHeading => IsJoining
-        ? $"Joining {(string.IsNullOrWhiteSpace(JoiningName) ? "a mesh" : JoiningName)}"
-        : string.IsNullOrWhiteSpace(JoinToken)
-            ? "Hosting your own mesh"
-            : "In somebody else's mesh";
+    public ObservableCollection<JoinedMesh> Joined { get; } = new();
 
-    /// <summary>What that membership means, in a sentence.</summary>
-    public string MembershipDetail => IsJoining
-        ? "Getting an invite from the directory, then restarting the node into it. This takes a few seconds."
-        : string.IsNullOrWhiteSpace(JoinToken)
-            ? "Nothing else can reach it until you invite a machine with your token, or publish the mesh so it can be found."
-            : "You are a member of this one rather than its host, so its models are what you can reach. Leaving puts your own mesh back.";
+    /// <summary>True when this machine has joined anything, which is what the table is for.</summary>
+    public bool HasJoined => Joined.Count > 0;
 
-    /// <summary>The mesh's own name for itself, once the node is up and reporting one.</summary>
-    public string MembershipMeshName
-    {
-        get
+    /// <summary>What the joined table says when there is nothing in it.</summary>
+    public string JoinedEmptyText => "Not in anybody else's mesh. Find meshes above, pick one and join it, and it appears here.";
+
+    /// <summary>Which mesh this install is in, for the line beside the node state.</summary>
+    public string MembershipText => IsJoining
+        ? $"joining {JoiningName}"
+        : Joined.Count switch
         {
-            // What was pressed wins until the node has something of its own to say. Joining a mesh
-            // that has not named itself otherwise showed nothing at all for the seconds it takes,
-            // which is exactly the window somebody is watching.
-            if (IsJoining || !Mesh.IsRunning)
-            {
-                if (!string.IsNullOrWhiteSpace(JoiningName))
-                {
-                    return JoiningName;
-                }
-            }
+            0 => $"hosting {(string.IsNullOrWhiteSpace(MeshName) ? "a mesh" : MeshName)}",
+            1 => $"in {Joined[0].DisplayName}",
+            var many => $"in {many} meshes"
+        };
 
-            if (Mesh.IsRunning && !string.IsNullOrWhiteSpace(Mesh.MeshName))
+    /// <summary>
+    /// Puts the joined list back in step with what the node is doing.
+    /// </summary>
+    /// <remarks>
+    /// The engine reports the mesh it is in rather than a list of memberships, so a row's state is
+    /// read from whether the node is up rather than from the engine confirming that mesh in
+    /// particular. Said as connecting rather than joined while it comes up, because claiming
+    /// membership before the node is serving would be claiming something unverified.
+    /// </remarks>
+    private void RefreshJoinedStates()
+    {
+        foreach (var mesh in Joined)
+        {
+            mesh.State = Mesh.State switch
             {
-                return Mesh.MeshName;
-            }
-
-            if (!string.IsNullOrWhiteSpace(JoiningName))
-            {
-                return JoiningName;
-            }
-
-            return string.IsNullOrWhiteSpace(JoinToken) ? MeshName : "not reported until the node is up";
+                MeshNodeState.Client or MeshNodeState.Serving => JoinState.Joined,
+                MeshNodeState.Starting => JoinState.Joining,
+                _ => JoinState.NotConnected
+            };
         }
     }
 
-    /// <summary>How many machines are in it, this one included.</summary>
-    public string MembershipSize => Mesh.IsRunning
-        ? $"{Machines.Count} {(Machines.Count == 1 ? "machine" : "machines")}, {Mesh.Models.Count} {(Mesh.Models.Count == 1 ? "model" : "models")}"
-        : "not known until the node is up";
+    /// <summary>Leaves one mesh, keeping any others.</summary>
+    [RelayCommand]
+    private async Task LeaveJoinedAsync(JoinedMesh? mesh)
+    {
+        if (mesh is null)
+        {
+            return;
+        }
 
-    /// <summary>True while there is a token, which is what makes leaving meaningful.</summary>
-    public bool IsGuestInAnotherMesh => !string.IsNullOrWhiteSpace(JoinToken);
+        Joined.Remove(mesh);
+        SaveSettings();
 
-    /// <summary>
-    /// The mesh that was joined, or is being joined right now.
-    /// </summary>
-    /// <remarks>
-    /// Kept after the join rather than cleared, because most meshes in the directory have no name
-    /// of their own and the node reports nothing for them. Without this, joining one showed the
-    /// mesh for two seconds and then went blank.
-    /// </remarks>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(MembershipMeshName))]
-    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
-    private string _joiningName = string.Empty;
+        OnPropertyChanged(nameof(HasJoined));
+        OnPropertyChanged(nameof(MembershipText));
 
-    /// <summary>Which mesh this install is in, or means to be in once the node starts.</summary>
-    /// <remarks>
-    /// Joining sets a token and nothing visible changes until the node restarts, so without this
-    /// somebody who joined a mesh and had the node stopped saw exactly what they saw before.
-    /// </remarks>
-    public string MembershipText => IsJoining
-        ? $"joining {JoiningName}"
-        : string.IsNullOrWhiteSpace(JoinToken)
-            ? $"hosting {(string.IsNullOrWhiteSpace(MeshName) ? "a mesh" : MeshName)}"
-            : "joined another mesh by invite";
+        Say($"Left {mesh.DisplayName}", Joined.Count == 0
+            ? "You are hosting your own mesh again."
+            : $"Still in {Joined.Count} other {(Joined.Count == 1 ? "mesh" : "meshes")}.");
+
+        await ApplySettingsAsync().ConfigureAwait(true);
+    }
 
     /// <summary>True while the public directory is being asked.</summary>
     [ObservableProperty]
@@ -560,8 +555,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusyWithDirectory))]
     [NotifyPropertyChangedFor(nameof(MembershipText))]
-    [NotifyPropertyChangedFor(nameof(MembershipHeading))]
-    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
     private bool _isJoining;
 
     /// <summary>True while either directory action is in flight, so neither starts twice.</summary>
@@ -658,8 +651,16 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            JoinToken = token;
+            // Added rather than assigned, so joining a second mesh is joining a second mesh.
+            if (!Joined.Any(m => string.Equals(m.Token, token, StringComparison.Ordinal)))
+            {
+                Joined.Add(new JoinedMesh(mesh.DisplayName, token, DateTimeOffset.Now));
+            }
+
             SaveSettings();
+
+            OnPropertyChanged(nameof(HasJoined));
+            OnPropertyChanged(nameof(MembershipText));
 
             // Joining is a request to be in that mesh, so it starts the node rather than only
             // saving the invite. Apply on its own restarts a node that is up and does nothing at
@@ -763,11 +764,20 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task JoinMeshAsync()
     {
-        if (string.IsNullOrWhiteSpace(JoinToken))
+        if (string.IsNullOrWhiteSpace(TypedToken))
         {
-            _feed.Error("Mesh not joined", "Paste the invite token printed by the machine hosting the mesh.");
+            Say("Mesh not joined", "Paste the invite token printed by the machine hosting the mesh.", problem: true);
             return;
         }
+
+        if (!Joined.Any(m => string.Equals(m.Token, TypedToken.Trim(), StringComparison.Ordinal)))
+        {
+            Joined.Add(new JoinedMesh(string.Empty, TypedToken.Trim(), DateTimeOffset.Now));
+        }
+
+        TypedToken = string.Empty;
+        OnPropertyChanged(nameof(HasJoined));
+        OnPropertyChanged(nameof(MembershipText));
 
         IsJoinOpen = false;
         await ApplySettingsAsync();
@@ -777,8 +787,11 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LeaveMeshAsync()
     {
-        JoinToken = string.Empty;
+        Joined.Clear();
         JoiningName = string.Empty;
+
+        OnPropertyChanged(nameof(HasJoined));
+        OnPropertyChanged(nameof(MembershipText));
         await ApplySettingsAsync();
     }
 
@@ -955,11 +968,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CoverageSummary));
 
                 // Both buttons say what pressing them will do, and both answers depend on whether
-                // there is a node up. So does everything the membership panel reports.
+                // there is a node up. So does every joined mesh's own state.
                 OnPropertyChanged(nameof(ApplyButtonText));
                 OnPropertyChanged(nameof(StartButtonText));
-                OnPropertyChanged(nameof(MembershipMeshName));
-                OnPropertyChanged(nameof(MembershipSize));
+                RefreshJoinedStates();
                 break;
         }
     }
@@ -1049,7 +1061,9 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         _config.MeshContribute = Contribute;
         _config.MeshPublish = Publish;
         _config.MeshName = string.IsNullOrWhiteSpace(MeshName) ? "LocalNEXUS" : MeshName.Trim();
-        _config.MeshJoinToken = string.IsNullOrWhiteSpace(JoinToken) ? null : JoinToken.Trim();
+        _config.MeshJoined = Joined
+            .Select(m => new JoinedMeshRecord { Name = m.Name, Token = m.Token, JoinedAt = m.JoinedAt })
+            .ToList();
         _config.MeshOfferedModelPaths = OfferedModels.Where(m => m.IsOffered).Select(m => m.Path).ToList();
         _config.MeshOfferAllMemory = OfferAllMemory;
         _config.MeshMaxVramGb = MemoryShareGb;

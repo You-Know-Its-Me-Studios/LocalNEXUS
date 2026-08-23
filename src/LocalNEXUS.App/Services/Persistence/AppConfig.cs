@@ -161,8 +161,18 @@ public sealed class AppConfig
     /// </summary>
     public bool MeshOfferAllMemory { get; set; }
 
-    /// <summary>Invite token of a mesh to join. Blank means this install hosts its own private mesh.</summary>
+    /// <summary>
+    /// Invite token of a mesh to join. Kept only so an install that had one keeps it.
+    /// </summary>
+    /// <remarks>
+    /// One mesh became several, because the engine takes a repeated join argument and a machine can
+    /// be in more than one at a time. Migration moves this into the list and clears it, so nothing
+    /// reads both.
+    /// </remarks>
     public string? MeshJoinToken { get; set; }
+
+    /// <summary>Every mesh this install has joined, in the order it joined them.</summary>
+    public List<JoinedMeshRecord> MeshJoined { get; set; } = new();
 
     /// <summary>Friendly name of the mesh this install hosts.</summary>
     public string? MeshName { get; set; }
@@ -327,6 +337,15 @@ public sealed class AppConfig
         // saved that, which is exactly the implicit decision the list exists to replace. Starting
         // at none means the first thing shared is the first thing somebody ticked.
         MeshOfferedModelPath = null;
+
+        // One join token became a list. The old one is carried across rather than dropped, because
+        // somebody in a mesh should stay in it across an update, and it is cleared so that the two
+        // can never both be read.
+        if (MeshJoinToken is { Length: > 0 } joined && MeshJoined.Count == 0)
+        {
+            MeshJoined.Add(new JoinedMeshRecord { Token = joined, JoinedAt = DateTimeOffset.Now });
+            MeshJoinToken = null;
+        }
     }
 
     /// <summary>
@@ -388,3 +407,20 @@ public sealed class AppConfig
 /// <param name="Name">What to call it.</param>
 /// <param name="BaseUrl">Root of its API.</param>
 public sealed record CustomProviderRecord(string Name, string BaseUrl);
+
+/// <summary>One mesh this install has joined, as it is written to the configuration.</summary>
+/// <remarks>
+/// The name is recorded because most meshes in the directory never name themselves, so nothing
+/// else will ever supply one and a row without it says nothing about which mesh it is.
+/// </remarks>
+public sealed class JoinedMeshRecord
+{
+    /// <summary>What it was called when it was joined.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>The invite that joins it.</summary>
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>When this install joined it.</summary>
+    public DateTimeOffset JoinedAt { get; set; }
+}

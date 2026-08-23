@@ -45,8 +45,14 @@ public sealed record MeshLaunchOptions
     /// <summary>Cap on the memory this machine offers, in GB. Zero lets the engine decide.</summary>
     public double MaxVramGb { get; init; }
 
-    /// <summary>Invite token of a mesh to join. Blank means this node hosts its own private mesh.</summary>
-    public string JoinToken { get; init; } = string.Empty;
+    /// <summary>
+    /// Invite tokens of meshes to join. Empty means this node hosts its own private mesh.
+    /// </summary>
+    /// <remarks>
+    /// Several, because the engine's join argument repeats and a machine can be in more than one
+    /// mesh at a time. It was one, so joining a second silently replaced the first.
+    /// </remarks>
+    public IReadOnlyList<string> JoinTokens { get; init; } = Array.Empty<string>();
 
     /// <summary>Friendly name for the mesh this node hosts.</summary>
     public string MeshName { get; init; } = "LocalNEXUS";
@@ -90,10 +96,10 @@ public sealed record MeshLaunchOptions
             arguments.Add(MeshName);
         }
 
-        if (!string.IsNullOrWhiteSpace(JoinToken))
+        foreach (var token in JoinTokens.Where(t => !string.IsNullOrWhiteSpace(t)))
         {
             arguments.Add("--join");
-            arguments.Add(JoinToken.Trim());
+            arguments.Add(token.Trim());
         }
 
         if (Publish)

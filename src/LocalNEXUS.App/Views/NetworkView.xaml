@@ -164,79 +164,133 @@
         </Border>
 
         <!--
-            Where this machine stands, under the results and above the legend, and always there.
-            The table answers what is out there; this answers what you are in, which is a different
-            question and had no place to be asked. It carried a mesh being joined only for the two
-            seconds a dismissable strip was on screen.
+            The meshes this machine has joined, in the same shape as the table above it: headings,
+            rows, one line each. It is a table rather than a summary because a machine can be in
+            several meshes at once, which the engine has always allowed and this never showed.
+
+            Its own columns, because none of the ones above apply. A mesh you are in has no
+            coverage, no context and no size of its own to report; what it has is a name, an
+            identity, when you joined it and whether you are connected.
         -->
         <Border DockPanel.Dock="Bottom"
-                Background="{DynamicResource Surface.Panel.Brush}"
+                Background="{DynamicResource Surface.Window.Brush}"
                 BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,1,0,0"
-                Padding="16,12">
-            <StackPanel>
-                <DockPanel>
-                    <!--
-                        Only when there is one to leave. A button that goes grey and stays grey has
-                        to be explained; one that is not there does not.
-                    -->
-                    <Button DockPanel.Dock="Right"
-                            Style="{StaticResource SmallButton}"
-                            Margin="12,0,0,0"
-                            VerticalAlignment="Center"
-                            Content="Leave and host your own again"
-                            Command="{Binding LeaveMeshCommand}"
-                            Visibility="{Binding IsGuestInAnotherMesh, Converter={StaticResource BooleanToVisibility}}" />
+                BorderThickness="0,1,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Padding="16,10,16,8">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Content="Leave them all"
+                                ToolTip="Leaves every mesh below and goes back to hosting your own."
+                                Command="{Binding LeaveMeshCommand}"
+                                Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}}" />
 
-                    <Ellipse Style="{StaticResource StateDot}"
-                             Margin="0,0,9,0"
-                             VerticalAlignment="Center"
-                             Fill="{Binding Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
+                        <TextBlock Text="Meshes you have joined"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
 
-                    <TextBlock Text="{Binding MembershipHeading}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
-                </DockPanel>
+                        <TextBlock Style="{StaticResource MutedText}"
+                                   Margin="10,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding MembershipText}" />
+                    </DockPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,4,0,0"
+                <Border DockPanel.Dock="Top"
+                        BorderBrush="{DynamicResource Surface.Border.Brush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="16,0"
+                        Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="240" />
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="112" />
+                            <ColumnDefinition Width="*" MinWidth="160" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="MESH" IsEnabled="False" />
+                        <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="MESH ID" IsEnabled="False" />
+                        <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="JOINED" IsEnabled="False" />
+                        <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="CONNECTION" IsEnabled="False" />
+                    </Grid>
+                </Border>
+
+                <TextBlock DockPanel.Dock="Top"
+                           Style="{StaticResource HintText}"
+                           Margin="16,0,16,12"
                            TextWrapping="Wrap"
-                           Text="{Binding MembershipDetail}" />
+                           Text="{Binding JoinedEmptyText}"
+                           Visibility="{Binding HasJoined, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
 
-                <ProgressBar Margin="0,8,0,0"
-                             Height="3"
-                             IsIndeterminate="True"
-                             Visibility="{Binding IsJoining, Converter={StaticResource BooleanToVisibility}}" />
+                <ItemsControl ItemsSource="{Binding Joined}"
+                              MaxHeight="180"
+                              Margin="0,0,0,6"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="16,7"
+                                    BorderBrush="{DynamicResource Surface.Border.Brush}"
+                                    BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="240" />
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="*" MinWidth="160" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                <Grid Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="16" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="16" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Style="{StaticResource MonoText}"
+                                               Margin="0,0,14,0"
+                                               FontSize="{StaticResource Font.Size.Normal}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="{Binding DisplayName}" />
 
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Mesh" />
-                        <TextBlock Style="{StaticResource MonoText}"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding MembershipMeshName}" />
-                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Style="{StaticResource MonoText}"
+                                               Margin="0,0,14,0"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Text.Muted.Brush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="{Binding ShortId}" />
 
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="In it" />
-                        <TextBlock Style="{StaticResource MonoText}" Text="{Binding MembershipSize}" />
-                    </StackPanel>
+                                    <TextBlock Grid.Column="2"
+                                               Style="{StaticResource MonoText}"
+                                               Margin="0,0,14,0"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Text.Muted.Brush}"
+                                               Text="{Binding JoinedText}" />
 
-                    <StackPanel Grid.Column="4">
-                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,2" Text="Node" />
-                        <TextBlock Style="{StaticResource MonoText}"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding Mesh.StatusText}" />
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <Ellipse Style="{StaticResource StateDot}"
+                                                 Width="6" Height="6"
+                                                 Margin="0,0,7,0"
+                                                 Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
+                                        <TextBlock Text="{Binding StateText}"
+                                                   FontSize="{StaticResource Font.Size.Small}"
+                                                   Foreground="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
+                                    </StackPanel>
+
+                                    <Button Grid.Column="4"
+                                            Style="{StaticResource LinkButton}"
+                                            VerticalAlignment="Center"
+                                            Content="Leave"
+                                            ToolTip="Leaves this one and stays in the others."
+                                            Command="{Binding DataContext.LeaveJoinedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
         </Border>
 
         <!--

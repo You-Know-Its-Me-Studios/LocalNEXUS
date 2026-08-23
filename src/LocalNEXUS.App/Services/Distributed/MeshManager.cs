@@ -468,7 +468,7 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
         Contribute = _config.MeshContribute,
         OfferedModelPaths = _config.MeshOfferedModelPaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
         MaxVramGb = Math.Max(0d, _config.MeshMaxVramGb),
-        JoinToken = _config.MeshJoinToken ?? string.Empty,
+        JoinTokens = _config.MeshJoined.Select(m => m.Token).ToList(),
         MeshName = string.IsNullOrWhiteSpace(_config.MeshName) ? "LocalNEXUS" : _config.MeshName,
         Publish = _config.MeshPublish
     };
