@@ -61,6 +61,12 @@
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
                     <Button Style="{StaticResource IconButton}"
+                            Content="&#xE8C8;"
+                            ToolTip="Copy everything in this panel"
+                            AutomationProperties.Name="Copy this panel"
+                            Command="{Binding CopyPanelCommand}" />
+
+                    <Button Style="{StaticResource IconButton}"
                             Content="&#xE74D;"
                             ToolTip="Clear the transcript"
                             AutomationProperties.Name="Clear the transcript"
@@ -121,10 +127,10 @@
                                            Foreground="{DynamicResource Text.Muted.Brush}"
                                            Text="{Binding Id}" />
 
-                                <TextBlock Grid.Column="4"
-                                           Style="{StaticResource MonoText}"
-                                           TextWrapping="Wrap"
-                                           Text="{Binding Message}" />
+                                <TextBox Grid.Column="4"
+                                         Style="{StaticResource SelectableText}"
+                                         TextWrapping="Wrap"
+                                         Text="{Binding Message, Mode=OneWay}" />
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -185,12 +191,13 @@
                                                Foreground="{Binding Kind, Converter={StaticResource ResourceLookup}, ConverterParameter=Activity}"
                                                Text="{Binding Kind}" />
 
-                                    <TextBlock Style="{StaticResource MonoText}" Text="{Binding Title}" />
+                                    <TextBox Style="{StaticResource SelectableText}"
+                                             Text="{Binding Title, Mode=OneWay}" />
 
-                                    <TextBlock Style="{StaticResource MonoText}"
-                                               Margin="10,0,0,0"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               Text="{Binding Detail}" />
+                                    <TextBox Style="{StaticResource SelectableText}"
+                                             Margin="10,0,0,0"
+                                             Foreground="{DynamicResource Text.Muted.Brush}"
+                                             Text="{Binding Detail, Mode=OneWay}" />
                                 </StackPanel>
 
                                 <!--

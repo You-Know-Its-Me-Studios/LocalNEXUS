@@ -169,6 +169,24 @@
         </Setter>
     </Style>
 
+    <!--
+        Text that reads as a label and behaves as text. A TextBlock cannot be selected in WPF at
+        all, so anything worth copying out of a panel has to be a read only text box wearing no
+        chrome. Same face, same size, same colour as the muted text beside it, and no background,
+        no border and no padding, so it sits in a row exactly where a TextBlock would have.
+    -->
+    <Style x:Key="SelectableText" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="IsReadOnlyCaretVisible" Value="False" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Cursor" Value="IBeam" />
+    </Style>
+
     <Style x:Key="MonoTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="FontFamily" Value="{StaticResource Font.Mono}" />
         <Setter Property="AcceptsReturn" Value="True" />

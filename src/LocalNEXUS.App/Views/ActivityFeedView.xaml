@@ -62,16 +62,18 @@
                                                Text="{Binding RemovedText}" />
                                 </StackPanel>
 
-                                <TextBlock DockPanel.Dock="Right"
-                                           Style="{StaticResource MonoText}"
-                                           Text="{Binding Detail}"
-                                           Margin="10,0,0,0"
-                                           Foreground="{DynamicResource Text.Muted.Brush}"
-                                           Visibility="{Binding HasDiffCounts, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+                                <TextBox DockPanel.Dock="Right"
+                                         Style="{StaticResource SelectableText}"
+                                         Text="{Binding Detail, Mode=OneWay}"
+                                         Margin="10,0,0,0"
+                                         Foreground="{DynamicResource Text.Muted.Brush}"
+                                         Visibility="{Binding HasDiffCounts, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
 
-                                <TextBlock Text="{Binding Title}"
-                                           FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis" />
+                                <TextBox Style="{StaticResource SelectableText}"
+                                         Text="{Binding Title, Mode=OneWay}"
+                                         FontFamily="{StaticResource Font.Sans}"
+                                         FontSize="{StaticResource Font.Size.Normal}"
+                                         FontWeight="SemiBold" />
                             </DockPanel>
 
                             <!--

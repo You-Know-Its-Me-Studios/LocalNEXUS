@@ -787,6 +787,62 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Puts everything in the open panel on the clipboard.
+    /// </summary>
+    /// <remarks>
+    /// Selection gets a line or two; this is for the whole thing, which is what somebody pasting a
+    /// run into a bug report actually wants. What it copies is whichever tab is showing, because
+    /// the button sits in that tab's own header and copying a panel nobody is looking at would be
+    /// a surprise.
+    ///
+    /// Read as text rather than assembled from the view, so what lands on the clipboard is what the
+    /// panel is about and not a rendering of it: the transcript keeps its bodies, the log keeps its
+    /// kinds, and the problem list keeps the file and the line that make an error findable.
+    /// </remarks>
+    [RelayCommand]
+    private void CopyPanel()
+    {
+        var text = PanelTab switch
+        {
+            BottomPanelTab.Problems => string.Join(
+                Environment.NewLine,
+                Problems.Problems.Select(p => $"{p.SeverityGlyph} {p.File} {p.LocationText} {p.Id} {p.Message}".Trim())),
+
+            BottomPanelTab.Output => string.Join(
+                Environment.NewLine,
+                Feed.Events.Select(e => Line(e, log: true))),
+
+            _ => string.Join(
+                Environment.NewLine,
+                Feed.Events.Select(e => Line(e, log: false)))
+        };
+
+        if (text.Trim().Length == 0)
+        {
+            _feed.Info("Nothing to copy", "That panel is empty.");
+            return;
+        }
+
+        _dialogs.CopyToClipboard(text);
+        _feed.Info("Copied", $"{text.ReplaceLineEndings("\n").Split('\n').Length} line(s) from the {PanelTab} panel.");
+    }
+
+    /// <summary>One event as text, in the shape the tab it came from shows it.</summary>
+    private static string Line(Infrastructure.ActivityEvent entry, bool log)
+    {
+        var head = log
+            ? $"{entry.TimeText}  {entry.Kind,-14} {entry.Title}"
+            : $"{entry.TimeText}  {entry.Title}";
+
+        if (entry.Detail is { Length: > 0 } detail)
+        {
+            head += $"  {detail}";
+        }
+
+        return entry.HasText ? head + Environment.NewLine + entry.Text : head;
+    }
+
+    /// <summary>
     /// Tells every Model node to redraw what its model is doing.
     /// </summary>
     /// <remarks>
