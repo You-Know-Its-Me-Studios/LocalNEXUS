@@ -20,11 +20,68 @@
 
     <DockPanel>
 
-        <!-- What this machine gives the mesh. Pinned, because it is the one thing here that is an action. -->
-        <Border DockPanel.Dock="Bottom"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,1,0,0"
-                Padding="14,12">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SideBarHeader}"
+                                           Text="{Binding Title}"
+                                           ToolTip="{Binding Note}" />
+
+                                <ItemsControl ItemsSource="{Binding Filters}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Command="{Binding Apply}"
+                                                    CommandParameter="{Binding}"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Cursor="Hand">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="Root" Background="Transparent">
+                                                            <Grid>
+                                                                <Rectangle x:Name="Rule" Width="2" HorizontalAlignment="Left" Fill="Transparent" />
+                                                                <ContentPresenter Margin="14,4" />
+                                                            </Grid>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
+                                                            </Trigger>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
+                                                                <Setter TargetName="Rule" Property="Fill" Value="{DynamicResource Accent.Primary.Brush}" />
+                                                            </DataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right"
+                                                               Style="{StaticResource CountText}"
+                                                               Text="{Binding Count}" />
+                                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                                </DockPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!--
+                    What this machine gives the mesh, and which mesh it gives it to. This was
+                    pinned to the bottom, and it grew: mesh name, joining, publishing, the share and
+                    the port between them took most of the panel, and what it squeezed out was the
+                    list of models to share, above it. It scrolls with everything else now.
+                -->
+                <Border BorderBrush="{DynamicResource Surface.Border.Brush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="14,12">
             <StackPanel>
 
                 <!--
@@ -124,7 +181,55 @@
 
                 <TextBlock Style="{StaticResource HintText}" Text="{Binding MemorySummary}" />
 
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
+                <!--
+                            What this machine can share. Ticking is the whole decision: an unticked model
+                            stays on this machine, and until one is ticked nothing is shared at all.
+                        -->
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Models to share" />
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="0,0,0,4"
+                                   TextWrapping="Wrap"
+                                   Text="Tick what this machine offers the mesh. Nothing is shared until one is ticked." />
+
+                        <ItemsControl ItemsSource="{Binding OfferedModels}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Margin="14,3"
+                                              IsChecked="{Binding IsOffered}"
+                                              AutomationProperties.Name="{Binding Name}">
+                                        <StackPanel Margin="2,0,0,0">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock Style="{StaticResource MonoText}"
+                                                           Foreground="{DynamicResource Text.Muted.Brush}"
+                                                           Text="{Binding Quantisation}" />
+                                                <TextBlock Style="{StaticResource MonoText}"
+                                                           Margin="8,0,0,0"
+                                                           Foreground="{DynamicResource Text.Muted.Brush}"
+                                                           Text="{Binding SizeLabel}" />
+                                                <TextBlock Style="{StaticResource MonoText}"
+                                                           Margin="8,0,0,0"
+                                                           Foreground="{DynamicResource Text.Muted.Brush}"
+                                                           Text="{Binding FormatLabel}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="14,2,14,10"
+                                   Text="No models found on this machine. Add a folder in Settings, Models."
+                                   Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="14,2,14,10"
+                                   Text="Nothing here is in force until you press the button at the bottom of this panel. A running node is restarted so it picks them up; a stopped one just keeps them for next time."
+                                   Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}}" />
+
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
                 <TextBox Text="{Binding ApiPort, UpdateSourceTrigger=LostFocus}" />
 
                 <TextBlock Style="{StaticResource FieldLabel}" Text="Invite token" />
@@ -173,103 +278,6 @@
                         Command="{Binding ApplySettingsCommand}" />
             </StackPanel>
         </Border>
-
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-
-                <ItemsControl ItemsSource="{Binding Groups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource SideBarHeader}"
-                                           Text="{Binding Title}"
-                                           ToolTip="{Binding Note}" />
-
-                                <ItemsControl ItemsSource="{Binding Filters}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Command="{Binding Apply}"
-                                                    CommandParameter="{Binding}"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Cursor="Hand">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="Root" Background="Transparent">
-                                                            <Grid>
-                                                                <Rectangle x:Name="Rule" Width="2" HorizontalAlignment="Left" Fill="Transparent" />
-                                                                <ContentPresenter Margin="14,4" />
-                                                            </Grid>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
-                                                            </Trigger>
-                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface.Hover.Brush}" />
-                                                                <Setter TargetName="Rule" Property="Fill" Value="{DynamicResource Accent.Primary.Brush}" />
-                                                            </DataTrigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-
-                                                <DockPanel>
-                                                    <TextBlock DockPanel.Dock="Right"
-                                                               Style="{StaticResource CountText}"
-                                                               Text="{Binding Count}" />
-                                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                                                </DockPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!--
-                    What this machine can share. Ticking is the whole decision: an unticked model
-                    stays on this machine, and until one is ticked nothing is shared at all.
-                -->
-                <TextBlock Style="{StaticResource SideBarHeader}" Text="SHARE FROM THIS MACHINE" />
-
-                <ItemsControl ItemsSource="{Binding OfferedModels}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <CheckBox Margin="14,3"
-                                      IsChecked="{Binding IsOffered}"
-                                      AutomationProperties.Name="{Binding Name}">
-                                <StackPanel Margin="2,0,0,0">
-                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                        <TextBlock Style="{StaticResource MonoText}"
-                                                   Foreground="{DynamicResource Text.Muted.Brush}"
-                                                   Text="{Binding Quantisation}" />
-                                        <TextBlock Style="{StaticResource MonoText}"
-                                                   Margin="8,0,0,0"
-                                                   Foreground="{DynamicResource Text.Muted.Brush}"
-                                                   Text="{Binding SizeLabel}" />
-                                        <TextBlock Style="{StaticResource MonoText}"
-                                                   Margin="8,0,0,0"
-                                                   Foreground="{DynamicResource Text.Muted.Brush}"
-                                                   Text="{Binding FormatLabel}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </CheckBox>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="14,2,14,10"
-                           Text="No models found on this machine. Add a folder in Settings, Models."
-                           Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="14,2,14,10"
-                           Text="Nothing here is in force until you press the button at the bottom of this panel. A running node is restarted so it picks them up; a stopped one just keeps them for next time."
-                           Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}}" />
 
                 <!-- Machines. A machine is a thing to inspect rather than the spine of the page. -->
                 <TextBlock Style="{StaticResource SideBarHeader}" Text="MACHINES" />
