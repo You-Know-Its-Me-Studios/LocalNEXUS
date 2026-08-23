@@ -861,13 +861,41 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// <inheritdoc />
     public override async Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)
     {
+        var arrived = ctx.GetValue(Prompt);
+
         // A list of files to write is not a prompt, it is a plan, and this node runs once per
         // entry in it. Nothing about the graph says so; the value on the wire does.
-        if (ctx.GetValue(Prompt) is IReadOnlyList<CodeTask> tasks)
+        if (arrived is IReadOnlyList<CodeTask> tasks)
         {
             return await WriteFilesAsync(ctx, tasks, ct).ConfigureAwait(false);
         }
 
+        // Any other list, worked through one entry at a time. This used to stringify whatever it
+        // did not recognise, so a node emitting five of something got one reply about all five and
+        // the only lists that could ever fan out were the two types written into this file.
+        if (FanOut.TryItems(arrived, out var items))
+        {
+            ctx.Feed.Info($"{Title}: {items.Count} item(s) to work through", null);
+
+            return await FanOut.OverAsync(
+                this,
+                Prompt,
+                items,
+                ctx,
+                ct,
+                (itemContext, index, token) =>
+                {
+                    StatusMessage = $"{index + 1} of {items.Count}";
+                    return AnswerOnceAsync(itemContext, token);
+                }).ConfigureAwait(false);
+        }
+
+        return await AnswerOnceAsync(ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Asks the model about whatever is on the prompt pin, once.</summary>
+    private async Task<NodeResult> AnswerOnceAsync(NodeExecutionContext ctx, CancellationToken ct)
+    {
         var userContent = ctx.GetText(Prompt);
         if (string.IsNullOrWhiteSpace(userContent))
         {

@@ -123,23 +123,43 @@ public sealed partial class TextOutputNode : NodeBase
     {
         ArgumentNullException.ThrowIfNull(ctx);
 
-        var arrived = ctx.GetText(Input);
+        // A list is shown as its entries rather than as one value, and asked about one entry at a
+        // time. This is the end of a chain, so the answers are gathered here instead of being
+        // passed on: iterating and overwriting would leave only the last one, which is the same as
+        // having thrown the rest away.
+        var arriving = FanOut.TryItems(ctx.GetValue(Input), out var items)
+            ? items.Select(i => i?.ToString() ?? string.Empty).ToList()
+            : new List<string> { ctx.GetText(Input) };
 
-        // With no model wired this shows exactly what reached it and nothing else. Falling back to
-        // the typed request would have an unwired node echo the question back looking like an
-        // answer, which is indistinguishable from a model that ignored it.
-        if (ctx.GetSourceNode(Model) is not IModelHandle model)
+        var model = ctx.GetSourceNode(Model) as IModelHandle;
+        var answers = new List<string>(arriving.Count);
+
+        for (var index = 0; index < arriving.Count; index++)
         {
-            Text = arrived;
-        }
-        else
-        {
-            Text = await AskAsync(
+            ct.ThrowIfCancellationRequested();
+
+            // With no model wired this shows exactly what reached it and nothing else. Falling back
+            // to the typed request would have an unwired node echo the question back looking like
+            // an answer, which is indistinguishable from a model that ignored it.
+            if (model is null)
+            {
+                answers.Add(arriving[index]);
+                continue;
+            }
+
+            if (arriving.Count > 1)
+            {
+                StatusMessage = $"{index + 1} of {arriving.Count}";
+            }
+
+            answers.Add(await AskAsync(
                 model,
-                string.IsNullOrWhiteSpace(arrived) ? ctx.UserRequest : arrived,
+                string.IsNullOrWhiteSpace(arriving[index]) ? ctx.UserRequest : arriving[index],
                 ctx,
-                ct).ConfigureAwait(false);
+                ct).ConfigureAwait(false));
         }
+
+        Text = string.Join(Environment.NewLine + Environment.NewLine, answers);
 
         var lines = Text.Length == 0 ? 0 : Text.ReplaceLineEndings("\n").Split('\n').Length;
 

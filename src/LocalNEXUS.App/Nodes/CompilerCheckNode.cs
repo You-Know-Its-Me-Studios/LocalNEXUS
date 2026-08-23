@@ -166,11 +166,41 @@ public sealed partial class CompilerCheckNode : NodeBase
     /// <inheritdoc />
     public override async Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)
     {
-        if (ctx.GetValue(Code) is IReadOnlyList<GeneratedFile> files)
+        var arrived = ctx.GetValue(Code);
+
+        // A plan is checked as a set rather than as items, because each file has to see the ones
+        // settled before it. That is a property of compiling, not of iterating.
+        if (arrived is IReadOnlyList<GeneratedFile> files)
         {
             return await CheckPlanAsync(ctx, files, ct).ConfigureAwait(false);
         }
 
+        // Any other list is worked through one entry at a time. This used to stringify whatever it
+        // did not recognise, so five pieces of code arriving as a list were concatenated and
+        // compiled as one file.
+        if (FanOut.TryItems(arrived, out var items))
+        {
+            ctx.Feed.Info($"{Title}: {items.Count} item(s) to check", null);
+
+            return await FanOut.OverAsync(
+                this,
+                Code,
+                items,
+                ctx,
+                ct,
+                (itemContext, index, token) =>
+                {
+                    StatusMessage = $"{index + 1} of {items.Count}";
+                    return CheckOnceAsync(itemContext, token);
+                }).ConfigureAwait(false);
+        }
+
+        return await CheckOnceAsync(ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Compiles whatever is on the code pin, once, and repairs it if it does not build.</summary>
+    private async Task<NodeResult> CheckOnceAsync(NodeExecutionContext ctx, CancellationToken ct)
+    {
         var source = ctx.GetText(Code);
 
         if (string.IsNullOrWhiteSpace(source))

@@ -225,6 +225,30 @@ public sealed partial class ReshapeNode : NodeBase, ICodeRepairSource
     /// <inheritdoc />
     public override async Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)
     {
+        // A list is reshaped entry by entry, and the rule is resolved fresh for each so a rule
+        // arriving down a wire is read the same way it would be for a single value. Reshaping the
+        // printed form of a list was never a thing anybody wanted.
+        if (FanOut.TryItems(ctx.GetValue(Source), out var items))
+        {
+            return await FanOut.OverAsync(
+                this,
+                Source,
+                items,
+                ctx,
+                ct,
+                (itemContext, index, token) =>
+                {
+                    StatusMessage = $"{index + 1} of {items.Count}";
+                    return ReshapeOnceAsync(itemContext, token);
+                }).ConfigureAwait(false);
+        }
+
+        return await ReshapeOnceAsync(ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Applies the rule to whatever is on the source pin, once.</summary>
+    private async Task<NodeResult> ReshapeOnceAsync(NodeExecutionContext ctx, CancellationToken ct)
+    {
         var input = ctx.GetText(Source);
         var wired = ctx.GetSourceNode(Rule) is not null;
         var rule = ResolveRule(ctx);

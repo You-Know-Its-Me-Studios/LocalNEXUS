@@ -82,11 +82,50 @@ public sealed partial class OutputNode : NodeBase
     /// <inheritdoc />
     public override async Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)
     {
-        if (ctx.GetValue(Content) is IReadOnlyList<GeneratedFile> files)
+        var arrived = ctx.GetValue(Content);
+
+        // A plan is written as a set rather than as items, because each file carries its own
+        // destination and the batch either lands or is restored.
+        if (arrived is IReadOnlyList<GeneratedFile> files)
         {
             return await WritePlanAsync(ctx, files, ct).ConfigureAwait(false);
         }
 
+        // Any other list is worked through one entry at a time. This used to stringify whatever it
+        // did not recognise, so five things arriving as a list were concatenated into one file.
+        //
+        // Every entry lands on the same file name, because a plain value carries no destination
+        // and this node has one configured. That is said out loud rather than left to be
+        // discovered, because a fan out into one file name is almost never what somebody meant.
+        if (FanOut.TryItems(arrived, out var items))
+        {
+            if (items.Count > 1)
+            {
+                ctx.Feed.Info(
+                    $"{Title}: {items.Count} item(s) to write",
+                    $"They carry no file names of their own, so each is written to {RelativePathPreview} in turn "
+                    + "and the last one is what remains.");
+            }
+
+            return await FanOut.OverAsync(
+                this,
+                Content,
+                items,
+                ctx,
+                ct,
+                (itemContext, index, token) =>
+                {
+                    StatusMessage = $"{index + 1} of {items.Count}";
+                    return WriteOnceAsync(itemContext, token);
+                }).ConfigureAwait(false);
+        }
+
+        return await WriteOnceAsync(ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Writes whatever is on the content pin to this node's configured file.</summary>
+    private async Task<NodeResult> WriteOnceAsync(NodeExecutionContext ctx, CancellationToken ct)
+    {
         var content = ctx.GetText(Content);
         if (string.IsNullOrWhiteSpace(content))
         {
