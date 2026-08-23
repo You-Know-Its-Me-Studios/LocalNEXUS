@@ -259,10 +259,15 @@ public partial class App : Application
         var indexing = new CancellationTokenSource();
         _indexing = indexing;
 
+        // Asking every registered extension what it can do, which used to be a button somebody
+        // had to press once per extension every time the project was opened.
+        var extensionStarter = new ExtensionStarter(extensions, extensionHost, feed, Dispatcher);
+
         var extensionsViewModel = new ExtensionsViewModel(
             extensions,
             extensionHost,
             new ExtensionInstaller(children),
+            extensionStarter,
             new PrerequisiteChecker(),
             dialogs,
             new AddExtensionDialogService(),
@@ -317,7 +322,8 @@ public partial class App : Application
             extensionHost,
             projectSettings,
             recents,
-            _llamaServers);
+            _llamaServers,
+            extensionStarter);
 
         // The MCP server, if this installation answers to other tools. Built whatever the setting
         // says so the toggle has something to start, and started only when it is on.

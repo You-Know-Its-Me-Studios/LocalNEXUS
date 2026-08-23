@@ -216,8 +216,7 @@ public sealed partial class TextOutputNode : NodeBase
     /// </remarks>
     public const string AskingPrompt =
         "Answer the question directly and in plain language. You are talking to somebody reading "
-        + "your reply, not writing a file, so explain rather than only emitting code, and keep it "
-        + "as short as the question allows.";
+        + "your reply.";
 
     /// <inheritdoc />
     /// <remarks>Nothing to save. What it holds is this run's answer, not how it is configured.</remarks>

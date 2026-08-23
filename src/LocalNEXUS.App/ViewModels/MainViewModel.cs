@@ -48,6 +48,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IHistoryWindow _historyWindow;
     private readonly GraphTemplates _templates;
     private readonly Services.Extensions.ExtensionHost _extensionHost;
+    private readonly Services.Extensions.ExtensionStarter? _extensionStarter;
     private readonly IExtensionsWindow _extensionsWindow;
 
     /// <summary>Nodes whose selection state this view model is currently following.</summary>
@@ -147,8 +148,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Services.Extensions.ExtensionHost extensionHost,
         ProjectSettingsService projectSettings,
         RecentProjectsService recents,
-        Services.Inference.LlamaServerManager? servers = null)
+        Services.Inference.LlamaServerManager? servers = null,
+        Services.Extensions.ExtensionStarter? extensionStarter = null)
     {
+        _extensionStarter = extensionStarter;
         _extensionHost = extensionHost;
         Breakpoints = breakpoints;
         _compiler = compiler;
@@ -734,6 +737,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Workers run in the project they exist for. Set here rather than at start up, because a
         // project can be opened and changed at any point in a session.
         _extensionHost.ProjectPath = Project.ProjectPath;
+
+        // And every extension this project registered is asked what it can do, right after that
+        // path is set and never before it, because a worker started against the wrong folder looks
+        // for the project's files in this application's own directory.
+        //
+        // Not awaited. Opening a project must not wait on a package runner, and each extension
+        // shows itself starting in the panel as it goes. Registering one against a project was
+        // already the statement that this project uses it; pressing a button once per extension on
+        // every launch to say so again was the application making somebody repeat themselves.
+        if (Project.HasProject && _extensionStarter is not null)
+        {
+            _ = _extensionStarter.ConnectAllAsync();
+        }
 
         // The door has been answered, however it was answered.
         FrontDoor.NoteProjectOpened();

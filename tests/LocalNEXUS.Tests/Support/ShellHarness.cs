@@ -173,6 +173,7 @@ public sealed class ShellHarness : IDisposable
             extensions,
             host,
             new ExtensionInstaller(children),
+            new ExtensionStarter(extensions, host, feed),
             new PrerequisiteChecker(),
             dialogs,
             new SilentAddExtensionDialog(),

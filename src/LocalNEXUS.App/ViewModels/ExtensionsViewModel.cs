@@ -35,6 +35,7 @@ public sealed partial class ExtensionsViewModel : ObservableObject
     private readonly ExtensionRegistry _registry;
     private readonly ExtensionHost _host;
     private readonly ExtensionInstaller _installer;
+    private readonly ExtensionStarter _starter;
     private readonly PrerequisiteChecker _prerequisites;
     private readonly IDialogService _dialogs;
     private readonly IAddExtensionDialog _addDialog;
@@ -71,6 +72,7 @@ public sealed partial class ExtensionsViewModel : ObservableObject
         ExtensionRegistry registry,
         ExtensionHost host,
         ExtensionInstaller installer,
+        ExtensionStarter starter,
         PrerequisiteChecker prerequisites,
         IDialogService dialogs,
         IAddExtensionDialog addDialog,
@@ -79,6 +81,7 @@ public sealed partial class ExtensionsViewModel : ObservableObject
         _registry = registry;
         _host = host;
         _installer = installer;
+        _starter = starter;
         _prerequisites = prerequisites;
         _dialogs = dialogs;
         _addDialog = addDialog;
@@ -341,8 +344,12 @@ public sealed partial class ExtensionsViewModel : ObservableObject
     /// Starts an extension, reads what it can do, and shuts it down again.
     /// </summary>
     /// <remarks>
-    /// The point of this is to move the moment a bad configuration is discovered from the middle
-    /// of a run to the moment it is configured.
+    /// The button remains, because there is a real reason to press it: an extension whose editor
+    /// side was not running when the project opened is fixed by starting the editor and asking
+    /// again, and nothing else in the application knows that happened.
+    ///
+    /// What it does is no longer written here. Opening a project asks every extension the same
+    /// question automatically, and two copies of the asking would be two things to keep in step.
     /// </remarks>
     [RelayCommand]
     private async Task TestConnectAsync(InstalledExtension? extension)
@@ -356,51 +363,10 @@ public sealed partial class ExtensionsViewModel : ObservableObject
 
         try
         {
-            if (extension.Manifest.ProvidesTools)
-            {
-                var session = await _host
-                    .EnsureRunningAsync(extension, ExtensionContract.Mcp, CancellationToken.None)
-                    .ConfigureAwait(true);
-
-                var tools = await new McpToolClient(session).ListToolsAsync(CancellationToken.None).ConfigureAwait(true);
-
-                extension.DiscoveredTools.Clear();
-
-                foreach (var tool in tools)
-                {
-                    extension.DiscoveredTools.Add(tool);
-                }
-
-                _feed.Info($"{extension.Manifest.Name} answered", $"{tools.Count} tool(s).");
-            }
-
-            if (extension.Manifest.ProvidesNodes)
-            {
-                var session = await _host
-                    .EnsureRunningAsync(extension, ExtensionContract.Node, CancellationToken.None)
-                    .ConfigureAwait(true);
-
-                var described = await new NodeWorkerClient(session)
-                    .DescribeAsync(CancellationToken.None)
-                    .ConfigureAwait(true);
-
-                _feed.Info($"{extension.Manifest.Name} answered", $"{described.Count} node type(s).");
-            }
-
-            extension.State = ExtensionState.Running;
-            extension.StateDetail = null;
-        }
-        catch (ExtensionException ex)
-        {
-            extension.State = ExtensionState.Unreachable;
-            extension.StateDetail = ex.Message;
-            _feed.Error($"{extension.Manifest.Name} did not answer", ex.Message);
+            await _starter.ConnectAsync(extension, CancellationToken.None).ConfigureAwait(true);
         }
         finally
         {
-            // Started only to ask. Leaving it running would be a process nobody asked for.
-            _host.Stop(extension.Manifest.Id);
-            _registry.Save();
             BusyMessage = null;
         }
     }
