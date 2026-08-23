@@ -139,3 +139,10 @@ src/LocalNEXUS.Installer/Payload/
 
 # Eval results. Durable, kept out of the application data folder on purpose, not source.
 evals/
+
+# LocalNEXUS
+.localnexus/
+
+# LocalNEXUS
+localnexus.local.json
+localnexus.json

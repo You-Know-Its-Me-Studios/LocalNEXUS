@@ -95,4 +95,26 @@ New-Item -ItemType Directory -Force $pythonTarget | Out-Null
 Copy-Item (Join-Path $pythonSource '*.txt') $pythonTarget -Force
 Write-Host "Copied the Python lockfiles into dist\vendor\python"
 
+# The distributed inference package is our own source rather than a fetched dependency, so it
+# travels beside the lockfiles and is run out of this folder with PYTHONPATH pointed at it. That
+# is what makes the path resolve the same way from the IDE and from the published exe: both find
+# it at vendor\python\distributed relative to the application, and neither goes looking inside a
+# single file bundle for something that was never in it.
+$distributedSource = Join-Path $pythonSource 'distributed'
+$distributedTarget = Join-Path $pythonTarget 'distributed'
+
+if (Test-Path $distributedSource) {
+    if (Test-Path $distributedTarget) {
+        Remove-Item $distributedTarget -Recurse -Force
+    }
+
+    Copy-Item $distributedSource $distributedTarget -Recurse -Force
+    Get-ChildItem $distributedTarget -Recurse -Directory -Filter '__pycache__' |
+        Remove-Item -Recurse -Force
+    Write-Host "Copied the distributed inference package into dist\vendor\python\distributed"
+}
+else {
+    Write-Warning "vendor\python\distributed is missing. The published app will run, and safetensors models cannot be split across machines."
+}
+
 Write-Host "Done. Run $(Join-Path $dist 'LocalNEXUS.exe')"

@@ -1,0 +1,339 @@
+"""Holding part of a model, and running that part.
+
+A stage builds the whole model object and then loads weights into only the modules it was
+assigned. Everything else stays on the meta device, which is torch's word for a tensor that has
+a shape and a dtype and no memory at all. The model is therefore complete as far as Python is
+concerned and costs only its own share in bytes.
+
+That is done by handing ``from_pretrained`` a device map naming every module and sending the ones
+this stage does not hold to ``meta``. It matters that the loader is the one doing this rather
+than a hand written pass over the shards, because a checkpoint's layout is not the model's
+layout. This model stores its mixture of experts as three separate tensors for each of a hundred
+and twenty eight experts per layer, and the module wants two stacked tensors, so eighteen
+thousand tensors on disk become five hundred and thirty one in memory. Reproducing that fusion
+by hand would mean reproducing it again for the next architecture, and being wrong about it
+produces a model that loads cleanly and generates nonsense.
+
+The forward pass is written out here rather than borrowed, because the model's own forward runs
+every layer and then the final norm, and a stage has neither all the layers nor, usually, the
+norm. What it does is the same work in the same order, with the same mask, the same rotary
+embeddings and the same cache, over the layers this stage actually holds.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+import torch
+from transformers import AutoConfig, AutoModelForCausalLM, DynamicCache
+from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
+
+from .config import StageAssignment
+
+_log = logging.getLogger(__name__)
+
+#: Where a module goes when this stage does not hold it. A meta tensor has a shape and no
+#: storage, so the module exists, reports its size, and occupies nothing.
+NOWHERE = "meta"
+
+
+class LoadError(Exception):
+    """The assigned slice could not be loaded, with the reason."""
+
+
+class PartialStage:
+    """One stage's share of a model: some layers, and possibly the ends."""
+
+    def __init__(
+        self,
+        model_dir: str,
+        assignment: StageAssignment,
+        device: str | None = None,
+        dtype: torch.dtype | str = "auto",
+    ) -> None:
+        self._model_dir = model_dir
+        self._assignment = assignment
+        self._device = device or _best_device()
+        self._dtype_request = dtype
+
+        self._config: Any = None
+        self._model: Any = None
+        self._inner: Any = None
+        self._layers: list[torch.nn.Module] = []
+
+        # A cache per request, holding only this stage's layers. Nothing about it is shared with
+        # any other machine, and it must not be: the whole reason a stage is cheap to talk to is
+        # that its cache never leaves it.
+        self._caches: dict[str, DynamicCache] = {}
+
+        # What the last stage has produced so far per request, which is what a repetition penalty
+        # is applied against. Only the last stage fills this.
+        self._history: dict[str, list[int]] = {}
+
+    @property
+    def assignment(self) -> StageAssignment:
+        return self._assignment
+
+    @property
+    def device(self) -> str:
+        return self._device
+
+    @property
+    def dtype(self) -> torch.dtype:
+        return self._model.dtype if self._model is not None else torch.bfloat16
+
+    @property
+    def hidden_size(self) -> int:
+        return int(self._config.hidden_size)
+
+    @property
+    def config(self) -> Any:
+        """The model's own config, which the API reads for its stop tokens and context length."""
+        if self._config is None:
+            raise LoadError("This stage has not loaded anything yet.")
+
+        return self._config
+
+    def load(self) -> None:
+        """Reads this stage's weights and nothing else.
+
+        Raises:
+            LoadError: the model could not be read, or the assignment does not fit the model.
+        """
+        try:
+            self._config = AutoConfig.from_pretrained(self._model_dir)
+        except Exception as error:  # noqa: BLE001 - anything here is the same answer to a caller
+            raise LoadError(f"{self._model_dir} has no config that could be read: {error}") from error
+
+        layers = int(self._config.num_hidden_layers)
+
+        if self._assignment.end_layer >= layers:
+            raise LoadError(
+                f"This stage was assigned layers {self._assignment.start_layer} to "
+                f"{self._assignment.end_layer} and the model has {layers}."
+            )
+
+        placement = self._device_map(layers)
+
+        try:
+            self._model = AutoModelForCausalLM.from_pretrained(
+                self._model_dir,
+                dtype=self._dtype_request,
+                device_map=placement,
+            )
+        except Exception as error:  # noqa: BLE001 - the reason has to reach the coordinator
+            raise LoadError(f"This stage's layers could not be loaded: {error}") from error
+
+        self._model.eval()
+        self._inner = self._model.model
+
+        # The layers this stage runs, in order, held directly. Indexing the model's own list by
+        # position would be wrong here and quietly so, because the list still has an entry for
+        # every layer in the model and all but this stage's are empty.
+        self._layers = [self._inner.layers[index]
+                        for index in range(self._assignment.start_layer,
+                                           self._assignment.end_layer + 1)]
+
+        _log.info("stage %d loaded %s on %s",
+                  self._assignment.stage_index, self.describe(), self._device)
+
+    def _device_map(self, layer_count: int) -> dict[str, Any]:
+        """Names every module and says where it goes, which is how only a slice gets read.
+
+        Every module in the model has to appear. A module the map does not mention is placed by
+        the loader's own judgement, which for a model larger than the card means offloading it to
+        disk, and a stage that quietly starts paging weights off an SSD looks like a slow network
+        rather than like the mistake it is.
+        """
+        held = self._assignment
+        placement: dict[str, Any] = {}
+
+        placement["model.embed_tokens"] = self._device if held.includes_embed else NOWHERE
+        placement["model.rotary_emb"] = self._device
+        placement["model.norm"] = self._device if held.includes_head else NOWHERE
+        placement["lm_head"] = self._device if held.includes_head else NOWHERE
+
+        for index in range(layer_count):
+            inside = held.start_layer <= index <= held.end_layer
+            placement[f"model.layers.{index}"] = self._device if inside else NOWHERE
+
+        # When a model ties its head to its embedding there is no separate head tensor, so the
+        # last stage needs the embedding in order to have a head at all. It is loaded twice
+        # across the pipeline in that case, which is a real cost and is the planner's to know
+        # about rather than a surprise here.
+        if getattr(self._config, "tie_word_embeddings", False) and held.includes_head:
+            placement["model.embed_tokens"] = self._device
+
+        return placement
+
+    def step(
+        self,
+        request_id: str,
+        incoming: torch.Tensor,
+        position_offset: int,
+        sampling: dict[str, Any],
+    ) -> torch.Tensor:
+        """Runs this stage's layers for one request at one step.
+
+        The first stage is given token ids and returns hidden states. A middle stage is given
+        hidden states and returns hidden states. The last stage is given hidden states and
+        returns the one token it sampled.
+        """
+        if self._model is None:
+            raise LoadError("This stage has not loaded anything yet.")
+
+        with torch.inference_mode():
+            cache = self._caches.get(request_id)
+
+            if cache is None:
+                cache = DynamicCache(config=self._config)
+                self._caches[request_id] = cache
+
+            hidden = self._entering(incoming)
+            length = hidden.shape[1]
+
+            # Position is carried in the frame rather than counted here, because it is the one
+            # thing a stage cannot work out for itself: its cache knows how many tokens it has
+            # seen, and on the first step of a request that is zero on every stage at once.
+            position_ids = (
+                torch.arange(length, device=hidden.device, dtype=torch.long) + position_offset
+            ).unsqueeze(0)
+
+            build_mask = (
+                create_causal_mask
+                if getattr(self._config, "sliding_window", None) is None
+                else create_sliding_window_causal_mask
+            )
+
+            mask = build_mask(
+                config=self._config,
+                inputs_embeds=hidden,
+                attention_mask=None,
+                past_key_values=cache,
+                position_ids=position_ids,
+                # The mask is sized from a layer this stage actually holds. Left to itself the
+                # loader sizes it from layer 0, which on any stage but the first is an empty
+                # cache slot, so every decode step would be masked as though it were the start
+                # of the sequence.
+                layer_idx=self._assignment.start_layer,
+            )
+
+            position_embeddings = self._inner.rotary_emb(hidden, position_ids=position_ids)
+
+            for layer in self._layers:
+                hidden = layer(
+                    hidden,
+                    attention_mask=mask,
+                    position_ids=position_ids,
+                    past_key_values=cache,
+                    use_cache=True,
+                    position_embeddings=position_embeddings,
+                )
+
+            if not self._assignment.includes_head:
+                return hidden
+
+            hidden = self._inner.norm(hidden)
+
+            # Only the last position can produce the next token, and the head is the widest
+            # matrix in the model, so running it over the whole prompt would cost as much as
+            # several layers to produce logits that are then thrown away.
+            logits = self._model.lm_head(hidden[:, -1:, :])
+
+            return self._sample(request_id, logits[0, -1].float(), sampling)
+
+    def _entering(self, incoming: torch.Tensor) -> torch.Tensor:
+        """Whatever arrived, as hidden states on this stage's device."""
+        if self._assignment.includes_embed:
+            return self._inner.embed_tokens(incoming.to(self._device, dtype=torch.long))
+
+        return incoming.to(device=self._device, dtype=self.dtype)
+
+    def _sample(
+        self,
+        request_id: str,
+        logits: torch.Tensor,
+        sampling: dict[str, Any],
+    ) -> torch.Tensor:
+        """Picks the next token, and remembers it so a repetition penalty has something to read.
+
+        The history starts as whatever the host sent with the prompt, because a penalty applied
+        only to what has been generated does not see the request it is answering, and a model
+        will happily repeat the question back.
+        """
+        history = self._history.get(request_id)
+
+        if history is None:
+            history = [int(token) for token in sampling.get("history", [])]
+            self._history[request_id] = history
+
+        penalty = float(sampling.get("repetition_penalty", 1.0))
+
+        if penalty != 1.0 and history:
+            seen = torch.tensor(sorted(set(history)), device=logits.device, dtype=torch.long)
+            scores = logits.index_select(0, seen)
+
+            # The usual asymmetric form: a positive score is divided and a negative one is
+            # multiplied, so both move away from being chosen.
+            logits = logits.index_copy(
+                0, seen, torch.where(scores > 0, scores / penalty, scores * penalty)
+            )
+
+        temperature = float(sampling.get("temperature", 1.0))
+        top_k = int(sampling.get("top_k", 0) or 0)
+        top_p = float(sampling.get("top_p", 1.0))
+
+        if temperature <= 0:
+            chosen = int(torch.argmax(logits).item())
+        else:
+            logits = logits / temperature
+
+            if 0 < top_k < logits.numel():
+                cutoff = torch.topk(logits, top_k).values[-1]
+                logits = logits.masked_fill(logits < cutoff, float("-inf"))
+
+            if 0.0 < top_p < 1.0:
+                ordered, order = torch.sort(logits, descending=True)
+                running = torch.cumsum(torch.softmax(ordered, dim=-1), dim=-1)
+
+                # Keep everything up to and including the one that crosses the threshold, so the
+                # most likely token survives even when it is already above top_p on its own.
+                drop = running - torch.softmax(ordered, dim=-1) >= top_p
+                ordered = ordered.masked_fill(drop, float("-inf"))
+                logits = torch.full_like(logits, float("-inf")).scatter(0, order, ordered)
+
+            chosen = int(torch.multinomial(torch.softmax(logits, dim=-1), num_samples=1).item())
+
+        history.append(chosen)
+
+        return torch.tensor([[chosen]], dtype=torch.int64)
+
+    def release(self, request_id: str) -> None:
+        """Drops everything held for a request."""
+        self._caches.pop(request_id, None)
+        self._history.pop(request_id, None)
+
+    def describe(self) -> str:
+        held = self._assignment
+        parts = [f"layers {held.start_layer} to {held.end_layer}"]
+
+        if held.includes_embed:
+            parts.append("the embedding")
+        if held.includes_head:
+            parts.append("the norm and head")
+
+        return ", ".join(parts)
+
+
+def _best_device() -> str:
+    """The accelerator if there is one, and system memory if there is not.
+
+    Falling back to the processor rather than refusing is deliberate. A machine without a usable
+    card can still hold a stage, slowly, and slowly is what a pipeline of one fast machine and
+    one slow one already is. Refusing would turn a working arrangement into no arrangement.
+    """
+    if torch.cuda.is_available():
+        return f"cuda:{torch.cuda.current_device()}"
+
+    return "cpu"
