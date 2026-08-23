@@ -375,6 +375,14 @@ public partial class App : Application
             mcp.Start();
         }
 
+        // Before anything else it might say, because everything else assumes the settings are the
+        // ones that were saved. A configuration that could not be read is the one condition under
+        // which nothing in this window means what it appears to mean.
+        if (AppConfig.LoadProblem is { } configProblem)
+        {
+            feed.Error("Settings were not loaded", configProblem);
+        }
+
         ReportEnvironment(feed, catalog);
 
         _mainViewModel = mainViewModel;

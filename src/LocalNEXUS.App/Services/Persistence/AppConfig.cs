@@ -238,11 +238,26 @@ public sealed class AppConfig
     public bool HasCompletedAWalkthroughRun { get; set; }
 
     /// <summary>
+    /// What went wrong reading the configuration, or null when nothing did.
+    /// </summary>
+    /// <remarks>
+    /// Read once by the shell and written to the feed. Falling back to defaults is still the right
+    /// behaviour, because a configuration that will not parse must not stop the application
+    /// starting, but doing it in silence was not: the session then saves those defaults back over
+    /// the file at the first opportunity and every setting is gone with nothing said. Losing them
+    /// is survivable. Losing them without being told is what makes it look like the application
+    /// simply ignores what it is told.
+    /// </remarks>
+    public static string? LoadProblem { get; private set; }
+
+    /// <summary>
     /// Reads the configuration from disk. A missing or unreadable file yields defaults rather
     /// than an error, because losing this state is never worth blocking startup over.
     /// </summary>
     public static AppConfig Load()
     {
+        LoadProblem = null;
+
         try
         {
             if (!File.Exists(AppPaths.ConfigFile))
@@ -258,7 +273,39 @@ public sealed class AppConfig
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
+            LoadProblem = $"{AppPaths.ConfigFile} could not be read, so this session started from defaults "
+                          + $"and anything it saves will replace what was there. {ex.Message}";
+
+            KeepBrokenFile();
+
             return new AppConfig();
+        }
+    }
+
+    /// <summary>
+    /// Puts an unreadable configuration somewhere it will not be overwritten.
+    /// </summary>
+    /// <remarks>
+    /// Copied rather than moved, so the application still starts from a file it recognises and
+    /// nothing depends on this having worked. What it buys is that the settings are recoverable by
+    /// hand instead of being replaced by the first save of the session.
+    /// </remarks>
+    private static void KeepBrokenFile()
+    {
+        try
+        {
+            var kept = Path.Combine(
+                Path.GetDirectoryName(AppPaths.ConfigFile)!,
+                $"config.unreadable-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+
+            File.Copy(AppPaths.ConfigFile, kept, overwrite: false);
+
+            LoadProblem += $" A copy of it was kept as {Path.GetFileName(kept)}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Keeping a copy is a courtesy. Failing at it must not turn a recoverable start into a
+            // failed one.
         }
     }
 
@@ -299,13 +346,36 @@ public sealed class AppConfig
         return config;
     }
 
-    /// <summary>Writes the configuration to disk, creating the data folder if needed.</summary>
+    /// <summary>
+    /// Writes the configuration to disk, creating the data folder if needed.
+    /// </summary>
+    /// <remarks>
+    /// Written beside the real file and moved into place, rather than over it. Writing in place
+    /// truncates first, so anything reading during that window sees an empty or half written file,
+    /// and anything that stops the process during it leaves one on disk. Either way the next launch
+    /// cannot parse it, falls back to defaults, and saves those defaults over everything.
+    ///
+    /// Under a lock for the same reason. This is called from the mesh, the model scan, the theme,
+    /// the recent projects list and half the panels, several of them off the user interface thread,
+    /// and two of them writing the same file at once produces exactly the file that cannot be read.
+    /// </remarks>
     public void Save()
     {
         AppPaths.EnsureCreated();
+
         var json = JsonSerializer.Serialize(this, SerializerOptions);
-        File.WriteAllText(AppPaths.ConfigFile, json);
+
+        lock (SaveGate)
+        {
+            var temporary = AppPaths.ConfigFile + ".writing";
+
+            File.WriteAllText(temporary, json);
+            File.Move(temporary, AppPaths.ConfigFile, overwrite: true);
+        }
     }
+
+    /// <summary>Serialises writers, because a torn configuration file loses every setting there is.</summary>
+    private static readonly object SaveGate = new();
 }
 
 /// <summary>
