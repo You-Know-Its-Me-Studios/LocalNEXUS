@@ -28,6 +28,7 @@ public sealed class NodeFactory
     private readonly ExtensionToolset _toolset;
     private readonly ICredentialStore _credentials;
     private readonly ProjectSettingsService? _project;
+    private readonly Services.Inference.LlamaServerManager? _servers;
 
     public NodeFactory(
         ModelCatalog catalog,
@@ -38,8 +39,10 @@ public sealed class NodeFactory
         ExtensionHost host,
         ICredentialStore credentials,
         ProjectSettingsService? project = null,
-        System.Windows.Threading.Dispatcher? dispatcher = null)
+        System.Windows.Threading.Dispatcher? dispatcher = null,
+        Services.Inference.LlamaServerManager? servers = null)
     {
+        _servers = servers;
         _project = project;
         _credentials = credentials;
         _catalog = catalog;
@@ -178,7 +181,8 @@ public sealed class NodeFactory
                 factory._mesh,
                 factory._dialogs,
                 factory._toolset,
-                factory._credentials)
+                factory._credentials,
+                factory._servers)
             {
                 SystemPrompt = ModelNode.PromptFor(factory._project?.Kind ?? ProjectKind.None)
             }),

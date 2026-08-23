@@ -124,6 +124,12 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
                 }
             }
 
+            // A load parameter is fixed at start, so a changed one is a different server and the
+            // old one is now dead weight holding a card's worth of memory. Retiring it here rather
+            // than leaving both up is the difference between a setting that applies on the next run
+            // and one that quietly does nothing until somebody restarts the application.
+            RetireOtherConfigurations(fullPath, key, status);
+
             var instance = StartServer(fullPath, options, _children);
             lock (_sync)
             {
@@ -150,6 +156,86 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
         finally
         {
             gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// What is running right now for a model, or null when nothing is.
+    /// </summary>
+    /// <remarks>
+    /// So a node can show what the live server actually has rather than only what its fields say.
+    /// The two can differ for exactly as long as it takes to run again, and a difference nobody can
+    /// see is one somebody finds out about from a refusal naming a context they thought they had
+    /// changed.
+    /// </remarks>
+    public RunningServer? Describe(string? ggufPath)
+    {
+        if (string.IsNullOrWhiteSpace(ggufPath))
+        {
+            return null;
+        }
+
+        string full;
+
+        try
+        {
+            full = Path.GetFullPath(ggufPath);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+
+        lock (_sync)
+        {
+            foreach (var server in _servers.Values)
+            {
+                if (server.IsRunning
+                    && string.Equals(server.GgufPath, full, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new RunningServer(
+                        server.Options.ContextSize,
+                        server.Options.GpuLayers,
+                        server.Port);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Stops any server serving this model that was started with different load parameters.
+    /// </summary>
+    /// <remarks>
+    /// Collected under the lock and stopped outside it, because stopping one means asking a process
+    /// to end and then waiting for it, and nothing else should be held up by that.
+    /// </remarks>
+    private void RetireOtherConfigurations(string fullPath, string key, IProgress<string>? status)
+    {
+        List<(string Key, LlamaServerInstance Server)> stale;
+
+        lock (_sync)
+        {
+            stale = _servers
+                .Where(pair => !string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)
+                               && string.Equals(pair.Value.GgufPath, fullPath, StringComparison.OrdinalIgnoreCase))
+                .Select(pair => (pair.Key, pair.Value))
+                .ToList();
+
+            foreach (var (staleKey, _) in stale)
+            {
+                _servers.Remove(staleKey);
+            }
+        }
+
+        foreach (var (_, server) in stale)
+        {
+            status?.Report(
+                $"Restarting the model: it is running with a context of {server.Options.ContextSize} "
+                + $"and {server.Options.GpuLayers} GPU layers, which have changed.");
+
+            server.Dispose();
         }
     }
 
@@ -243,7 +329,7 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
         children.Track(process, "llama-server");
 
         var logPath = AppPaths.CreateLogFilePath($"llama-{Path.GetFileNameWithoutExtension(ggufPath)}");
-        var instance = new LlamaServerInstance(process, ggufPath, port, logPath, children);
+        var instance = new LlamaServerInstance(process, ggufPath, port, logPath, children, options);
         instance.BeginCapturingOutput();
         return instance;
     }

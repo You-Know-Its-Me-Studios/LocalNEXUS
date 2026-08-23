@@ -79,3 +79,16 @@ public sealed record LlamaLaunchOptions
         return ProjectorPath is { Length: > 0 } projector ? $"{key}|mmproj{projector}" : key;
     }
 }
+
+/// <summary>
+/// What a server is actually running with, as opposed to what a node asks for.
+/// </summary>
+/// <remarks>
+/// The two are the same until somebody edits a load parameter, and then they differ until the next
+/// run restarts the server. Showing the live values is what keeps that gap visible rather than
+/// leaving it to be discovered by a refusal.
+/// </remarks>
+/// <param name="ContextSize">The context the key and value cache was allocated for.</param>
+/// <param name="GpuLayers">How many layers were offloaded.</param>
+/// <param name="Port">Where it is listening, which is useful when something else wants to look.</param>
+public sealed record RunningServer(int ContextSize, int GpuLayers, int Port);

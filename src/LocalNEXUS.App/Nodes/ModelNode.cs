@@ -175,11 +175,19 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     private int _maxTokens = 4096;
 
     /// <summary>Context window requested when this node starts a llama-server.</summary>
+    /// <remarks>
+    /// A load parameter. The server allocates its key and value cache when it comes up, so changing
+    /// this changes nothing about a server already running and takes effect when the next run
+    /// restarts it.
+    /// </remarks>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LoadedText))]
     private int _contextSize = LlamaLaunchOptions.DefaultContextSize;
 
     /// <summary>GPU layers requested when this node starts a llama-server.</summary>
+    /// <remarks>A load parameter, for the same reason as the context.</remarks>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LoadedText))]
     private int _gpuLayers = LlamaLaunchOptions.DefaultGpuLayers;
 
     /// <summary>
@@ -229,6 +237,17 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
     private readonly IDialogService _dialogs;
     private readonly ExtensionToolset? _toolset;
+
+    /// <summary>
+    /// What is serving local models, asked only about what it already has running.
+    /// </summary>
+    /// <remarks>
+    /// Named directly rather than reached through the resolver, and that is deliberate. A context
+    /// window and a layer count are llama.cpp's own parameters, which the runtime options say the
+    /// Python runtime ignores, so asking the llama manager about them is asking the right component
+    /// rather than widening an interface every runtime would have to answer null to.
+    /// </remarks>
+    private readonly LlamaServerManager? _servers;
     private readonly ICredentialStore? _credentials;
 
     /// <summary>Extensions whose tools this node may call. Empty means the node offers no tools.</summary>
@@ -243,6 +262,63 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// required.
     /// </remarks>
     public ObservableCollection<string> AllowedToolNames { get; } = new();
+
+    /// <summary>
+    /// What the running server for this node's model actually has, and whether it matches.
+    /// </summary>
+    /// <remarks>
+    /// The context and the layer count are fixed when a server starts, so a node whose fields have
+    /// been edited and whose server has not been restarted is asking for one thing and talking to
+    /// another. Saying so is the whole point: the alternative is finding out from a refusal naming
+    /// a context somebody thought they had changed.
+    ///
+    /// Nothing is started to answer this. A model with no server up says so, which is the ordinary
+    /// state before the first run.
+    /// </remarks>
+    public string LoadedText
+    {
+        get
+        {
+            if (Provider != ModelProvider.Local)
+            {
+                return string.Empty;
+            }
+
+            if (_servers?.Describe(EffectiveLocalModelPath) is not { } running)
+            {
+                return "Nothing is loaded yet. These apply when the model starts.";
+            }
+
+            var matches = running.ContextSize == ContextSize && running.GpuLayers == GpuLayers;
+
+            return matches
+                ? $"Loaded with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, on port {running.Port}."
+                : $"Loaded with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, which is not "
+                  + "what is set here. The next run restarts it with these values.";
+        }
+    }
+
+    /// <summary>True while the running server disagrees with what is set here.</summary>
+    public bool HasLoadDrift
+    {
+        get
+        {
+            if (Provider != ModelProvider.Local || _servers?.Describe(EffectiveLocalModelPath) is not { } running)
+            {
+                return false;
+            }
+
+            return running.ContextSize != ContextSize || running.GpuLayers != GpuLayers;
+        }
+    }
+
+    /// <summary>Reads what is running again, for the panel.</summary>
+    [RelayCommand]
+    private void RefreshLoaded()
+    {
+        OnPropertyChanged(nameof(LoadedText));
+        OnPropertyChanged(nameof(HasLoadDrift));
+    }
 
     /// <summary>
     /// Rebuilds the offered extensions from what this project has installed.
@@ -505,9 +581,11 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         MeshManager mesh,
         IDialogService dialogs,
         ExtensionToolset? toolset = null,
-        ICredentialStore? credentials = null)
+        ICredentialStore? credentials = null,
+        LlamaServerManager? servers = null)
         : base("Model")
     {
+        _servers = servers;
         Catalog = catalog;
         Mesh = mesh;
         _dialogs = dialogs;

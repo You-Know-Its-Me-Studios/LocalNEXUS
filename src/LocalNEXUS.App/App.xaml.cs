@@ -142,8 +142,13 @@ public partial class App : Application
         // factory, because a newly added Output node is seeded from it.
         var projectSettings = new Services.Files.ProjectSettingsService(feed);
 
+        // Before the factory, because a Model node shows what its model is actually running with
+        // and a load parameter is fixed at the moment the server starts.
+        _llamaServers = new LlamaServerManager(children);
+
         var factory = new NodeFactory(
-            catalog, mesh, dialogs, config, extensions, extensionHost, credentials, projectSettings, Dispatcher);
+            catalog, mesh, dialogs, config, extensions, extensionHost, credentials, projectSettings, Dispatcher,
+            _llamaServers);
         var serializer = new GraphSerializer(factory);
 
         // Restoring the node is deliberately not awaited: composition must not block on a
@@ -154,7 +159,6 @@ public partial class App : Application
         // provisioner comes first and the runtime is handed the same instance the panel watches.
         var pythonEnvironment = new PythonProvisioner(children, feed, Dispatcher);
 
-        _llamaServers = new LlamaServerManager(children);
         _pythonRuntime = new PythonRuntimeManager(children, pythonEnvironment);
 
         // Order is the order runtimes are asked, and each answers for exactly one format, so

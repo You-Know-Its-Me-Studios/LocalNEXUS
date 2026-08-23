@@ -28,12 +28,19 @@ public sealed class LlamaServerInstance : IDisposable
     private StreamWriter? _log;
     private bool _disposed;
 
-    public LlamaServerInstance(Process process, string ggufPath, int port, string logPath, ChildProcessGroup children)
+    public LlamaServerInstance(
+        Process process,
+        string ggufPath,
+        int port,
+        string logPath,
+        ChildProcessGroup children,
+        LlamaLaunchOptions options)
     {
         Process = process;
         GgufPath = ggufPath;
         Port = port;
         LogPath = logPath;
+        Options = options;
         _children = children;
     }
 
@@ -45,6 +52,17 @@ public sealed class LlamaServerInstance : IDisposable
 
     /// <summary>The loopback port the server is listening on.</summary>
     public int Port { get; }
+
+    /// <summary>
+    /// What this server was actually started with.
+    /// </summary>
+    /// <remarks>
+    /// Kept because a load parameter is fixed at start: llama-server allocates the key and value
+    /// cache when it comes up, so the context a running server has is the context it was launched
+    /// with and nothing said to it afterwards changes that. Somebody who edits the field needs to
+    /// be able to see the two values differ rather than find out from a refusal.
+    /// </remarks>
+    public LlamaLaunchOptions Options { get; }
 
     /// <summary>Where this server's output is being written.</summary>
     public string LogPath { get; }
