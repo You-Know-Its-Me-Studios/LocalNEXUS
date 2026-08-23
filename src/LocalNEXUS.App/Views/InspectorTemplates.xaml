@@ -35,7 +35,7 @@
 
                 <TextBlock Grid.Column="1" Style="{StaticResource MonoText}" Foreground="{DynamicResource Text.Muted.Brush}" Text="LAYERS" />
                 <TextBlock Grid.Column="2" Style="{StaticResource MonoText}" Foreground="{DynamicResource Text.Muted.Brush}" Text="COVERED BY" />
-                <TextBlock Grid.Column="3" Style="{StaticResource MonoText}" Foreground="{DynamicResource Text.Muted.Brush}" Text="SPARE" />
+                <TextBlock Grid.Column="3" Style="{StaticResource MonoText}" Foreground="{DynamicResource Text.Muted.Brush}" Text="BACKUPS" />
             </Grid>
 
             <!--
@@ -73,11 +73,15 @@
                                        Text="{Binding Section.LayerRangeText}"
                                        TextTrimming="CharacterEllipsis" />
 
+                            <!--
+                                No tool tip. It carried the same sentence already printed directly
+                                above the table, so hovering a row said nothing new and covered the
+                                original while it did it.
+                            -->
                             <TextBlock Grid.Column="2"
                                        Text="{Binding SourceText}"
                                        FontSize="{StaticResource Font.Size.Small}"
                                        TextTrimming="CharacterEllipsis"
-                                       ToolTip="{Binding StatusDetail}"
                                        Foreground="{Binding Coverage, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
 
                             <TextBlock Grid.Column="3"
@@ -89,7 +93,19 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
+            <!--
+                What a column means, beside the column, because a word nobody can define from
+                looking at it is a word that needs saying. Spare was the word and it needed asking
+                about, which is the answer to whether it was clear.
+            -->
             <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,6,0,0"
+                       TextWrapping="Wrap"
+                       Text="Backups are other machines in the mesh with room to take these layers over if the machine holding them goes away. Zero means this part of the model has no stand in: lose that machine and the model stops answering until the mesh finds another." />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,6,0,0"
+                       TextWrapping="Wrap"
                        Text="{Binding RequirementText}" />
 
             <TextBlock Style="{StaticResource HintText}"
@@ -207,12 +223,13 @@
                 <TextBlock Style="{StaticResource FieldLabel}" Text="Covered by" />
                 <TextBlock Text="{Binding SourceText}" />
 
-                <TextBlock Style="{StaticResource FieldLabel}" Text="Slack" />
+                <TextBlock Style="{StaticResource FieldLabel}" Text="Backups" />
                 <TextBlock Text="{Binding CoverageText}"
                            Foreground="{Binding Coverage, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
 
                 <TextBlock Style="{StaticResource HintText}"
-                           Text="If a machine drops out, the mesh moves its work to a spare." />
+                           TextWrapping="Wrap"
+                           Text="Other machines with room to take these layers over. If the machine holding them goes away, the mesh moves the work to one of these without the model going down." />
             </StackPanel>
         </StackPanel>
     </DataTemplate>

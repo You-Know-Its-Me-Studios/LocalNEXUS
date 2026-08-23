@@ -44,6 +44,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    [NotifyPropertyChangedFor(nameof(IsInsideAModel))]
+    [NotifyPropertyChangedFor(nameof(ClearInspectorText))]
     private NetworkServedModel? _selectedModel;
 
     /// <summary>The row backing <see cref="SelectedModel"/>, which is what the table highlights.</summary>
@@ -53,11 +55,15 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// <summary>The machine the sidebar has selected, or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    [NotifyPropertyChangedFor(nameof(IsInsideAModel))]
+    [NotifyPropertyChangedFor(nameof(ClearInspectorText))]
     private InferenceSource? _selectedSource;
 
     /// <summary>The coverage section the inspector is showing, or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    [NotifyPropertyChangedFor(nameof(IsInsideAModel))]
+    [NotifyPropertyChangedFor(nameof(ClearInspectorText))]
     private SourceAssignment? _selectedSection;
 
     /// <summary>Free text typed into the filter box in the title bar.</summary>
@@ -176,6 +182,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// clicked an uncovered section is asking about that section.
     /// </summary>
     public object? InspectorTarget => (object?)SelectedSection ?? (object?)SelectedSource ?? SelectedModel;
+
+    /// <summary>True when the inspector is pinned to something inside a model rather than the model.</summary>
+    /// <remarks>
+    /// What decides whether the control in the header is a way back or a way out. Clicking a
+    /// coverage section replaces the whole panel, so from inside one the thing somebody wants is
+    /// the model they were looking at, not an empty inspector.
+    /// </remarks>
+    public bool IsInsideAModel => SelectedSection is not null || SelectedSource is not null;
+
+    /// <summary>What the header control does next, said in the words of where it goes.</summary>
+    public string ClearInspectorText => IsInsideAModel ? "Back to the model" : "Select nothing";
 
     /// <summary>The right hand end of the status bar while this section is showing.</summary>
     public string CoverageSummary

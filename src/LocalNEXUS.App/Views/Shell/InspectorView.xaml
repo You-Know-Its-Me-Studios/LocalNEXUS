@@ -67,14 +67,29 @@
                         Network only. In the Workspace the selection belongs to the canvas, and
                         clicking empty space there already clears it.
                     -->
-                    <Button Grid.Column="5"
-                            Style="{StaticResource IconButton}"
+                    <!--
+                        Network only. In the Workspace the selection belongs to the canvas and
+                        clicking empty space there already clears it.
+                    -->
+                    <StackPanel Grid.Column="5"
+                                Orientation="Horizontal"
+                                Visibility="{Binding IsNetwork, Converter={StaticResource BooleanToVisibility}}">
+                    <Button Style="{StaticResource IconButton}"
+                            Margin="8,0,0,0"
+                            Content="&#xE72B;"
+                            ToolTip="{Binding Network.ClearInspectorText}"
+                            AutomationProperties.Name="{Binding Network.ClearInspectorText}"
+                            Command="{Binding Network.ClearInspectorCommand}"
+                            Visibility="{Binding Network.IsInsideAModel, Converter={StaticResource BooleanToVisibility}}" />
+
+                    <Button Style="{StaticResource IconButton}"
                             Margin="8,0,0,0"
                             Content="&#xE711;"
-                            ToolTip="Back out of this. Press again to select nothing."
-                            AutomationProperties.Name="Close the inspector"
+                            ToolTip="Select nothing"
+                            AutomationProperties.Name="Select nothing"
                             Command="{Binding Network.ClearInspectorCommand}"
-                            Visibility="{Binding IsNetwork, Converter={StaticResource BooleanToVisibility}}" />
+                            Visibility="{Binding Network.IsInsideAModel, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
