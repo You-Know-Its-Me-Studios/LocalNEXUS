@@ -8,16 +8,18 @@
              mc:Ignorable="d">
 
     <!--
-        What the Workspace is with no project open.
+        What the Workspace is with no project open, and the only thing that asks for one.
 
         It used to be the whole tab, live and unable to do anything: a canvas offering templates
-        that had nowhere to write, a request box with a Run button that would fail, a rail saying
-        no nodes yet, an inspector saying select a node, a panel saying nothing is wrong, and a
-        status bar saying no project. Six pieces of furniture narrating the same emptiness in six
-        different sentences, none of them the one thing to do about it.
+        that had nowhere to write, a request box whose Run would fail, a rail saying no nodes yet,
+        an inspector saying select a node, a panel saying nothing is wrong, and a status bar saying
+        no project. Six pieces of furniture narrating the same emptiness in six different
+        sentences, none of them the one thing to do about it.
 
-        This says the one thing, and carries the walkthrough, which is onboarding rather than
-        workspace furniture and belongs where somebody is being onboarded.
+        There was a seventh, over the top of all of it: a startup window asking the same question
+        this screen asks, with the same three answers. Two screens saying open a project, one
+        covering the other. That one is gone and what it offered is here, because a modal that
+        appears over a page that says the same thing is a modal with nothing to add.
     -->
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
@@ -30,20 +32,110 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,8,0,0"
                        TextWrapping="Wrap"
-                       Text="Open a project to start. A project is a folder holding a codebase for the models to work on." />
+                       Text="A graph works inside a project: it reads what is there, checks what it writes against it, and writes into it. Pick one to start." />
 
-            <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                <Button Style="{StaticResource PrimaryButton}"
-                        MinWidth="140"
-                        Content="Open a project"
-                        Command="{Binding OpenProjectCommand}" />
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Status.Danger.Brush}"
+                       Text="{Binding FrontDoor.Problem}"
+                       Visibility="{Binding FrontDoor.Problem, Converter={StaticResource StringToVisibility}}" />
 
-                <Button Style="{StaticResource SmallButton}"
-                        Margin="8,0,0,0"
-                        MinWidth="140"
-                        Content="Recent projects"
-                        ToolTip="Projects you have opened before."
-                        Command="{Binding ShowFrontDoorCommand}" />
+            <!-- The three ways in, which were the startup window's whole content. -->
+            <Button Margin="0,18,0,0"
+                    HorizontalContentAlignment="Left"
+                    Padding="14,10"
+                    Command="{Binding OpenProjectCommand}">
+                <StackPanel>
+                    <TextBlock Text="Open a project" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap"
+                               Text="Choose a folder that already holds a codebase." />
+                </StackPanel>
+            </Button>
+
+            <Button Margin="0,8,0,0"
+                    HorizontalContentAlignment="Left"
+                    Padding="14,10"
+                    Command="{Binding FrontDoor.StartProjectCommand}">
+                <StackPanel>
+                    <TextBlock Text="Start a project in a folder" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap"
+                               Text="Choose an empty folder, or make a new one in the picker. You will be asked what goes where next." />
+                </StackPanel>
+            </Button>
+
+            <!--
+                The one way in that does not involve a project at all. Somebody lending a card has
+                no codebase and should not have to invent one.
+            -->
+            <Button Margin="0,8,0,0"
+                    HorizontalContentAlignment="Left"
+                    Padding="14,10"
+                    Command="{Binding FrontDoor.ContributeOnlyCommand}">
+                <StackPanel>
+                    <TextBlock Text="I am only contributing this machine" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap"
+                               Text="Lend this machine's GPU to the mesh without opening anything. Goes straight to Network." />
+                </StackPanel>
+            </Button>
+
+            <!-- What has been opened before, when anything has. -->
+            <StackPanel Margin="0,22,0,0"
+                        Visibility="{Binding FrontDoor.IsFirstRun, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}">
+                <TextBlock Text="Recent" FontWeight="SemiBold" />
+
+                <ItemsControl ItemsSource="{Binding FrontDoor.Recents.Items}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,0,0,6">
+
+                                <!--
+                                    Only on a row that is not there any more, because forgetting a
+                                    project somebody still has is not something to offer beside
+                                    every one of them.
+                                -->
+                                <Button DockPanel.Dock="Right"
+                                        Style="{StaticResource SmallButton}"
+                                        Margin="6,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Content="Remove"
+                                        ToolTip="Takes it off this list. Nothing on disk is touched."
+                                        Visibility="{Binding IsMissing, Converter={StaticResource BooleanToVisibility}}"
+                                        Command="{Binding DataContext.FrontDoor.ForgetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
+
+                                <Button HorizontalContentAlignment="Left"
+                                        Padding="12,8"
+                                        IsEnabled="{Binding IsAvailable}"
+                                        ToolTip="{Binding Path}"
+                                        Command="{Binding DataContext.FrontDoor.OpenRecentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   Style="{StaticResource HintText}"
+                                                   Margin="10,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding WhenText}" />
+
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Style="{StaticResource MonoText}"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Text="{Binding Path}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
 
             <!--

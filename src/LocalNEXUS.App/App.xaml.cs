@@ -396,10 +396,9 @@ public partial class App : Application
         MainWindow = window;
         window.Show();
 
-        // The first question, over the window rather than before it, so the application is already
-        // there behind the thing it is asking. Nothing waits on it: every other piece of start up
-        // carries on, and answering it opens a project the same way the File menu does.
-        mainViewModel.FrontDoor.Show();
+        // No startup window. The Workspace says what to do when there is no project, and a modal
+        // over a page asking the same question with the same three answers is a modal with nothing
+        // to add.
 
         // Deliberately not awaited. Building the Python environment is a download measured in
         // gigabytes, and the window has to be usable while it runs: GGUF models work throughout,

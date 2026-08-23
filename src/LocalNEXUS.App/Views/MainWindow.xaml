@@ -439,13 +439,6 @@
                             </DockPanel>
                         </Border>
                     </Grid>
-
-                    <!--
-                        The front door, over everything but the title bar. Last so it is on top,
-                        and outside the section grid so no section is reachable behind it. The
-                        title bar stays because the window still has to be closable and movable.
-                    -->
-                    <views:FrontDoorView />
                 </Grid>
             </DockPanel>
         </Grid>

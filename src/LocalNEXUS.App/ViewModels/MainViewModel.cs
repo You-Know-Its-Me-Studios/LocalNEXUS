@@ -542,9 +542,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenSettings() => IsSettingsOpen = true;
 
-    /// <summary>Brings the front door back, which is where the recent projects are.</summary>
-    [RelayCommand]
-    private void ShowFrontDoor() => FrontDoor.Show();
 
     /// <summary>
     /// Opens settings on a particular section.
