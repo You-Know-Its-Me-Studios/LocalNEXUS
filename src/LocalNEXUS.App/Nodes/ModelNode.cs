@@ -716,6 +716,15 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         // identity and drop every wire leaving this node.
         Self = AddOutput("Model", PinType.Model);
 
+        // Appended last, for the same reason Self was: a saved graph matches pins by name and falls
+        // back to position, so anything inserted ahead of an existing pin takes its identity and
+        // every wire leaving this node lands somewhere else.
+        //
+        // The same reply as the code pin, and it exists so that a reply meant to be read has a pin
+        // that says so. Code used to be allowed to flow into Text, which meant a wire into anything
+        // expecting prose was drawn from a pin whose whole point is that it carries a file.
+        Answer = AddOutput("Text", PinType.Text);
+
         // A fresh node is usable straight away when the machine already has a model.
         SelectedLocalModel = catalog.Models.FirstOrDefault();
     }
@@ -731,6 +740,9 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
     /// <summary>Carries the model reply onwards.</summary>
     public Pin Completion { get; }
+
+    /// <summary>The same reply, for anything that wants it as text rather than as a file.</summary>
+    public Pin Answer { get; }
 
     /// <summary>
     /// Hands this model to whatever needs one, rather than handing over a reply.
@@ -1242,11 +1254,17 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// reading the reply, and the executor gathers output pins the same way for all of them, so
     /// there is nothing to decide here.
     /// </remarks>
-    private NodeResult Emit(object? produced) => NodeResult.FromValues(new Dictionary<Guid, object?>
+    private NodeResult Emit(object? produced)
     {
-        [Completion.Id] = produced is string reply ? Clean(reply) : produced,
-        [Self.Id] = this
-    });
+        var cleaned = produced is string reply ? Clean(reply) : produced;
+
+        return NodeResult.FromValues(new Dictionary<Guid, object?>
+        {
+            [Completion.Id] = cleaned,
+            [Answer.Id] = cleaned,
+            [Self.Id] = this
+        });
+    }
 
     /// <summary>
     /// The reply as it leaves this node, with its code fence off when that is wanted.
@@ -1483,6 +1501,47 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         }
 
         return tools;
+    }
+
+    /// <summary>
+    /// Says so when the model plainly meant to call a tool and wrote it out instead.
+    /// </summary>
+    /// <remarks>
+    /// It is not acted on and nothing is parsed out of it to run. This is diagnosis: a reply that
+    /// is a function call in a code fence, delivered as the answer, looks like this application
+    /// ignoring the tools it was given, and the model naming a tool it was offered is proof enough
+    /// that it understood and could not express it.
+    ///
+    /// The model has to be shown the tool for this to fire, and has to name it. A reply that merely
+    /// mentions searching the web is a reply, not a failed call.
+    /// </remarks>
+    private void WarnIfItWroteTheCallOut(
+        NodeExecutionContext ctx,
+        IReadOnlyList<ToolDefinition> tools,
+        string? reply)
+    {
+        if (string.IsNullOrWhiteSpace(reply)
+            || !reply.Contains("\"name\"", StringComparison.Ordinal)
+            || (!reply.Contains("\"arguments\"", StringComparison.Ordinal)
+                && !reply.Contains("\"parameters\"", StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        var named = tools.FirstOrDefault(t => reply.Contains(t.Name, StringComparison.Ordinal));
+
+        if (named is null)
+        {
+            return;
+        }
+
+        ctx.Feed.Error(
+            $"{Title} wrote a tool call out as text",
+            $"It asked for {named.Name} in the body of its reply instead of calling it, so nothing ran "
+            + "and the reply you get is the request rather than the result. The model chose the right "
+            + "tool and cannot emit it through the protocol. Check tool support on this node, and use "
+            + "a model tuned for tool use or a hosted one. Nothing here parses a call out of text and "
+            + $"runs it, because a misread one would run the wrong thing.{Environment.NewLine}{Environment.NewLine}{reply}");
     }
 
     /// <summary>
@@ -1761,6 +1820,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
             if (!result.WantsTools || tools.Count == 0 || _toolset is null)
             {
+                WarnIfItWroteTheCallOut(ctx, tools, result.Text);
                 break;
             }
 

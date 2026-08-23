@@ -90,7 +90,7 @@ public sealed class GraphSerializer
 
         var renames = new List<string>();
         var restored = RestoreNodes(document["nodes"] as JsonArray, target, warnings, renames);
-        RestoreConnections(document["connections"] as JsonArray, target, restored, warnings);
+        RestoreConnections(document["connections"] as JsonArray, target, restored, warnings, renames);
 
         // Last, once the graph is whole. A migration reads wires, so it cannot run before they
         // exist, and anything it adds is a real connection rather than a special case for the
@@ -318,11 +318,24 @@ public sealed class GraphSerializer
         return candidate;
     }
 
+    /// <summary>
+    /// The pin a refused wire plainly meant, when there is one.
+    /// </summary>
+    /// <remarks>
+    /// Only the one case, and only downwards: a Code output into a Text input, where the node it
+    /// leaves has a Text output too. Anything cleverer would be guessing at what somebody drew.
+    /// </remarks>
+    private static Pin? Rerouted(Pin source, Pin target)
+        => source.PinType == PinType.Code && target.PinType == PinType.Text
+            ? source.Owner.Outputs.FirstOrDefault(p => p.PinType == PinType.Text)
+            : null;
+
     private static void RestoreConnections(
         JsonArray? connections,
         GraphModel target,
         IReadOnlyDictionary<Guid, Pin> pinsById,
-        List<string> warnings)
+        List<string> warnings,
+        List<string> moved)
     {
         if (connections is null)
         {
@@ -346,6 +359,17 @@ public sealed class GraphSerializer
 
             if (!target.TryConnect(source, pinTarget, out var reason))
             {
+                // Code used to be allowed into Text, so a graph saved before that rule tightened
+                // can hold a wire that is now refused. Where the node it came from has a text pin
+                // of its own, that is plainly what the wire meant, so it is moved rather than
+                // dropped and the move is reported as news rather than as a warning.
+                if (Rerouted(source, pinTarget) is { } rerouted
+                    && target.TryConnect(rerouted, pinTarget, out _))
+                {
+                    moved.Add($"{source.Owner.Title} to {pinTarget.Owner.Title} now leaves its {rerouted.Name} pin.");
+                    continue;
+                }
+
                 warnings.Add($"Skipped the connection {source.Owner.Title} to {pinTarget.Owner.Title}: {reason}.");
                 continue;
             }

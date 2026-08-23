@@ -211,7 +211,7 @@ public sealed class GraphTemplates
         }
 
         b.Wire(prompt, "Text", model, "Text");
-        b.Wire(model, "Code", answer, "Text");
+        b.Wire(model, "Text", answer, "Text");
     }
 
     /// <summary>

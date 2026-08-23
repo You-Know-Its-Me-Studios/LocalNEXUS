@@ -33,7 +33,11 @@ public static class PinTypeCompatibility
             return source == target;
         }
 
-        return source == target || (source is PinType.Code && target is PinType.Text);
+        // Types match, and there is no longer an exception. Code used to be allowed into Text, so
+        // the pin that means "a file was produced" was also the pin somebody drew from when they
+        // wanted prose, and a node that produced both had no way to say which was which. A model
+        // that has something to say now says it on a Text pin.
+        return source == target;
     }
 
     /// <summary>A short explanation of why a flow is not permitted, for the pending wire label.</summary>
