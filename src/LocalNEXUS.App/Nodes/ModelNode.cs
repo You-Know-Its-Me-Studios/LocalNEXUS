@@ -697,6 +697,11 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     {
         _servers = servers;
         _probe = probe;
+
+        // A list changing raises a collection change and never a property change, so without this
+        // the whole extension and tool selection was invisible to anything watching for an edit.
+        SelectedExtensionIds.CollectionChanged += (_, _) => RaiseSettingsChanged();
+        AllowedToolNames.CollectionChanged += (_, _) => RaiseSettingsChanged();
         Catalog = catalog;
         Mesh = mesh;
         _dialogs = dialogs;

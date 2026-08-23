@@ -36,6 +36,46 @@ public abstract partial class NodeBase : ObservableObject
     [ObservableProperty]
     private string? _statusMessage;
 
+    /// <summary>
+    /// Raised when something the serializer would write has changed on this node.
+    /// </summary>
+    /// <remarks>
+    /// The document listens to this to know it differs from what is on disk. It used to watch the
+    /// node's view model instead, which republishes four properties and none of them is a setting,
+    /// so nothing anybody changed on a node ever marked the graph as edited. A model, a
+    /// temperature, an output folder and a whole extension selection could all be set, and the tab
+    /// showed no dot, so the graph was closed without being saved and every one of them was lost.
+    ///
+    /// Raised from the property change notification rather than from each setter, so a node cannot
+    /// gain a setting that quietly does not count as an edit. What is left out is the three things
+    /// that move while a run is going, because a node reporting where it has got to is not an edit
+    /// and a graph running is not a graph changing.
+    /// </remarks>
+    public event Action<NodeBase>? SettingsChanged;
+
+    /// <summary>
+    /// Says that something worth saving has changed, for a change no property notification covers.
+    /// </summary>
+    /// <remarks>
+    /// A node holding an observable collection needs this: adding to a list raises a collection
+    /// change and never a property change, so the selection of extensions and tools was invisible
+    /// to anything watching properties.
+    /// </remarks>
+    protected void RaiseSettingsChanged() => SettingsChanged?.Invoke(this);
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName is nameof(State) or nameof(StatusMessage) or nameof(IsSelected))
+        {
+            return;
+        }
+
+        RaiseSettingsChanged();
+    }
+
     protected NodeBase(string title)
     {
         Id = Guid.NewGuid();

@@ -180,6 +180,7 @@ public sealed partial class GraphDocumentViewModel : ObservableObject, IDisposab
             {
                 wrapper = new NodeViewModel(node, _runState);
                 wrapper.PropertyChanged += OnNodeViewModelChanged;
+                wrapper.Node.SettingsChanged += OnNodeSettingsChanged;
                 _byNode[node] = wrapper;
             }
 
@@ -194,6 +195,7 @@ public sealed partial class GraphDocumentViewModel : ObservableObject, IDisposab
         foreach (var wrapper in _byNode.Values)
         {
             wrapper.PropertyChanged -= OnNodeViewModelChanged;
+            wrapper.Node.SettingsChanged -= OnNodeSettingsChanged;
             wrapper.Dispose();
         }
 
@@ -225,6 +227,16 @@ public sealed partial class GraphDocumentViewModel : ObservableObject, IDisposab
 
         MarkChanged();
     }
+
+    /// <summary>
+    /// A node said something worth saving has changed.
+    /// </summary>
+    /// <remarks>
+    /// Listened to on the node rather than on its view model, which republishes four properties and
+    /// none of them is a setting. Everything anybody sets in the inspector reaches here now, where
+    /// none of it did before.
+    /// </remarks>
+    private void OnNodeSettingsChanged(NodeBase node) => MarkChanged();
 
     /// <summary>Records that the graph differs from what is on disk.</summary>
     /// <remarks>
