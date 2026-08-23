@@ -20,5 +20,16 @@ public enum ModelAvailability
     Complete,
 
     /// <summary>Known to be unrunnable, with the section at fault named.</summary>
-    Blocked
+    Blocked,
+
+    /// <summary>
+    /// Somebody else's mesh, found in the directory and not joined.
+    /// </summary>
+    /// <remarks>
+    /// Its own state rather than one of the three above, because it is not a verdict about a model
+    /// at all. Reported as starting, seven meshes found in a directory made the status filter say
+    /// seven were starting, which is a sentence about this machine doing work it is not doing.
+    /// Appended, so nothing that reads this enum by position changes meaning.
+    /// </remarks>
+    NotJoined
 }

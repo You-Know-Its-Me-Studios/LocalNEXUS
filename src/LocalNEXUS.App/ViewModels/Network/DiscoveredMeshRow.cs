@@ -34,11 +34,12 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
 
     /// <inheritdoc />
     /// <remarks>
-    /// Never complete. A mesh in the directory is reachable in the sense that you could join it,
-    /// which is not the sense the run path means, and reporting it as ready would put it in front
-    /// of a model node that cannot call it.
+    /// Its own state. A mesh in the directory is reachable in the sense that you could join it,
+    /// which is not the sense the run path means, so it is never complete; and it is not starting
+    /// either, because nothing about it is coming up. Saying starting made the status filter count
+    /// seven meshes as seven things this machine was busy with.
     /// </remarks>
-    public ModelAvailability Availability => ModelAvailability.Starting;
+    public ModelAvailability Availability => ModelAvailability.NotJoined;
 
     /// <inheritdoc />
     public string StatusText => "not joined";

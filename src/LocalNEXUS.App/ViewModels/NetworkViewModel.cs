@@ -88,6 +88,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// <summary>Invite token typed into the join form.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MembershipText))]
+    [NotifyPropertyChangedFor(nameof(MembershipHeading))]
+    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
+    [NotifyPropertyChangedFor(nameof(MembershipMeshName))]
+    [NotifyPropertyChangedFor(nameof(IsGuestInAnotherMesh))]
     private string _joinToken = string.Empty;
 
     /// <summary>Name this install gives the mesh it hosts.</summary>
@@ -456,19 +460,78 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         _feed.Info(title, detail);
     }
 
+    /// <summary>
+    /// Which mesh this install is in, said as a heading rather than as a state word.
+    /// </summary>
+    /// <remarks>
+    /// The node state says what the process is doing and never which mesh it is doing it in, so
+    /// somebody who joined one and somebody hosting their own read exactly the same line. This is
+    /// the other half of that question.
+    /// </remarks>
+    public string MembershipHeading => IsJoining
+        ? "Joining a mesh"
+        : string.IsNullOrWhiteSpace(JoinToken)
+            ? "Hosting your own mesh"
+            : "In somebody else's mesh";
+
+    /// <summary>What that membership means, in a sentence.</summary>
+    public string MembershipDetail => IsJoining
+        ? $"Fetching an invite for {JoiningName} and restarting the node into it. This takes a few seconds."
+        : string.IsNullOrWhiteSpace(JoinToken)
+            ? "Nothing else can reach it until you invite a machine with the token below, or publish the mesh so it can be found."
+            : "You are joined by invite, so this machine is a member rather than the host. Leave the mesh puts your own back.";
+
+    /// <summary>The mesh's own name for itself, once the node is up and reporting one.</summary>
+    public string MembershipMeshName => Mesh.IsRunning && !string.IsNullOrWhiteSpace(Mesh.MeshName)
+        ? Mesh.MeshName
+        : string.IsNullOrWhiteSpace(JoinToken) ? MeshName : "not reported until the node is up";
+
+    /// <summary>How many machines are in it, this one included.</summary>
+    public string MembershipSize => Mesh.IsRunning
+        ? $"{Machines.Count} {(Machines.Count == 1 ? "machine" : "machines")}, {Mesh.Models.Count} {(Mesh.Models.Count == 1 ? "model" : "models")}"
+        : "not known until the node is up";
+
+    /// <summary>True while there is a token, which is what makes leaving meaningful.</summary>
+    public bool IsGuestInAnotherMesh => !string.IsNullOrWhiteSpace(JoinToken);
+
+    /// <summary>The mesh currently being joined, for as long as that is happening.</summary>
+    [ObservableProperty]
+    private string _joiningName = string.Empty;
+
     /// <summary>Which mesh this install is in, or means to be in once the node starts.</summary>
     /// <remarks>
     /// Joining sets a token and nothing visible changes until the node restarts, so without this
     /// somebody who joined a mesh and had the node stopped saw exactly what they saw before.
     /// </remarks>
-    public string MembershipText => string.IsNullOrWhiteSpace(JoinToken)
-        ? $"hosting {(string.IsNullOrWhiteSpace(MeshName) ? "a mesh" : MeshName)}"
-        : "joined another mesh by invite";
+    public string MembershipText => IsJoining
+        ? $"joining {JoiningName}"
+        : string.IsNullOrWhiteSpace(JoinToken)
+            ? $"hosting {(string.IsNullOrWhiteSpace(MeshName) ? "a mesh" : MeshName)}"
+            : "joined another mesh by invite";
 
     /// <summary>True while the public directory is being asked.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FindMeshesText))]
+    [NotifyPropertyChangedFor(nameof(IsBusyWithDirectory))]
     private bool _isSearchingDirectory;
+
+    /// <summary>
+    /// True while a mesh is being joined.
+    /// </summary>
+    /// <remarks>
+    /// Separate from searching, because they are separate acts and shared one flag. Joining a mesh
+    /// turned the Find meshes button into "Searching...", which says the wrong thing is happening
+    /// while saying nothing about the thing that is.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusyWithDirectory))]
+    [NotifyPropertyChangedFor(nameof(MembershipText))]
+    [NotifyPropertyChangedFor(nameof(MembershipHeading))]
+    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
+    private bool _isJoining;
+
+    /// <summary>True while either directory action is in flight, so neither starts twice.</summary>
+    public bool IsBusyWithDirectory => IsSearchingDirectory || IsJoining;
 
     /// <summary>What the find button says, so a search in progress is visible on the button itself.</summary>
     public string FindMeshesText => IsSearchingDirectory ? "Searching..." : "Find meshes";
@@ -487,7 +550,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task FindMeshesAsync()
     {
-        if (_directory is null || IsSearchingDirectory)
+        if (_directory is null || IsBusyWithDirectory)
         {
             return;
         }
@@ -534,12 +597,13 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task JoinDiscoveredAsync()
     {
-        if (_directory is null || SelectedDirectoryMesh is not { } mesh || IsSearchingDirectory)
+        if (_directory is null || SelectedDirectoryMesh is not { } mesh || IsBusyWithDirectory)
         {
             return;
         }
 
-        IsSearchingDirectory = true;
+        IsJoining = true;
+        JoiningName = mesh.DisplayName;
 
         try
         {
@@ -588,7 +652,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsSearchingDirectory = false;
+            IsJoining = false;
+            OnPropertyChanged(nameof(MembershipText));
         }
     }
 
@@ -759,7 +824,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 new ModelFilter("All", _ => true, ApplyFilterCommand, isSelected: true),
                 new ModelFilter("Complete", r => r.Availability == ModelAvailability.Complete, ApplyFilterCommand),
                 new ModelFilter("Starting", r => r.Availability == ModelAvailability.Starting, ApplyFilterCommand),
-                new ModelFilter("Blocked", r => r.Availability == ModelAvailability.Blocked, ApplyFilterCommand)
+                new ModelFilter("Blocked", r => r.Availability == ModelAvailability.Blocked, ApplyFilterCommand),
+                new ModelFilter("Found, not joined", r => r.Availability == ModelAvailability.NotJoined, ApplyFilterCommand)
             }),
 
         new ModelFilterGroup(
@@ -854,9 +920,11 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CoverageSummary));
 
                 // Both buttons say what pressing them will do, and both answers depend on whether
-                // there is a node up.
+                // there is a node up. So does everything the membership panel reports.
                 OnPropertyChanged(nameof(ApplyButtonText));
                 OnPropertyChanged(nameof(StartButtonText));
+                OnPropertyChanged(nameof(MembershipMeshName));
+                OnPropertyChanged(nameof(MembershipSize));
                 break;
         }
     }

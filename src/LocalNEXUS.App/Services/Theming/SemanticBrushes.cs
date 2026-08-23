@@ -138,6 +138,10 @@ public static class SemanticBrushes
         ("ModelAvailability.Complete.Brush", "Status.SuccessColor"),
         ("ModelAvailability.Blocked.Brush", "Status.DangerColor"),
 
+        // Not joined is not a problem and not progress. Neutral, like anything else that is simply
+        // sitting there waiting to be asked for.
+        ("ModelAvailability.NotJoined.Brush", "Accent.NeutralColor"),
+
         // A local model's own server. Starting and restarting are work in progress rather than
         // trouble: one is a model loading and the other is a load setting that changed, and neither
         // is a failure. Not loaded is the ordinary state before a first run, so it is neutral.
