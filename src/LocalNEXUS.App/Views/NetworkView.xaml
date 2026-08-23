@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:net="clr-namespace:LocalNEXUS.App.ViewModels.Network"
+             xmlns:behaviors="clr-namespace:LocalNEXUS.App.Infrastructure.Behaviors"
              xmlns:vm="clr-namespace:LocalNEXUS.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:NetworkViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -257,7 +258,8 @@
             put while the rows move under them.
         -->
         <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled">
+                      VerticalScrollBarVisibility="Disabled"
+                      behaviors:HorizontalWheelBehavior.IsEnabled="True">
             <DockPanel MinWidth="1136">
 
         <!-- Column headings. -->
@@ -356,6 +358,7 @@
 
                             <TextBlock Grid.Column="1"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Foreground="{DynamicResource Text.Muted.Brush}"
                                        Text="{Binding SizeText}"
                                        VerticalAlignment="Center"
@@ -385,16 +388,18 @@
 
                             <TextBlock Grid.Column="3"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Text="{Binding SourceCount}"
                                        VerticalAlignment="Center" />
 
                             <TextBlock Grid.Column="4"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Text="{Binding SpareCount}"
                                        VerticalAlignment="Center"
                                        Foreground="{Binding Strength, Converter={StaticResource ResourceLookup}, ConverterParameter=SectionCoverage}" />
 
-                            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
                                 <Ellipse Style="{StaticResource StateDot}"
                                          Width="6" Height="6"
                                          Margin="0,0,6,0"
@@ -406,12 +411,14 @@
 
                             <TextBlock Grid.Column="6"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Text="{Binding ContextText}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" />
 
                             <TextBlock Grid.Column="7"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Text="{Binding ContentsText}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
@@ -420,6 +427,7 @@
 
                             <TextBlock Grid.Column="8"
                                        Style="{StaticResource MonoText}"
+                                       Margin="0,0,14,0"
                                        Foreground="{DynamicResource Text.Muted.Brush}"
                                        Text="{Binding LastVerifiedText}"
                                        VerticalAlignment="Center"
