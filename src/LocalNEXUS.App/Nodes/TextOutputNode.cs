@@ -73,10 +73,16 @@ public sealed partial class TextOutputNode : NodeBase
     /// <summary>
     /// The whole of what arrived, for the inspector to show and for somebody to copy.
     /// </summary>
+    /// <remarks>
+    /// Set from the thread the run is on, which is why nothing here notifies a command. Telling a
+    /// command its CanExecute moved reaches the dispatcher, and a node writing its own result is
+    /// not on the dispatcher, so the whole run died with a cross thread failure the moment an
+    /// answer arrived. The button is shown and hidden by a binding instead, which the framework
+    /// marshals on its own.
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasText))]
     [NotifyPropertyChangedFor(nameof(Preview))]
-    [NotifyCanExecuteChangedFor(nameof(CopyCommand))]
     private string _text = string.Empty;
 
     /// <summary>True when there is an answer to show.</summary>
@@ -103,8 +109,14 @@ public sealed partial class TextOutputNode : NodeBase
     /// The point of asking a question is reading the answer and usually pasting it somewhere, so
     /// this is a button rather than a drag across a box that scrolls.
     /// </remarks>
-    [RelayCommand(CanExecute = nameof(HasText))]
-    private void Copy() => _dialogs?.CopyToClipboard(Text);
+    [RelayCommand]
+    private void Copy()
+    {
+        if (HasText)
+        {
+            _dialogs?.CopyToClipboard(Text);
+        }
+    }
 
     /// <inheritdoc />
     public override async Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)

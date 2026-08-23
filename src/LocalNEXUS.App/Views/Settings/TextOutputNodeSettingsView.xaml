@@ -25,7 +25,8 @@
                     Margin="6,0,0,0"
                     Content="Copy"
                     ToolTip="Puts the whole answer on the clipboard"
-                    Command="{Binding CopyCommand}" />
+                    Command="{Binding CopyCommand}"
+                    Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
 
             <TextBlock Style="{StaticResource HintText}"
                        VerticalAlignment="Center"

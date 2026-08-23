@@ -199,6 +199,17 @@ public sealed class GraphTemplates
         var model = b.Add("Model", 300, 140);
         var answer = b.Add("TextOutput", 560, 140);
 
+        // The one setting this template does change, and it has to. A Model node starts configured
+        // to write files: output raw code only, no commentary, no explanation. Asked a question in
+        // that voice it answers with a class, which is the right answer for the graph it was built
+        // for and the wrong one here. The prompt is part of the shape rather than of the machine,
+        // which is why setting it is not the thing templates deliberately avoid.
+        if (model is Nodes.ModelNode coder)
+        {
+            coder.SystemPrompt = Nodes.TextOutputNode.AskingPrompt;
+            coder.StripCodeFences = false;
+        }
+
         b.Wire(prompt, "Text", model, "Text");
         b.Wire(model, "Code", answer, "Text");
     }
