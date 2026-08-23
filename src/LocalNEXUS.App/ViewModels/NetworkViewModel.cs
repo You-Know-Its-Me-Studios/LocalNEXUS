@@ -461,7 +461,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                     ? "The public directory answered with nothing. Meshes appear here only while they are publishing."
                     : "Listed with the models each one serves. Joining one still needs its invite, which is fetched when you join.");
 
-            ApplyFilters();
+            // Rebuild, not filter. The table is assembled in one place, and what was discovered is
+            // put into it there; filtering only decides which of an already assembled list shows,
+            // so on its own it kept filtering a list nothing had been added to.
+            RebuildRows();
         }
         finally
         {
