@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using LocalNEXUS.App.Models;
 using LocalNEXUS.App.Nodes;
+using LocalNEXUS.App.Services.Execution;
 using LocalNEXUS.App.Services.Persistence;
 using LocalNEXUS.App.ViewModels;
 using LocalNEXUS.Tests.Support;
@@ -30,11 +31,18 @@ public sealed class WalkthroughTests
 
             var templates = new GraphTemplates(Services.Factory, new GraphSerializer(Services.Factory)).All();
 
+            Feed = new ActivityFeedViewModel(
+                new GraphExecutor(Services.Services),
+                Graph,
+                Services.Feed,
+                System.Windows.Threading.Dispatcher.CurrentDispatcher);
+
             Walkthrough = new WalkthroughViewModel(
                 Config,
                 Services.Project,
                 Models,
                 Graph,
+                Feed,
                 new RelayCommand(() => ProjectOpened++),
                 new RelayCommand(() => SettingsOpened++),
                 new RelayCommand<GraphTemplate>(t => Applied.Add(t!)),
@@ -42,6 +50,9 @@ public sealed class WalkthroughTests
         }
 
         public TestServices Services { get; }
+
+        /// <summary>Where a finished run is announced from, which is the last step's only signal.</summary>
+        public ActivityFeedViewModel Feed { get; }
 
         /// <summary>Stands in for the model catalogue, which is not part of the test services.</summary>
         public System.Collections.ObjectModel.ObservableCollection<App.Services.Persistence.LocalModelInfo> Models { get; } = new();
@@ -221,6 +232,11 @@ public sealed class WalkthroughTests
             services.Project,
             new System.Collections.ObjectModel.ObservableCollection<App.Services.Persistence.LocalModelInfo>(),
             graph,
+            new ActivityFeedViewModel(
+                new GraphExecutor(services.Services),
+                graph,
+                services.Feed,
+                System.Windows.Threading.Dispatcher.CurrentDispatcher),
             new RelayCommand(() => { }),
             new RelayCommand(() => { }),
             new RelayCommand<GraphTemplate>(_ => { }),

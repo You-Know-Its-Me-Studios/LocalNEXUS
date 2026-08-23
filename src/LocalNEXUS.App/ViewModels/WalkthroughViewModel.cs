@@ -84,11 +84,15 @@ public sealed partial class WalkthroughViewModel : ObservableObject
     [ObservableProperty]
     private bool _isOpen;
 
+    /// <summary>Whether every step was already done last time this was asked.</summary>
+    private bool _wasFinished;
+
     public WalkthroughViewModel(
         AppConfig config,
         ProjectService project,
         ObservableCollection<LocalModelInfo> models,
         GraphModel graph,
+        ActivityFeedViewModel feed,
         IRelayCommand openProject,
         IRelayCommand openSettings,
         IRelayCommand applyTemplate,
@@ -151,6 +155,13 @@ public sealed partial class WalkthroughViewModel : ObservableObject
         _models.CollectionChanged += (_, _) => Refresh();
         _graph.Nodes.CollectionChanged += (_, _) => Refresh();
 
+        // Straight from the run, rather than through the window watching a property and passing it
+        // on. That is how it was wired, and it never once fired: ten runs finished, every one of
+        // them written to the history as completed, and the step stayed unticked. Which link
+        // failed was never established, so the links were removed instead of guessed at.
+        feed.RunFinished += OnRunFinished;
+
+        _wasFinished = IsFinished;
         IsOpen = !_config.WalkthroughDismissed;
     }
 
@@ -212,6 +223,38 @@ public sealed partial class WalkthroughViewModel : ObservableObject
 
         OnPropertyChanged(nameof(Progress));
         OnPropertyChanged(nameof(IsFinished));
+
+        // Nothing left to walk anybody through, so it closes itself and stays closed. Leaving it
+        // up with every box ticked is a panel whose only remaining content is an instruction to
+        // dismiss it, which is a thing to do rather than a thing to read. The Help menu still has
+        // it for anybody who wants it back.
+        //
+        // On the moment it becomes finished, and not on being finished. Somebody who opened a
+        // completed one from the Help menu is looking at it deliberately, and having it disappear
+        // the next time anything refreshed would be the application arguing with them.
+        var finished = IsFinished;
+
+        if (finished && !_wasFinished && IsOpen)
+        {
+            Dismiss();
+        }
+
+        _wasFinished = finished;
+    }
+
+    /// <summary>
+    /// A run stopped. Only two of the ways it can stop count as having run it.
+    /// </summary>
+    /// <remarks>
+    /// A run that left files waiting still ran, so it counts: the step is having got the graph to
+    /// do something, not having got a perfect result first time.
+    /// </remarks>
+    private void OnRunFinished(Services.Execution.RunState state)
+    {
+        if (state is Services.Execution.RunState.Completed or Services.Execution.RunState.Unresolved)
+        {
+            RecordSuccessfulRun();
+        }
     }
 
     private void OnSomethingChanged(object? sender, PropertyChangedEventArgs e) => Refresh();

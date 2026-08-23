@@ -233,6 +233,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             project,
             catalog.Models,
             graph,
+            Feed,
             OpenProjectCommand,
             OpenSettingsCommand,
             ApplyTemplateCommand,
@@ -1374,15 +1375,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // The walkthrough used to be told about a finished run from here, and never was, for ten
+        // consecutive runs that the history recorded as completed. It listens to the feed's own
+        // RunFinished event now, so nothing has to relay it.
         Document.OnRunStateChanged();
-
-        // The walkthrough's last step, and the only one nothing else can see afterwards. A run
-        // that left files waiting still ran, so it counts: the step is having got the graph to do
-        // something, not having got a perfect result on the first attempt.
-        if (Feed.RunState is Services.Execution.RunState.Completed or Services.Execution.RunState.Unresolved)
-        {
-            Walkthrough.RecordSuccessfulRun();
-        }
     }
 
     private void OnNetworkChanged(object? sender, PropertyChangedEventArgs e)

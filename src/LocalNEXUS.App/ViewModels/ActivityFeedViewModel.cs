@@ -170,6 +170,17 @@ public sealed partial class ActivityFeedViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Raised once when a run stops, carrying how it ended.
+    /// </summary>
+    /// <remarks>
+    /// A property change says the value moved and leaves the reader to work out whether that was a
+    /// run ending; this says a run ended. It exists because something that needed to know missed
+    /// ten of them in a row while watching <see cref="RunState"/>, and the reason was never found.
+    /// A run is an event, so it is raised as one, from the same block that records it.
+    /// </remarks>
+    public event Action<RunState>? RunFinished;
+
     public ActivityFeedViewModel(
         GraphExecutor executor,
         GraphModel graph,
@@ -413,6 +424,11 @@ public sealed partial class ActivityFeedViewModel : ObservableObject
 
             // Last, so the cost entry above is inside the run it belongs to.
             _recorder?.EndRun(RunState.ToString(), _cost.Total, _cost.Calls);
+
+            // Beside the line that writes the run down, and deliberately so. Anything that needs
+            // to know a run ended can be told here, on the one statement that provably runs for
+            // every run there has ever been, rather than by watching a property and hoping.
+            RunFinished?.Invoke(RunState);
 
             // The caps are applied here rather than by a job that wakes up on its own. There is
             // no background work in this design at all: the record never goes stale, so there is
