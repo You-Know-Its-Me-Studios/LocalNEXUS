@@ -71,6 +71,12 @@ public static class TextBoxHelper
             input.Loaded += OnLoaded;
         }
 
+        // An adorner lives in the layer rather than in the control, so hiding the control does not
+        // hide it. A settings section that is switched off by collapsing its panel left its
+        // examples drawn over whichever section was showing instead.
+        input.IsVisibleChanged -= OnVisibleChanged;
+        input.IsVisibleChanged += OnVisibleChanged;
+
         if (input is TextBox textBox)
         {
             textBox.TextChanged -= OnTextChanged;
@@ -84,8 +90,16 @@ public static class TextBoxHelper
 
         if (TryGetAdorner(input, out var adorner))
         {
-            adorner.Visibility = IsEmpty(input) ? Visibility.Visible : Visibility.Hidden;
+            adorner.Visibility = ShouldShow(input) ? Visibility.Visible : Visibility.Hidden;
             adorner.InvalidateVisual();
+        }
+    }
+
+    private static void OnVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is Control input)
+        {
+            Sync(input);
         }
     }
 
@@ -97,7 +111,7 @@ public static class TextBoxHelper
 
             // Asked at load as well as on every change, because a box that arrives with a value
             // already in it never raises a change and would wear the example over the top of it.
-            Show(input, IsEmpty(input));
+            Sync(input);
         }
     }
 
@@ -109,11 +123,20 @@ public static class TextBoxHelper
         _ => false
     };
 
+    /// <summary>
+    /// True when the example belongs on screen: the input is empty and the input is on screen.
+    /// </summary>
+    /// <remarks>
+    /// Both halves matter. An adorner is a visual in the layer above the window rather than a child
+    /// of the control, so collapsing the control leaves the adorner drawing exactly where it was.
+    /// </remarks>
+    private static bool ShouldShow(Control input) => input.IsVisible && IsEmpty(input);
+
     private static void OnTextChanged(object sender, TextChangedEventArgs e)
     {
         if (sender is TextBox textBox)
         {
-            Show(textBox, textBox.Text.Length == 0);
+            Sync(textBox);
         }
     }
 
@@ -121,16 +144,16 @@ public static class TextBoxHelper
     {
         if (sender is PasswordBox passwordBox)
         {
-            Show(passwordBox, passwordBox.Password.Length == 0);
+            Sync(passwordBox);
         }
     }
 
-    /// <summary>Shows the example while the input is empty, and takes it away the moment it is not.</summary>
-    private static void Show(Control input, bool empty)
+    /// <summary>Puts the example on screen when it belongs there, and takes it away when it does not.</summary>
+    private static void Sync(Control input)
     {
         if (TryGetAdorner(input, out var adorner))
         {
-            adorner.Visibility = empty ? Visibility.Visible : Visibility.Hidden;
+            adorner.Visibility = ShouldShow(input) ? Visibility.Visible : Visibility.Hidden;
         }
     }
 
