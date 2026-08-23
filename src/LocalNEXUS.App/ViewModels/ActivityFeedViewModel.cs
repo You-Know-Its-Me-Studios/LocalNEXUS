@@ -184,6 +184,23 @@ public sealed partial class ActivityFeedViewModel : ObservableObject
         Services.Vision.VisionReader? vision = null)
     {
         Search = search;
+
+        // The checkbox appears when a key exists, and a key can be added at any point from
+        // Settings. Without this, CanSearch is read once when the window is built and never again,
+        // so somebody who pasted a key watched nothing happen and had to restart the application
+        // to be offered the thing they had just configured.
+        if (search is not null)
+        {
+            search.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(Services.Search.WebSearchService.HasKey)
+                    or nameof(Services.Search.WebSearchService.EnabledForThisRun))
+                {
+                    OnPropertyChanged(nameof(CanSearch));
+                    OnPropertyChanged(nameof(SearchThisSend));
+                }
+            };
+        }
         Vision = vision;
         _conversation = conversation;
         _history = history;

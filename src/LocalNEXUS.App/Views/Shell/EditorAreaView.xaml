@@ -387,6 +387,18 @@
                               ToolTip="Let every Model node in this run call web search when it needs something newer than its training. Snippets only; no page is fetched."
                               Visibility="{Binding Feed.CanSearch, Converter={StaticResource BooleanToVisibility}}" />
 
+                    <!--
+                        Said on screen rather than only in the tooltip. It is a per send switch that
+                        reaches every Model node in the run, which is not what a checkbox beside one
+                        input box looks like, and a tooltip is not where somebody finds that out.
+                    -->
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,0,0,6"
+                               MaxWidth="150"
+                               TextWrapping="Wrap"
+                               Text="Applies to every Model node in this run."
+                               Visibility="{Binding Feed.SearchThisSend, Converter={StaticResource BooleanToVisibility}}" />
+
                     <Button Style="{StaticResource PrimaryButton}"
                             MinWidth="96"
                             Content="Run"
