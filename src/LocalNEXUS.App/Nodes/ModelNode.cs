@@ -182,12 +182,14 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LoadedText))]
+    [NotifyPropertyChangedFor(nameof(HasLoadDrift))]
     private int _contextSize = LlamaLaunchOptions.DefaultContextSize;
 
     /// <summary>GPU layers requested when this node starts a llama-server.</summary>
     /// <remarks>A load parameter, for the same reason as the context.</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LoadedText))]
+    [NotifyPropertyChangedFor(nameof(HasLoadDrift))]
     private int _gpuLayers = LlamaLaunchOptions.DefaultGpuLayers;
 
     /// <summary>
@@ -286,29 +288,38 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
 
             var checkedAt = _lastCheckedAt is { } at ? $" Checked at {at:HH:mm:ss}." : string.Empty;
 
+            // What it is doing is on the badge. This says what with, which is the part a badge has
+            // no room for and somebody still needs: the numbers it actually loaded with.
             switch (LoadState)
             {
                 case LocalModelState.Starting:
-                    return "Starting. The run is waiting for it to finish loading." + checkedAt;
+                    return "The run is waiting for it to finish loading." + checkedAt;
 
                 case LocalModelState.Restarting:
-                    return "Restarting, because a load setting changed." + checkedAt;
+                    return "A load setting changed, so it is being stopped and started again." + checkedAt;
             }
 
             if (_servers?.Describe(EffectiveLocalModelPath) is not { } running)
             {
-                return "Not loaded. These apply when the model starts." + checkedAt;
+                return "These apply when the model starts." + checkedAt;
             }
 
-            var matches = running.ContextSize == ContextSize && running.GpuLayers == GpuLayers;
+            var loaded = $"Context {running.ContextSize}, {running.GpuLayers} GPU layers, port {running.Port}.";
 
-            return matches
-                ? $"Running with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, "
-                  + $"on port {running.Port}.{checkedAt}"
-                : $"Running with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, which is "
-                  + $"not what is set here. The next run restarts it with these values.{checkedAt}"; 
+            return running.ContextSize == ContextSize && running.GpuLayers == GpuLayers
+                ? loaded + checkedAt
+                : $"{loaded} That is not what is set here, so the next run restarts it.{checkedAt}";
         }
     }
+
+    /// <summary>The state as the badge spells it, which is not how the enum spells it.</summary>
+    public string LoadStateText => LoadState switch
+    {
+        LocalModelState.Starting => "Starting",
+        LocalModelState.Restarting => "Restarting",
+        LocalModelState.Running => "Running",
+        _ => "Not loaded"
+    };
 
     /// <summary>What the model is doing, which the node shows whether or not anything asked.</summary>
     public LocalModelState LoadState => Provider == ModelProvider.Local && _servers is { } servers
@@ -351,6 +362,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     public void RefreshLoadState()
     {
         OnPropertyChanged(nameof(LoadState));
+        OnPropertyChanged(nameof(LoadStateText));
         OnPropertyChanged(nameof(LoadedText));
         OnPropertyChanged(nameof(HasLoadDrift));
     }

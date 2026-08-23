@@ -415,6 +415,24 @@
         takes no part in layout, so the dot moves without anything beside it shifting to
         follow.
     -->
+    <!--
+        A state as a colour with the word inside it, for where a dot is too little and a sentence
+        is too much. The colour comes from the same table the dots read, so a state added there is
+        a badge here without anything else being written down.
+    -->
+    <Style x:Key="StateBadge" TargetType="Border">
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="7,2" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="StateBadgeText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Text.Inverse.Brush}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
     <Style x:Key="StateDot" TargetType="Ellipse">
         <Setter Property="Width" Value="7" />
         <Setter Property="Height" Value="7" />

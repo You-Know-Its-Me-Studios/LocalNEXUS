@@ -135,6 +135,14 @@ public static class SemanticBrushes
         ("ModelAvailability.Complete.Brush", "Status.SuccessColor"),
         ("ModelAvailability.Blocked.Brush", "Status.DangerColor"),
 
+        // A local model's own server. Starting and restarting are work in progress rather than
+        // trouble: one is a model loading and the other is a load setting that changed, and neither
+        // is a failure. Not loaded is the ordinary state before a first run, so it is neutral.
+        ("LocalModelState.NotLoaded.Brush", "Accent.NeutralColor"),
+        ("LocalModelState.Starting.Brush", "Status.InfoColor"),
+        ("LocalModelState.Restarting.Brush", "Status.InfoColor"),
+        ("LocalModelState.Running.Brush", "Status.SuccessColor"),
+
         // The Python runtime. Provisioning is a download, not a fault.
         ("PythonEnvironmentState.Unknown.Brush", "Accent.NeutralColor"),
         ("PythonEnvironmentState.Missing.Brush", "Accent.NeutralColor"),
