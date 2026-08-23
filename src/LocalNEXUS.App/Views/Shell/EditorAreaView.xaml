@@ -244,6 +244,8 @@
                             <Button DockPanel.Dock="Right"
                                     Style="{StaticResource SmallButton}"
                                     Content="Discard all"
+                                    ToolTip="Forgets every attempt below. No file on disk is touched."
+                                    AutomationProperties.Name="Discard every staged attempt"
                                     Command="{Binding Feed.DiscardAllStagedCommand}" />
 
                             <TextBlock FontWeight="SemiBold"
@@ -255,29 +257,82 @@
                         <TextBlock Style="{StaticResource HintText}"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"
-                                   Text="Everything that compiled is already written. Say what to do about these below and run again; they are kept with the project, so closing the application does not lose them." />
+                                   Text="Everything that compiled is already written. These were not, and nothing on disk was changed for them. Open one to see what was attempted, then either say what to do below and run again, or discard it. They are kept with the project, so closing the application does not lose them." />
 
                         <ItemsControl ItemsSource="{Binding Feed.Staging.Pending}" Margin="0,8,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Margin="0,0,0,5">
-                                        <Button DockPanel.Dock="Right"
-                                                Style="{StaticResource IconButton}"
-                                                Content="&#xE711;"
-                                                ToolTip="Discard this one"
-                                                AutomationProperties.Name="Discard this file"
-                                                Command="{Binding DataContext.Feed.DiscardStagedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}" />
+                                    <StackPanel Margin="0,0,0,8">
+                                        <DockPanel>
+                                            <!--
+                                                Named rather than an X. Both actions here remove
+                                                something and neither touches the disk, and a bare
+                                                icon left it to be guessed which one it was.
+                                            -->
+                                            <Button DockPanel.Dock="Right"
+                                                    Style="{StaticResource SmallButton}"
+                                                    Margin="6,0,0,0"
+                                                    VerticalAlignment="Top"
+                                                    Content="Discard"
+                                                    ToolTip="Forgets this one attempt. The file on disk is not touched."
+                                                    AutomationProperties.Name="Discard this attempt"
+                                                    Command="{Binding DataContext.Feed.DiscardStagedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}" />
 
-                                        <StackPanel>
-                                            <TextBlock Style="{StaticResource MonoText}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Text="{Binding Summary}" />
-                                            <TextBlock Style="{StaticResource HintText}"
-                                                       TextWrapping="Wrap"
-                                                       Text="{Binding ReasonText}" />
-                                        </StackPanel>
-                                    </DockPanel>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource MonoText}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Text="{Binding Summary}" />
+                                                <TextBlock Style="{StaticResource HintText}"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding ReasonText}" />
+                                            </StackPanel>
+                                        </DockPanel>
+
+                                        <!--
+                                            What was actually tried, which is what the decision
+                                            turns on: retype the request, edit the file by hand, or
+                                            throw the attempt away. Folded away per the feed's own
+                                            rule, because it is a wall of code until it is wanted.
+                                        -->
+                                        <Expander Margin="0,4,0,0" Header="What was attempted">
+                                            <StackPanel Margin="0,4,0,0">
+                                                <TextBox Text="{Binding Detail, Mode=OneWay}"
+                                                         IsReadOnly="True"
+                                                         BorderThickness="0"
+                                                         Background="Transparent"
+                                                         Foreground="{DynamicResource Text.Secondary.Brush}"
+                                                         FontFamily="{StaticResource Font.Mono}"
+                                                         FontSize="{StaticResource Font.Size.Small}"
+                                                         TextWrapping="Wrap"
+                                                         Padding="0"
+                                                         MaxHeight="160"
+                                                         VerticalScrollBarVisibility="Auto"
+                                                         HorizontalScrollBarVisibility="Disabled"
+                                                         Visibility="{Binding HasDetail, Converter={StaticResource BooleanToVisibility}}" />
+
+                                                <TextBlock Style="{StaticResource HintText}"
+                                                           Margin="0,8,0,0"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding AttemptLabel}" />
+
+                                                <TextBox Margin="0,2,0,0"
+                                                         Text="{Binding Content, Mode=OneWay}"
+                                                         IsReadOnly="True"
+                                                         BorderThickness="0"
+                                                         Background="Transparent"
+                                                         Foreground="{DynamicResource Text.Secondary.Brush}"
+                                                         FontFamily="{StaticResource Font.Mono}"
+                                                         FontSize="{StaticResource Font.Size.Small}"
+                                                         TextWrapping="NoWrap"
+                                                         Padding="0"
+                                                         MaxHeight="260"
+                                                         VerticalScrollBarVisibility="Auto"
+                                                         HorizontalScrollBarVisibility="Auto"
+                                                         Visibility="{Binding HasAttempt, Converter={StaticResource BooleanToVisibility}}" />
+                                            </StackPanel>
+                                        </Expander>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

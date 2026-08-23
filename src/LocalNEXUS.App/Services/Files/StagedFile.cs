@@ -80,6 +80,34 @@ public sealed record StagedFile(
         _ => $"{RelativePath} does not compile yet"
     };
 
+    /// <summary>
+    /// What the coder actually sent, when there was anything.
+    /// </summary>
+    /// <remarks>
+    /// The decision somebody has to make here is whether to retype the request, edit the file by
+    /// hand, or throw the attempt away, and none of those can be chosen from a one line refusal.
+    /// What the coder proposed is the evidence: a change aimed at lines that are not in the file
+    /// says the model was working from something stale, and a change that is simply wrong says
+    /// the request was.
+    /// </remarks>
+    public bool HasAttempt => Content.Trim().Length > 0;
+
+    /// <summary>What to call the attempt, which is not the same thing for every reason.</summary>
+    /// <remarks>
+    /// A file that would not compile has a whole file behind it. One whose edit would not apply has
+    /// the change the coder asked for and no file at all, because none was ever built. Calling both
+    /// of them the same thing would have somebody looking for a file that does not exist.
+    /// </remarks>
+    public string AttemptLabel => Reason switch
+    {
+        StagedReason.EditDidNotApply => "The change the coder asked for",
+        StagedReason.CouldNotBeRead => "Nothing was proposed, because the file could not be read",
+        _ => "The file as the coder left it"
+    };
+
+    /// <summary>True when there is a stated reason worth reading in full.</summary>
+    public bool HasDetail => Detail.Trim().Length > 0;
+
     /// <summary>What this file is waiting for, in the words a person would use.</summary>
     public string ReasonText => Reason switch
     {
