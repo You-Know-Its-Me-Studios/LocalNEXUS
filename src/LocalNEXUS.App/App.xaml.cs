@@ -143,7 +143,7 @@ public partial class App : Application
         var projectSettings = new Services.Files.ProjectSettingsService(feed);
 
         var factory = new NodeFactory(
-            catalog, mesh, dialogs, config, extensions, extensionHost, credentials, projectSettings);
+            catalog, mesh, dialogs, config, extensions, extensionHost, credentials, projectSettings, Dispatcher);
         var serializer = new GraphSerializer(factory);
 
         // Restoring the node is deliberately not awaited: composition must not block on a

@@ -37,7 +37,8 @@ public sealed class NodeFactory
         ExtensionRegistry extensions,
         ExtensionHost host,
         ICredentialStore credentials,
-        ProjectSettingsService? project = null)
+        ProjectSettingsService? project = null,
+        System.Windows.Threading.Dispatcher? dispatcher = null)
     {
         _project = project;
         _credentials = credentials;
@@ -47,7 +48,7 @@ public sealed class NodeFactory
         _config = config;
         _extensions = extensions;
         _host = host;
-        _toolset = new ExtensionToolset(extensions, host);
+        _toolset = new ExtensionToolset(extensions, host, dispatcher);
     }
 
     /// <summary>

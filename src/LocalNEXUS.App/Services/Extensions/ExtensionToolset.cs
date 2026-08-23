@@ -21,12 +21,40 @@ public sealed class ExtensionToolset
 {
     private readonly ExtensionRegistry _registry;
     private readonly ExtensionHost _host;
+    private readonly System.Windows.Threading.Dispatcher? _dispatcher;
     private readonly Dictionary<string, McpToolClient> _clients = new(StringComparer.OrdinalIgnoreCase);
 
-    public ExtensionToolset(ExtensionRegistry registry, ExtensionHost host)
+    /// <summary>
+    /// Builds a toolset.
+    /// </summary>
+    /// <param name="registry">What this project has installed.</param>
+    /// <param name="host">What starts one and talks to it.</param>
+    /// <param name="dispatcher">
+    /// The user interface thread, because what an extension reports is written to a collection the
+    /// extensions window is bound to. The binding engine marshals a property change and never a
+    /// collection change, so a list rebuilt from a worker thread throws where a property would have
+    /// been fine. Null outside the application, where there is no thread to marshal to.
+    /// </param>
+    public ExtensionToolset(
+        ExtensionRegistry registry,
+        ExtensionHost host,
+        System.Windows.Threading.Dispatcher? dispatcher = null)
     {
         _registry = registry;
         _host = host;
+        _dispatcher = dispatcher;
+    }
+
+    /// <summary>Runs something on the thread that owns the bound collections.</summary>
+    private void OnDispatcher(Action work)
+    {
+        if (_dispatcher is null || _dispatcher.CheckAccess())
+        {
+            work();
+            return;
+        }
+
+        _dispatcher.Invoke(work);
     }
 
     /// <summary>
@@ -85,13 +113,20 @@ public sealed class ExtensionToolset
                 var tools = await client.ListToolsAsync(ct).ConfigureAwait(false);
 
                 // What the running server says outranks what the manifest claimed, and is kept so
-                // the details pane can show it without starting anything again.
-                extension.DiscoveredTools.Clear();
+                // the details pane can show it without starting anything again. On the interface
+                // thread, because this list is bound to.
+                OnDispatcher(() =>
+                {
+                    extension.DiscoveredTools.Clear();
+
+                    foreach (var tool in tools)
+                    {
+                        extension.DiscoveredTools.Add(tool);
+                    }
+                });
 
                 foreach (var tool in tools)
                 {
-                    extension.DiscoveredTools.Add(tool);
-
                     if (allowedTools is { Count: > 0 } && !allowedTools.Contains(tool.Name))
                     {
                         continue;
