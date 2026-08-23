@@ -101,7 +101,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,6,0,0"
                        TextWrapping="Wrap"
-                       Text="Backups are other machines in the mesh with room to take these layers over if the machine holding them goes away. Zero means this part of the model has no stand in: lose that machine and the model stops answering until the mesh finds another." />
+                       Text="Backups are just other machines that can take over if the one handling a section drops out. No throughput info from the mesh is provided, and only the size of meshes that show up in the directory are displayed. For everything else, the value reported by the mesh is used instead of trying to guess." />
 
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,6,0,0"
@@ -241,7 +241,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,0,0,12"
                        TextWrapping="Wrap"
-                       Text="A mesh someone else is running. Everything below is what it says about itself, not something this machine has checked, and none of it is usable until you join." />
+                       Text="You're looking at a mesh that's being hosted by someone else. The details here come from the person running it, so they're not something this machine can verify. If you want to actually use the mesh, you'll need to join it first." />
 
             <TextBlock Style="{StaticResource FieldLabel}" Text="Size" />
             <TextBlock TextWrapping="Wrap" Text="{Binding SizeSummary}" />

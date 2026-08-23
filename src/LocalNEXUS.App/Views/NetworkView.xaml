@@ -125,7 +125,7 @@
                 Padding="16,7">
             <TextBlock Style="{StaticResource MutedText}"
                        TextWrapping="Wrap"
-                       Text="Backups are machines that could take a section over if the one holding it goes away. The mesh does not report throughput, and reports size only for meshes found in the directory, so the rest say so rather than guessing." />
+                       Text="Backups are just other machines that can take over if the one handling a section drops out. No throughput info from the mesh is provided, and only the size of meshes that show up in the directory are displayed. For everything else, the value reported by the mesh is used instead of trying to guess." />
         </Border>
 
         <!-- Column headings. -->
