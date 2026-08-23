@@ -45,6 +45,14 @@
 
     <DockPanel>
 
+        <!--
+            Escape backs out of whatever the inspector is pinned to, which is what escape means
+            everywhere else in this window.
+        -->
+        <DockPanel.InputBindings>
+            <KeyBinding Key="Escape" Command="{Binding ClearInspectorCommand}" />
+        </DockPanel.InputBindings>
+
         <!-- What the mesh itself is doing, above the table. -->
         <Border DockPanel.Dock="Top"
                 Background="{DynamicResource Surface.Window.Brush}"

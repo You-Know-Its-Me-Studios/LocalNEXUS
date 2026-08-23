@@ -18,12 +18,17 @@ namespace LocalNEXUS.App.Services.Distributed;
 /// <param name="Readiness">How far the mesh has got with this section.</param>
 /// <param name="StateText">The engine's own word for the stage state, shown when it is not ready.</param>
 /// <param name="SpareSources">Usable peers not already holding a stage of this model, which is the slack the mesh could rebalance onto.</param>
+/// <param name="Explanation">
+/// What this section is actually waiting on, when the plain reading of the state would leave
+/// somebody none the wiser. Null when the state speaks for itself.
+/// </param>
 public sealed record SourceAssignment(
     ModelSection Section,
     InferenceSource? Source,
     StageReadiness Readiness,
     string StateText,
-    int SpareSources)
+    int SpareSources,
+    string? Explanation = null)
 {
     /// <summary>True when a source holds this section and the engine reports it serving.</summary>
     public bool IsCovered => Readiness == StageReadiness.Ready;
@@ -55,10 +60,16 @@ public sealed record SourceAssignment(
     };
 
     /// <summary>One sentence naming what this section is doing, for the status line above the chain.</summary>
+    /// <remarks>
+    /// A section nobody has been given is the one state where the plain reading is useless. "Not
+    /// placed yet" is true of a section that will be placed in two seconds and of one that will
+    /// never be placed because there is nobody to place it on, and those are not the same news.
+    /// Where the mesh's own situation says which it is, that is said instead.
+    /// </remarks>
     public string StatusDetail => Readiness switch
     {
         StageReadiness.Ready => $"{Section.Label} is serving on {SourceText}.",
-        StageReadiness.Pending => $"The mesh has not placed {Section.Label} yet.",
+        StageReadiness.Pending => Explanation ?? $"The mesh has not placed {Section.Label} yet.",
         StageReadiness.Loading => $"{Section.Label} is coming up on {SourceText} ({CoverageText}).",
         StageReadiness.Missing => $"No source in the mesh holds {Section.Label}.",
         _ => $"{Section.Label} is on {SourceText} but the mesh reports it {CoverageText}."

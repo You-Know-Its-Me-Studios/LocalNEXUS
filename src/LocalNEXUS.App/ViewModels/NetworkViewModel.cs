@@ -301,12 +301,27 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         ApplyFilters();
     }
 
-    /// <summary>Clears whatever the inspector is pinned to, back to the selected model.</summary>
+    /// <summary>
+    /// Steps the inspector back one level, and off entirely once there is nowhere left to go.
+    /// </summary>
+    /// <remarks>
+    /// The inspector reads a section, then a source, then a model, so clicking into a section left
+    /// somebody a level down with nothing that went back up and nothing that closed it. A model is
+    /// selected for them on load as well, so there was never a state with nothing pinned to return
+    /// to. One press goes up; pressing again with a model pinned lets go of it.
+    /// </remarks>
     [RelayCommand]
     private void ClearInspector()
     {
-        SelectedSection = null;
-        SelectedSource = null;
+        if (SelectedSection is not null || SelectedSource is not null)
+        {
+            SelectedSection = null;
+            SelectedSource = null;
+            return;
+        }
+
+        SelectedRow = null;
+        SelectedModel = null;
     }
 
     /// <summary>Puts the invite token on the clipboard, which is how another machine joins.</summary>

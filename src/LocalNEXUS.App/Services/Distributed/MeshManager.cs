@@ -833,14 +833,21 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
             // With no topology reported there is nothing to be blocked on. The model was
             // announced by somebody, so either it is loading or routing has not converged yet,
             // and neither of those is a failure this install can assert.
+            //
+            // Which of the two it is, though, is worth saying. A model waiting on a mesh of one
+            // machine is not coming up, and reporting that as loading leaves somebody watching a
+            // dot that will never change. The mesh being alone is a fact this install can read
+            // straight off its own source list, so it says it rather than guessing at the engine's
+            // reasoning.
             return new CoveragePlan(new[]
             {
                 new SourceAssignment(
                     section,
                     holder,
                     isRoutable ? StageReadiness.Ready : StageReadiness.Pending,
-                    isRoutable ? "serving" : "announced, not routable here yet",
-                    spare)
+                    isRoutable ? "serving" : IsAlone ? "no other machine has joined" : "announced, not routable here yet",
+                    spare,
+                    isRoutable ? null : ExplainPending())
             });
         }
 
@@ -861,6 +868,47 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
             .ToList();
 
         return new CoveragePlan(assignments);
+    }
+
+    /// <summary>True when this machine is the only one in the mesh.</summary>
+    /// <remarks>
+    /// Read off the source list rather than the peer list, so a machine that has joined and is not
+    /// yet usable still counts as somebody being there. What this answers is whether there is
+    /// anywhere other than here for a section to go.
+    /// </remarks>
+    private bool IsAlone => Sources.All(s => s.IsThisMachine);
+
+    /// <summary>
+    /// Why a section has not been placed, when this install can honestly say.
+    /// </summary>
+    /// <remarks>
+    /// Only the case it is certain about. A mesh of one machine cannot place a model that does not
+    /// fit on that machine, and no amount of waiting changes it; anything else is the engine's
+    /// business and is left as the engine's own word for it.
+    ///
+    /// It says the offer is registered first, because the thing somebody needs to know is that
+    /// their machine is in and working, and that what is missing is somebody else.
+    /// </remarks>
+    private string? ExplainPending()
+    {
+        if (!IsAlone)
+        {
+            return null;
+        }
+
+        var self = Sources.FirstOrDefault(s => s.IsThisMachine);
+
+        var share = self is { MemoryMb: > 0 }
+            ? $" and offering {self.MemoryMb / 1024d:0.#} GB"
+            : string.Empty;
+
+        var offering = IsContributing
+            ? $"This machine is in the mesh{share}. "
+            : "This machine is in the mesh but is not offering any of itself. ";
+
+        return offering
+               + "Nothing else has joined, so a model too large for one machine has nowhere to put "
+               + "the rest of itself. It will be placed as soon as another machine joins this mesh.";
     }
 
     /// <summary>
