@@ -310,7 +310,8 @@ public partial class App : Application
             extensions,
             extensionHost,
             projectSettings,
-            recents);
+            recents,
+            _llamaServers);
 
         // The MCP server, if this installation answers to other tools. Built whatever the setting
         // says so the toggle has something to start, and started only when it is on.

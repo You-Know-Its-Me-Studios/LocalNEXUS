@@ -284,19 +284,39 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
                 return string.Empty;
             }
 
+            var checkedAt = _lastCheckedAt is { } at ? $" Checked at {at:HH:mm:ss}." : string.Empty;
+
+            switch (LoadState)
+            {
+                case LocalModelState.Starting:
+                    return "Starting. The run is waiting for it to finish loading." + checkedAt;
+
+                case LocalModelState.Restarting:
+                    return "Restarting, because a load setting changed." + checkedAt;
+            }
+
             if (_servers?.Describe(EffectiveLocalModelPath) is not { } running)
             {
-                return "Nothing is loaded yet. These apply when the model starts.";
+                return "Not loaded. These apply when the model starts." + checkedAt;
             }
 
             var matches = running.ContextSize == ContextSize && running.GpuLayers == GpuLayers;
 
             return matches
-                ? $"Loaded with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, on port {running.Port}."
-                : $"Loaded with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, which is not "
-                  + "what is set here. The next run restarts it with these values.";
+                ? $"Running with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, "
+                  + $"on port {running.Port}.{checkedAt}"
+                : $"Running with a context of {running.ContextSize} and {running.GpuLayers} GPU layers, which is "
+                  + $"not what is set here. The next run restarts it with these values.{checkedAt}"; 
         }
     }
+
+    /// <summary>What the model is doing, which the node shows whether or not anything asked.</summary>
+    public LocalModelState LoadState => Provider == ModelProvider.Local && _servers is { } servers
+        ? servers.StateFor(EffectiveLocalModelPath)
+        : LocalModelState.NotLoaded;
+
+    /// <summary>When somebody last pressed the button, so pressing it visibly does something.</summary>
+    private DateTimeOffset? _lastCheckedAt;
 
     /// <summary>True while the running server disagrees with what is set here.</summary>
     public bool HasLoadDrift
@@ -312,10 +332,25 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         }
     }
 
-    /// <summary>Reads what is running again, for the panel.</summary>
+    /// <summary>
+    /// Reads what is running again, and says that it did.
+    /// </summary>
+    /// <remarks>
+    /// The time is on the line for one reason: with nothing loaded the answer does not change, so
+    /// a button that only redrew the same sentence looked broken. Saying when it last looked is
+    /// what makes pressing it visibly do something.
+    /// </remarks>
     [RelayCommand]
     private void RefreshLoaded()
     {
+        _lastCheckedAt = DateTimeOffset.Now;
+        RefreshLoadState();
+    }
+
+    /// <summary>Redraws what the model is doing, without claiming anybody asked.</summary>
+    public void RefreshLoadState()
+    {
+        OnPropertyChanged(nameof(LoadState));
         OnPropertyChanged(nameof(LoadedText));
         OnPropertyChanged(nameof(HasLoadDrift));
     }
@@ -1913,6 +1948,19 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
             entry.Detail = message;
             StatusMessage = message;
         });
+
+        // Said before the server is stopped, not written up afterwards. A restart is tens of
+        // seconds of a run apparently doing nothing, and the reason for it is a setting somebody
+        // changed, which is worth knowing while it is happening rather than once it is over.
+        if (_servers?.Describe(modelPath) is { } current
+            && (current.ContextSize != ContextSize || current.GpuLayers != GpuLayers))
+        {
+            ctx.Feed.Info(
+                $"Restarting {ModelDisplayName}",
+                $"It is running with a context of {current.ContextSize} and {current.GpuLayers} GPU layers, "
+                + $"and this node asks for {ContextSize} and {GpuLayers}. Those are fixed when the model "
+                + "loads, so it is being stopped and started again. This takes as long as loading it did.");
+        }
 
         var launchOptions = new ModelRuntimeOptions { ContextSize = ContextSize, GpuLayers = GpuLayers };
 

@@ -146,7 +146,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Services.Extensions.ExtensionRegistry extensions,
         Services.Extensions.ExtensionHost extensionHost,
         ProjectSettingsService projectSettings,
-        RecentProjectsService recents)
+        RecentProjectsService recents,
+        Services.Inference.LlamaServerManager? servers = null)
     {
         _extensionHost = extensionHost;
         Breakpoints = breakpoints;
@@ -208,6 +209,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NodePalette = NodeFactory.Descriptors
             .Select(d => new PaletteItemViewModel(d.TypeKey, d.DisplayName, d.Description, AddNodeCommand))
             .ToList();
+
+        // One subscription for the whole window rather than one per node. A node that has been
+        // removed from the graph simply stops being enumerated, where a node subscribing for itself
+        // would outlive the graph it belonged to.
+        if (servers is not null)
+        {
+            servers.StateChanged += () => dispatcher.InvokeAsync(RefreshModelStates);
+        }
 
         Graph.Nodes.CollectionChanged += OnNodesChanged;
         Graph.Connections.CollectionChanged += OnConnectionsChanged;
@@ -775,6 +784,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         CurrentGraphPath = null;
         Document.MarkSaved(null);
         TemplatesDismissed = false;
+    }
+
+    /// <summary>
+    /// Tells every Model node to redraw what its model is doing.
+    /// </summary>
+    /// <remarks>
+    /// A model starting, becoming ready or being restarted is a thing the node should show without
+    /// anybody asking, and the only component that knows is the one that owns the servers. It says
+    /// so once and this hands it to whichever nodes are on the canvas.
+    /// </remarks>
+    private void RefreshModelStates()
+    {
+        foreach (var node in Graph.Nodes.OfType<ModelNode>())
+        {
+            node.RefreshLoadState();
+        }
     }
 
     /// <summary>Opens the search where a wire was let go over empty canvas.</summary>

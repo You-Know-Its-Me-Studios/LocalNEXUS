@@ -92,3 +92,27 @@ public sealed record LlamaLaunchOptions
 /// <param name="GpuLayers">How many layers were offloaded.</param>
 /// <param name="Port">Where it is listening, which is useful when something else wants to look.</param>
 public sealed record RunningServer(int ContextSize, int GpuLayers, int Port);
+
+/// <summary>
+/// What a local model is doing right now, as the node draws it.
+/// </summary>
+/// <remarks>
+/// Four states because there are four, and the two in the middle are the ones that used to be
+/// invisible. Starting is not failed and is not idle: a model coming up holds the run for tens of
+/// seconds and a node that says nothing during it looks broken. Restarting is not starting either,
+/// because it happens for a reason somebody caused and the reason is worth saying.
+/// </remarks>
+public enum LocalModelState
+{
+    /// <summary>No server is up for this model. The ordinary state before a first run.</summary>
+    NotLoaded,
+
+    /// <summary>A server is coming up and the run is waiting for it.</summary>
+    Starting,
+
+    /// <summary>A server is up and answering.</summary>
+    Running,
+
+    /// <summary>A server is being stopped because a load parameter changed, and restarted.</summary>
+    Restarting
+}

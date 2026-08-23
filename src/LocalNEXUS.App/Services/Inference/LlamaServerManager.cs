@@ -37,9 +37,70 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
     private readonly HttpClient _health = new() { Timeout = TimeSpan.FromSeconds(5) };
     private readonly ChildProcessGroup _children;
 
+    /// <summary>What each model is doing, keyed by its full path.</summary>
+    private readonly Dictionary<string, LocalModelState> _states = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _disposed;
 
     public LlamaServerManager(ChildProcessGroup children) => _children = children;
+
+    /// <summary>
+    /// Raised whenever a model starts, becomes ready, is restarted or goes away.
+    /// </summary>
+    /// <remarks>
+    /// So a node can draw what its model is doing without asking on a timer. One event rather than
+    /// one per model, because whatever listens is redrawing a handful of nodes and working out
+    /// which of them cares is cheaper than carrying an identity through the event.
+    /// </remarks>
+    public event Action? StateChanged;
+
+    /// <summary>What this model is doing right now.</summary>
+    public LocalModelState StateFor(string? ggufPath)
+    {
+        if (Normalise(ggufPath) is not { } full)
+        {
+            return LocalModelState.NotLoaded;
+        }
+
+        lock (_sync)
+        {
+            return _states.TryGetValue(full, out var state) ? state : LocalModelState.NotLoaded;
+        }
+    }
+
+    private void SetState(string fullPath, LocalModelState state)
+    {
+        lock (_sync)
+        {
+            if (state == LocalModelState.NotLoaded)
+            {
+                _states.Remove(fullPath);
+            }
+            else
+            {
+                _states[fullPath] = state;
+            }
+        }
+
+        StateChanged?.Invoke();
+    }
+
+    private static string? Normalise(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
 
     /// <inheritdoc />
     public string Name => "llama.cpp";
@@ -114,6 +175,8 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
                 if (existing.IsRunning)
                 {
                     status?.Report($"Reusing llama-server on port {existing.Port}");
+                    SetState(fullPath, LocalModelState.Running);
+
                     return existing.BaseUrl;
                 }
 
@@ -128,7 +191,9 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
             // old one is now dead weight holding a card's worth of memory. Retiring it here rather
             // than leaving both up is the difference between a setting that applies on the next run
             // and one that quietly does nothing until somebody restarts the application.
-            RetireOtherConfigurations(fullPath, key, status);
+            var restarting = RetireOtherConfigurations(fullPath, key, status);
+
+            SetState(fullPath, restarting ? LocalModelState.Restarting : LocalModelState.Starting);
 
             var instance = StartServer(fullPath, options, _children);
             lock (_sync)
@@ -148,8 +213,11 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
                     _servers.Remove(key);
                 }
 
+                SetState(fullPath, LocalModelState.NotLoaded);
                 throw;
             }
+
+            SetState(fullPath, LocalModelState.Running);
 
             return instance.BaseUrl;
         }
@@ -170,18 +238,7 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
     /// </remarks>
     public RunningServer? Describe(string? ggufPath)
     {
-        if (string.IsNullOrWhiteSpace(ggufPath))
-        {
-            return null;
-        }
-
-        string full;
-
-        try
-        {
-            full = Path.GetFullPath(ggufPath);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        if (Normalise(ggufPath) is not { } full)
         {
             return null;
         }
@@ -211,7 +268,7 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
     /// Collected under the lock and stopped outside it, because stopping one means asking a process
     /// to end and then waiting for it, and nothing else should be held up by that.
     /// </remarks>
-    private void RetireOtherConfigurations(string fullPath, string key, IProgress<string>? status)
+    private bool RetireOtherConfigurations(string fullPath, string key, IProgress<string>? status)
     {
         List<(string Key, LlamaServerInstance Server)> stale;
 
@@ -229,6 +286,11 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
             }
         }
 
+        if (stale.Count == 0)
+        {
+            return false;
+        }
+
         foreach (var (_, server) in stale)
         {
             status?.Report(
@@ -237,6 +299,8 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
 
             server.Dispose();
         }
+
+        return true;
     }
 
     /// <summary>Stops every running server. Called when the application exits.</summary>
@@ -250,6 +314,7 @@ public sealed class LlamaServerManager : IModelRuntime, IDisposable
             }
 
             _servers.Clear();
+            _states.Clear();
         }
     }
 
