@@ -216,8 +216,8 @@
                     <ColumnDefinition Width="88" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="NAME"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Name}" />
+                <Button Grid.Column="7" Style="{StaticResource ColumnHeader}" Content="CONTENTS"
+                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Contents}" />
                 <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="SIZE"
                         IsEnabled="False" ToolTip="Not reported by the mesh." />
                 <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="COVERAGE"
@@ -228,10 +228,8 @@
                         Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Spare}" />
                 <Button Grid.Column="5" Style="{StaticResource ColumnHeader}" Content="STATUS"
                         Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Status}" />
-                <Button Grid.Column="6" Style="{StaticResource ColumnHeader}" Content="CTX"
+                <Button Grid.Column="6" Style="{StaticResource ColumnHeader}" Content="CONTEXT"
                         Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Context}" />
-                <Button Grid.Column="7" Style="{StaticResource ColumnHeader}" Content="CONTENTS"
-                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Contents}" />
                 <Button Grid.Column="8" Style="{StaticResource ColumnHeader}" Content="VERIFIED"
                         IsEnabled="False" ToolTip="The last time the mesh saw a source holding part of this model." />
             </Grid>
