@@ -945,9 +945,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _feed.Info("New graph", "The canvas was cleared.");
     }
 
-    /// <summary>Saves the graph, asking for a path.</summary>
+    /// <summary>
+    /// Saves the graph over the file it came from, asking for a path only when there is not one.
+    /// </summary>
+    /// <remarks>
+    /// Save meant Save as, every time. A graph with a file already had its own name typed back at
+    /// it and a folder to confirm, on every press of Ctrl and S, which is the one action somebody
+    /// does without looking.
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(IsWorkspace))]
     private void SaveGraph()
+    {
+        if (CurrentGraphPath is { Length: > 0 } existing)
+        {
+            WriteGraph(existing);
+            return;
+        }
+
+        SaveGraphAs();
+    }
+
+    /// <summary>Saves the graph under a name, whether or not it already has one.</summary>
+    /// <remarks>
+    /// Still here because saving a copy somewhere else is a real thing to want, and because a graph
+    /// with no file has to get one somehow. It is what Save used to be.
+    /// </remarks>
+    [RelayCommand(CanExecute = nameof(IsWorkspace))]
+    private void SaveGraphAs()
     {
         AppPaths.EnsureCreated();
 
@@ -961,11 +985,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             $"LocalNEXUS graph (*{GraphSerializer.FileExtension})|*{GraphSerializer.FileExtension}|JSON (*.json)|*.json",
             Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder(forSaving: true));
 
-        if (path is null)
+        if (path is not null)
         {
-            return;
+            WriteGraph(path);
         }
+    }
 
+    /// <summary>Writes the graph to one path, wherever the path came from.</summary>
+    private void WriteGraph(string path)
+    {
         try
         {
             _serializer.Save(Graph, path);

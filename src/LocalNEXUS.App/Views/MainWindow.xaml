@@ -56,6 +56,7 @@
     <Window.InputBindings>
         <KeyBinding Key="Delete" Command="{Binding DeleteSelectionCommand}" />
         <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveGraphCommand}" />
+        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveGraphAsCommand}" />
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding LoadGraphCommand}" />
         <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewGraphCommand}" />
         <KeyBinding Key="Enter" Modifiers="Ctrl" Command="{Binding Feed.RunCommand}" />
@@ -123,7 +124,8 @@
                             <MenuItem Header="_File">
                                 <MenuItem Header="_New graph" InputGestureText="Ctrl+N" Command="{Binding NewGraphCommand}" />
                                 <MenuItem Header="_Open graph..." InputGestureText="Ctrl+O" Command="{Binding LoadGraphCommand}" />
-                                <MenuItem Header="_Save graph..." InputGestureText="Ctrl+S" Command="{Binding SaveGraphCommand}" />
+                                <MenuItem Header="_Save graph" InputGestureText="Ctrl+S" Command="{Binding SaveGraphCommand}" />
+                                <MenuItem Header="Save graph _as..." InputGestureText="Ctrl+Shift+S" Command="{Binding SaveGraphAsCommand}" />
                                 <Separator />
 
                                 <!--
