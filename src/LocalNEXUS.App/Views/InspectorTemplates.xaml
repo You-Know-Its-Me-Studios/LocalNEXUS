@@ -241,7 +241,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,0,0,12"
                        TextWrapping="Wrap"
-                       Text="Somebody else's mesh, as it describes itself to the public directory. Nothing here is measured by this machine, and none of it is usable until you join." />
+                       Text="A mesh someone else is running. Everything below is what it says about itself, not something this machine has checked, and none of it is usable until you join." />
 
             <TextBlock Style="{StaticResource FieldLabel}" Text="Size" />
             <TextBlock TextWrapping="Wrap" Text="{Binding SizeSummary}" />
@@ -272,14 +272,14 @@
             </ItemsControl>
             <TextBlock Style="{StaticResource HintText}"
                        TextWrapping="Wrap"
-                       Text="Models this mesh is short of. Holding one of these is what a machine joining it would be contributing." />
+                       Text="Models it wants and does not have. If your machine holds one of these, joining fills a real gap rather than adding another spare." />
 
             <Border Style="{StaticResource Card}" Margin="0,14,0,0">
                 <StackPanel>
                     <TextBlock Style="{StaticResource SectionHeader}" Text="Join this mesh" />
                     <TextBlock Style="{StaticResource HintText}"
                                TextWrapping="Wrap"
-                               Text="Fetches an invite from the directory and restarts the node into this mesh. Your own mesh is left behind while you are joined to it, and Leave the mesh brings you back." />
+                               Text="Gets an invite from the directory and restarts your node into this mesh. Your own mesh stops while you are in theirs, and Leave the mesh puts it back." />
 
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,6,0,0"

@@ -49,7 +49,8 @@ public sealed record DiscoveredMesh(
 
     /// <summary>How big it is, in one line.</summary>
     public string SizeSummary
-        => $"{NodeCount} machine(s), {CapacityText} between them, {ClientCount} already using it.";
+        => $"{NodeCount} {(NodeCount == 1 ? "machine" : "machines")}, {CapacityText} between them, "
+           + (ClientCount == 0 ? "nobody using it yet." : $"{ClientCount} already using it.");
 
     /// <summary>Its size as a person reads it.</summary>
     public string CapacityText => CapacityGb > 0 ? $"{CapacityGb:0.#} GB" : "not reported";
