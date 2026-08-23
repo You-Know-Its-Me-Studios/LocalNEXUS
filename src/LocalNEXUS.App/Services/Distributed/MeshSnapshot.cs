@@ -23,6 +23,7 @@ namespace LocalNEXUS.App.Services.Distributed;
 /// <param name="DaemonState">The runtime's own word for what it is doing: standby, loading or serving.</param>
 /// <param name="LlamaReady">True once a local model runtime is up and able to answer.</param>
 /// <param name="IsClient">True when this node has attached to a mesh as a consumer.</param>
+/// <param name="NostrDiscovery">True when the node is listed on the public relays.</param>
 public sealed record MeshSnapshot(
     string NodeId,
     string NodeState,
@@ -38,7 +39,8 @@ public sealed record MeshSnapshot(
     IReadOnlyList<MeshStage> Stages,
     string DaemonState = "",
     bool LlamaReady = false,
-    bool IsClient = false);
+    bool IsClient = false,
+    bool NostrDiscovery = false);
 
 /// <summary>A node in the mesh other than this one, exactly as the engine reports it.</summary>
 /// <param name="Id">The peer's public key, which is its stable identity.</param>

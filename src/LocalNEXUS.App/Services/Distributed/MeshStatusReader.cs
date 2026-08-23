@@ -64,7 +64,12 @@ public sealed class MeshStatusReader : IDisposable
                         ? ReadString(runtime, "daemon_state")
                         : string.Empty,
                     LlamaReady: ReadBool(root, "llama_ready"),
-                    IsClient: ReadBool(root, "is_client"));
+                    IsClient: ReadBool(root, "is_client"),
+
+                    // The other half of what makes a mesh public. A node that has registered with
+                    // the relays says so here, and its publication state can still be reporting
+                    // the transition.
+                    NostrDiscovery: ReadBool(root, "nostr_discovery"));
             }
             finally
             {

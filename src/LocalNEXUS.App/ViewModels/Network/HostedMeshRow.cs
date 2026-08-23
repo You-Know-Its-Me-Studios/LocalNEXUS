@@ -23,18 +23,22 @@ public sealed partial class HostedMeshRow : ObservableObject
     private readonly Func<string> _name;
     private readonly Func<bool> _contributing;
 
+    private readonly Func<bool> _publishWanted;
+
     public HostedMeshRow(
         MeshManager mesh,
         Func<string> name,
         Func<int> members,
         Func<int> sharedModels,
-        Func<bool> contributing)
+        Func<bool> contributing,
+        Func<bool> publishWanted)
     {
         _mesh = mesh;
         _name = name;
         _members = members;
         _sharedModels = sharedModels;
         _contributing = contributing;
+        _publishWanted = publishWanted;
     }
 
     /// <summary>What the mesh is called: what the node reports, or what it is configured as.</summary>
@@ -62,10 +66,39 @@ public sealed partial class HostedMeshRow : ObservableObject
         ? new JoinedMesh(string.Empty, _mesh.InviteToken, DateTimeOffset.Now).ShortId
         : "not created yet";
 
-    /// <summary>Who can find it, which is the one setting that leaves the local network.</summary>
-    public string VisibilityText => _mesh.IsPublic
-        ? "public"
-        : "this network only";
+    /// <summary>
+    /// Who can find it, which is the one setting that leaves the local network.
+    /// </summary>
+    /// <remarks>
+    /// The node's answer and the setting are two different things and the gap between them is
+    /// exactly where somebody gets confused. Publishing is a launch argument, so ticking it and
+    /// saving changes nothing until the node restarts, and the row said this network only while
+    /// the switch above it said public.
+    /// </remarks>
+    public string VisibilityText
+    {
+        get
+        {
+            if (_mesh.PublishFailed)
+            {
+                return "could not be published";
+            }
+
+            if (_mesh.IsPublic)
+            {
+                return "anybody, listed publicly";
+            }
+
+            if (_publishWanted())
+            {
+                return _mesh.IsRunning
+                    ? "publishing, not listed yet"
+                    : "public once the node starts";
+            }
+
+            return "this network only";
+        }
+    }
 
     /// <summary>True when it is listed publicly, so the row can colour that differently.</summary>
     public bool IsPublic => _mesh.IsPublic;

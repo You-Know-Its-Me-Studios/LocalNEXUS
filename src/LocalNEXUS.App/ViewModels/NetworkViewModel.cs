@@ -136,6 +136,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _publish;
 
+    partial void OnPublishChanged(bool value) => RefreshHosted();
+
     private readonly MeshDirectory? _directory;
 
     public NetworkViewModel(
@@ -176,7 +178,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             () => MeshName,
             () => Machines.Count,
             () => OfferedCount,
-            () => Contribute));
+            () => Contribute,
+            () => Publish));
         catalog.Models.CollectionChanged += (_, _) => RebuildOfferedModels();
 
         Groups = BuildFilterGroups();

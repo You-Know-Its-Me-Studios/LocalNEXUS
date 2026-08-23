@@ -89,6 +89,17 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     [ObservableProperty]
     private string _daemonState = string.Empty;
 
+    /// <summary>
+    /// True when the node was asked to publish and could not.
+    /// </summary>
+    /// <remarks>
+    /// Its own answer rather than being folded into not public, because a mesh that was never
+    /// published and one that tried and failed are different situations and only the second is
+    /// worth saying out loud.
+    /// </remarks>
+    [ObservableProperty]
+    private bool _publishFailed;
+
     /// <summary>True once a local model runtime is up and able to answer.</summary>
     [ObservableProperty]
     private bool _llamaReady;
@@ -661,7 +672,15 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
 
         MeshName = snapshot.MeshName;
         InviteToken = snapshot.InviteToken;
-        IsPublic = string.Equals(snapshot.PublicationState, "public", StringComparison.OrdinalIgnoreCase);
+        // The engine's own rule, taken from its web console rather than guessed at: public means
+        // public, publish_failed means not, and anything else defers to whether the node is
+        // actually listed on the relays. Reading only the first of those said a published mesh was
+        // private for as long as the state read anything but that one word.
+        IsPublic = string.Equals(snapshot.PublicationState, "public", StringComparison.OrdinalIgnoreCase)
+            || (!string.Equals(snapshot.PublicationState, "publish_failed", StringComparison.OrdinalIgnoreCase)
+                && snapshot.NostrDiscovery);
+
+        PublishFailed = string.Equals(snapshot.PublicationState, "publish_failed", StringComparison.OrdinalIgnoreCase);
         IsContributing = snapshot.IsServing;
         DaemonState = snapshot.DaemonState;
         LlamaReady = snapshot.LlamaReady;

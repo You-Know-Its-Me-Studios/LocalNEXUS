@@ -372,7 +372,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,2,0,0"
                        TextWrapping="Wrap"
-                       Text="Publishing is in the panel on the left. Off, only machines on this network can find it; on, it is listed publicly, though joining still needs the invite." />
+                       Text="Publishing is in the panel on the left, and it is read when the node starts, so ticking it takes effect when the node next comes up. Off, only machines on this network can find the mesh; on, it is listed publicly, though joining still needs the invite." />
 
             <TextBlock Style="{StaticResource FieldLabel}" Text="Members" />
             <TextBlock Text="{Binding MembersText}" />
