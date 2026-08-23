@@ -56,7 +56,15 @@ public sealed class MeshStatusReader : IDisposable
                     Peers: peers,
                     Models: ReadModels(modelsDocument),
                     AnnouncedModelIds: ReadAnnouncedModelIds(root, peers),
-                    Stages: ReadStages(stagesDocument));
+                    Stages: ReadStages(stagesDocument),
+
+                    // How far the node has got, in the engine's own words, so a row can say which
+                    // part of joining is happening rather than the single word "connecting".
+                    DaemonState: root.TryGetProperty("runtime", out var runtime)
+                        ? ReadString(runtime, "daemon_state")
+                        : string.Empty,
+                    LlamaReady: ReadBool(root, "llama_ready"),
+                    IsClient: ReadBool(root, "is_client"));
             }
             finally
             {

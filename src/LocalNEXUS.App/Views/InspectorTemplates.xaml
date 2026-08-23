@@ -298,4 +298,57 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- One mesh this machine has joined, which is a membership rather than a thing to browse. -->
+    <DataTemplate DataType="{x:Type distributed:JoinedMesh}">
+        <StackPanel>
+
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,0,0,12"
+                       TextWrapping="Wrap"
+                       Foreground="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}"
+                       Text="{Binding StateDetail}" />
+
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Where it has got to" />
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Style="{StaticResource StateDot}"
+                         Margin="0,0,7,0"
+                         Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
+                <TextBlock Text="{Binding StateText}"
+                           Foreground="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=JoinState}" />
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Mesh id" />
+            <TextBox Style="{StaticResource SelectableText}"
+                     FontFamily="{StaticResource Font.Mono}"
+                     Text="{Binding ShortId, Mode=OneWay}" />
+
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Joined" />
+            <TextBlock Text="{Binding JoinedText}" />
+
+            <!--
+                The invite is shown because it is how somebody else joins the same mesh, and it is
+                theirs to pass on. Read only, because editing it here would be joining a different
+                mesh under this one's name.
+            -->
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Its invite" />
+            <TextBox Style="{StaticResource MonoTextBox}"
+                     Text="{Binding Token, Mode=OneWay}"
+                     IsReadOnly="True"
+                     MaxHeight="90"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" />
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,4,0,0"
+                       TextWrapping="Wrap"
+                       Text="Pass this on and somebody else can join the same mesh." />
+
+            <Button Style="{StaticResource SmallButton}"
+                    Margin="0,14,0,0"
+                    HorizontalAlignment="Left"
+                    Content="Leave this mesh"
+                    Command="{Binding DataContext.Network.LeaveJoinedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    CommandParameter="{Binding}" />
+        </StackPanel>
+    </DataTemplate>
+
 </ResourceDictionary>

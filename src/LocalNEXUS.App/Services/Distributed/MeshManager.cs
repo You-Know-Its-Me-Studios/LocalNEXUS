@@ -79,6 +79,24 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isContributing;
 
+    /// <summary>
+    /// The runtime's own word for what it is doing: standby, loading, or serving.
+    /// </summary>
+    /// <remarks>
+    /// Reported rather than inferred, which is what makes it worth carrying. It is how a joined
+    /// mesh can say it is loading models instead of saying connecting for a minute and a half.
+    /// </remarks>
+    [ObservableProperty]
+    private string _daemonState = string.Empty;
+
+    /// <summary>True once a local model runtime is up and able to answer.</summary>
+    [ObservableProperty]
+    private bool _llamaReady;
+
+    /// <summary>True once the node has attached to a mesh, as a consumer or a host.</summary>
+    [ObservableProperty]
+    private bool _isAttached;
+
     /// <summary>Why the node is not running, when it failed. Null otherwise.</summary>
     [ObservableProperty]
     private string? _lastError;
@@ -645,6 +663,9 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
         InviteToken = snapshot.InviteToken;
         IsPublic = string.Equals(snapshot.PublicationState, "public", StringComparison.OrdinalIgnoreCase);
         IsContributing = snapshot.IsServing;
+        DaemonState = snapshot.DaemonState;
+        LlamaReady = snapshot.LlamaReady;
+        IsAttached = snapshot.IsClient || snapshot.IsServing;
         State = snapshot.IsServing ? MeshNodeState.Serving : MeshNodeState.Client;
         LastError = null;
 

@@ -459,10 +459,22 @@
                     point of the handle; a cap here would quietly refuse the drag.
                 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Joined}" Margin="0,0,0,6">
-                    <ItemsControl.ItemTemplate>
+                <!--
+                    A list rather than an items control, so a row can be selected and the inspector
+                    can show it. The two tables share the one inspector slot, and picking a row in
+                    either lets go of the other.
+                -->
+                <ListBox ItemsSource="{Binding Joined}"
+                         SelectedItem="{Binding SelectedJoined}"
+                         ItemContainerStyle="{StaticResource TableRow}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Margin="0,0,0,6"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Padding="16,7"
+                                    Background="Transparent"
                                     BorderBrush="{DynamicResource Surface.Border.Brush}"
                                     BorderThickness="0,0,0,1">
                                 <Grid>
@@ -517,8 +529,8 @@
                                 </Grid>
                             </Border>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
                 </ScrollViewer>
             </DockPanel>
         </Border>

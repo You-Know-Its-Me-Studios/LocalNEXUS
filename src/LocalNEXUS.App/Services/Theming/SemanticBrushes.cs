@@ -144,9 +144,12 @@ public static class SemanticBrushes
 
         // How far a mesh this machine joined has got. Connecting is work in progress rather than
         // trouble, and a node that is simply stopped is neither.
-        ("JoinState.NotConnected.Brush", "Accent.NeutralColor"),
-        ("JoinState.Joining.Brush", "Status.InfoColor"),
-        ("JoinState.Joined.Brush", "Status.SuccessColor"),
+        ("JoinState.NodeStopped.Brush", "Accent.NeutralColor"),
+        ("JoinState.StartingNode.Brush", "Status.InfoColor"),
+        ("JoinState.ReachingMesh.Brush", "Status.InfoColor"),
+        ("JoinState.LoadingModels.Brush", "Status.InfoColor"),
+        ("JoinState.Ready.Brush", "Status.SuccessColor"),
+        ("JoinState.Failed.Brush", "Status.DangerColor"),
 
         // A local model's own server. Starting and restarting are work in progress rather than
         // trouble: one is a model loading and the other is a load setting that changed, and neither

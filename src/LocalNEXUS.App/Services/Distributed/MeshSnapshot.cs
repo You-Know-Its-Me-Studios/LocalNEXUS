@@ -20,6 +20,9 @@ namespace LocalNEXUS.App.Services.Distributed;
 /// <param name="Models">Models this node can route to right now.</param>
 /// <param name="AnnouncedModelIds">Model ids peers announce, whether or not they are routable here.</param>
 /// <param name="Stages">Placed stages of every split model the mesh has planned.</param>
+/// <param name="DaemonState">The runtime's own word for what it is doing: standby, loading or serving.</param>
+/// <param name="LlamaReady">True once a local model runtime is up and able to answer.</param>
+/// <param name="IsClient">True when this node has attached to a mesh as a consumer.</param>
 public sealed record MeshSnapshot(
     string NodeId,
     string NodeState,
@@ -32,7 +35,10 @@ public sealed record MeshSnapshot(
     IReadOnlyList<MeshPeer> Peers,
     IReadOnlyList<MeshModel> Models,
     IReadOnlyList<string> AnnouncedModelIds,
-    IReadOnlyList<MeshStage> Stages);
+    IReadOnlyList<MeshStage> Stages,
+    string DaemonState = "",
+    bool LlamaReady = false,
+    bool IsClient = false);
 
 /// <summary>A node in the mesh other than this one, exactly as the engine reports it.</summary>
 /// <param name="Id">The peer's public key, which is its stable identity.</param>

@@ -209,7 +209,37 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// clicked an uncovered section is asking about that section.
     /// </summary>
     public object? InspectorTarget
-        => (object?)SelectedSection ?? (object?)SelectedSource ?? (object?)SelectedDirectoryMesh ?? SelectedModel;
+        => (object?)SelectedSection
+           ?? (object?)SelectedSource
+           ?? (object?)SelectedJoined
+           ?? (object?)SelectedDirectoryMesh
+           ?? SelectedModel;
+
+    /// <summary>The joined mesh the inspector is showing, or null.</summary>
+    /// <remarks>
+    /// A fifth thing the one slot can hold. Selecting one lets go of whatever the table above had
+    /// pinned, because the two tables are two answers to two questions and showing one while the
+    /// other is highlighted is how somebody reads the wrong panel.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    [NotifyPropertyChangedFor(nameof(IsInsideAModel))]
+    [NotifyPropertyChangedFor(nameof(ClearInspectorText))]
+    private JoinedMesh? _selectedJoined;
+
+    partial void OnSelectedJoinedChanged(JoinedMesh? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedSection = null;
+        SelectedSource = null;
+        SelectedDirectoryMesh = null;
+        SelectedRow = null;
+        SelectedModel = null;
+    }
 
     /// <summary>The directory entry the inspector is showing, or null.</summary>
     /// <remarks>
@@ -374,6 +404,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (SelectedJoined is not null)
+        {
+            SelectedJoined = null;
+            return;
+        }
+
         SelectedRow = null;
         SelectedModel = null;
     }
@@ -503,16 +539,55 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// particular. Said as connecting rather than joined while it comes up, because claiming
     /// membership before the node is serving would be claiming something unverified.
     /// </remarks>
+    /// <summary>
+    /// Which part of joining is happening, from what the node reports about itself.
+    /// </summary>
+    /// <remarks>
+    /// Every branch reads something the engine says rather than a timer: whether the process is up,
+    /// whether it has attached to a mesh, and its runtime's own word for whether models are loading
+    /// or serving. One state per thing that can take time and fail on its own, because "connecting"
+    /// covered starting a process, finding a mesh and reading gigabytes off disk.
+    ///
+    /// The engine reports one node rather than one membership per mesh, so every joined mesh shares
+    /// this answer. That is honest for the common case of being in one, and it is the most the
+    /// engine gives us for the rest.
+    /// </remarks>
+    private JoinState ReadJoinStage()
+    {
+        if (Mesh.State == MeshNodeState.Failed)
+        {
+            return JoinState.Failed;
+        }
+
+        if (!Mesh.IsRunning)
+        {
+            return JoinState.NodeStopped;
+        }
+
+        if (Mesh.State == MeshNodeState.Starting && !Mesh.IsAttached)
+        {
+            return JoinState.StartingNode;
+        }
+
+        if (!Mesh.IsAttached)
+        {
+            return JoinState.ReachingMesh;
+        }
+
+        // Attached. Loading is the runtime's own word, and a node with nothing loaded and nothing
+        // to load reports standby rather than serving, which is ready as far as the mesh goes.
+        return Mesh.LlamaReady || string.Equals(Mesh.DaemonState, "serving", StringComparison.OrdinalIgnoreCase)
+            ? JoinState.Ready
+            : string.Equals(Mesh.DaemonState, "loading", StringComparison.OrdinalIgnoreCase)
+                ? JoinState.LoadingModels
+                : JoinState.Ready;
+    }
+
     private void RefreshJoinedStates()
     {
         foreach (var mesh in Joined)
         {
-            mesh.State = Mesh.State switch
-            {
-                MeshNodeState.Client or MeshNodeState.Serving => JoinState.Joined,
-                MeshNodeState.Starting => JoinState.Joining,
-                _ => JoinState.NotConnected
-            };
+            mesh.State = ReadJoinStage();
         }
     }
 
@@ -848,6 +923,11 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         SelectedSource = null;
         SelectedModel = (value as NetworkModelRow)?.Model;
         SelectedDirectoryMesh = (value as DiscoveredMeshRow)?.Mesh;
+
+        if (value is not null)
+        {
+            SelectedJoined = null;
+        }
     }
 
     partial void OnSelectedSourceChanged(InferenceSource? value)
@@ -962,6 +1042,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
             case nameof(MeshManager.InviteToken):
                 OnPropertyChanged(nameof(InviteToken));
+                break;
+
+            case nameof(MeshManager.DaemonState):
+            case nameof(MeshManager.LlamaReady):
+            case nameof(MeshManager.IsAttached):
+                RefreshJoinedStates();
                 break;
 
             case nameof(MeshManager.State):

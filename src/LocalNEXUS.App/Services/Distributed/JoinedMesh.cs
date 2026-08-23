@@ -9,14 +9,23 @@ namespace LocalNEXUS.App.Services.Distributed;
 /// </summary>
 public enum JoinState
 {
-    /// <summary>The invite is held but the node is not up, so nothing is connected.</summary>
-    NotConnected,
+    /// <summary>The invite is held and the node is not running, so nothing is happening.</summary>
+    NodeStopped,
 
-    /// <summary>The node is coming up and has not reported this mesh yet.</summary>
-    Joining,
+    /// <summary>The node process has been started and has not answered its own console yet.</summary>
+    StartingNode,
 
-    /// <summary>The node is up and in it.</summary>
-    Joined
+    /// <summary>The node is up and has not attached to the mesh yet.</summary>
+    ReachingMesh,
+
+    /// <summary>Attached, and the runtime is bringing models up.</summary>
+    LoadingModels,
+
+    /// <summary>Attached, with models ready to answer.</summary>
+    Ready,
+
+    /// <summary>The node tried and failed.</summary>
+    Failed
 }
 
 /// <summary>
@@ -52,14 +61,37 @@ public sealed partial class JoinedMesh : ObservableObject
     /// <summary>How far it has got.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StateText))]
-    private JoinState _state = JoinState.NotConnected;
+    [NotifyPropertyChangedFor(nameof(StateDetail))]
+    private JoinState _state = JoinState.NodeStopped;
 
-    /// <summary>That state in words.</summary>
+    /// <summary>
+    /// That state in words, naming the part of joining that is happening.
+    /// </summary>
+    /// <remarks>
+    /// Every one of these is read from something the engine reports rather than from a timer, so
+    /// the row moves when the node moves. It said "connecting" for the whole of it, which covers
+    /// starting a process, finding a mesh over the network and loading models off disk, and those
+    /// take wildly different amounts of time and fail for entirely different reasons.
+    /// </remarks>
     public string StateText => State switch
     {
-        JoinState.Joined => "in it",
-        JoinState.Joining => "connecting",
+        JoinState.Ready => "in it, models ready",
+        JoinState.LoadingModels => "loading models",
+        JoinState.ReachingMesh => "reaching the mesh",
+        JoinState.StartingNode => "starting the node",
+        JoinState.Failed => "failed",
         _ => "node stopped"
+    };
+
+    /// <summary>What that state means, for anybody wondering whether to keep waiting.</summary>
+    public string StateDetail => State switch
+    {
+        JoinState.Ready => "The mesh is attached and its models can answer.",
+        JoinState.LoadingModels => "Attached. The runtime is bringing models up, which is the slow part and is disk bound.",
+        JoinState.ReachingMesh => "The node is up and looking for this mesh over the network. It is not attached yet.",
+        JoinState.StartingNode => "The node process has started and has not answered its own console yet. This takes a second or two.",
+        JoinState.Failed => "The node stopped with an error. What it said is under This machine.",
+        _ => "The invite is saved and the node is not running, so nothing is connected. Start the node."
     };
 
     /// <summary>What to show for a mesh that never named itself.</summary>

@@ -46,6 +46,20 @@ public sealed record InspectorHeader(
             $"NodeType.{node.TypeKey}.Brush",
             $"NodeState.{node.State}.Brush"),
 
+        JoinedMesh joined => new InspectorHeader(
+            joined.DisplayName,
+            "Joined",
+            joined.StateText,
+            "NodeType.Model.Brush",
+            $"JoinState.{joined.State}.Brush"),
+
+        DiscoveredMesh found => new InspectorHeader(
+            found.DisplayName,
+            "Found",
+            "not joined",
+            "Accent.Neutral.Brush",
+            "ModelAvailability.NotJoined.Brush"),
+
         NetworkServedModel model => new InspectorHeader(
             model.Name,
             "Model",
