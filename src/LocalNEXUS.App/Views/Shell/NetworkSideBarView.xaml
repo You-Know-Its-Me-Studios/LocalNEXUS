@@ -28,54 +28,6 @@
             <StackPanel>
 
                 <!--
-                    Which mesh this machine is in, first, because it is the question every field
-                    below it is an answer to. Joining one changed a token in a box and nothing else,
-                    so somebody who had just joined a mesh had no way to tell they were in it.
-                -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
-                    <StackPanel>
-                        <TextBlock Text="{Binding MembershipHeading}" FontWeight="SemiBold" />
-
-                        <TextBlock Style="{StaticResource HintText}"
-                                   Margin="0,4,0,0"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding MembershipDetail}" />
-
-                        <ProgressBar Margin="0,8,0,0"
-                                     Height="3"
-                                     IsIndeterminate="True"
-                                     Visibility="{Binding IsJoining, Converter={StaticResource BooleanToVisibility}}" />
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Mesh" />
-                        <TextBlock Style="{StaticResource MonoText}"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding MembershipMeshName}" />
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="In it" />
-                        <TextBlock Style="{StaticResource MonoText}" Text="{Binding MembershipSize}" />
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Node" />
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Style="{StaticResource StateDot}"
-                                     Margin="0,0,7,0"
-                                     Fill="{Binding Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
-                            <TextBlock Text="{Binding Mesh.StatusText}" TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <!--
-                            Only when there is one to leave. A button that goes grey and stays grey
-                            is a control that has to be explained; one that is not there is not.
-                        -->
-                        <Button Style="{StaticResource SmallButton}"
-                                Margin="0,12,0,0"
-                                HorizontalAlignment="Left"
-                                Content="Leave and host your own again"
-                                Command="{Binding LeaveMeshCommand}"
-                                Visibility="{Binding IsGuestInAnotherMesh, Converter={StaticResource BooleanToVisibility}}" />
-                    </StackPanel>
-                </Border>
-
-                <!--
                     What the mesh is, before what this machine gives it. These four were in Settings
                     and the contribution below them was here, so answering one question meant
                     looking in two places and neither half said the other existed.

@@ -469,22 +469,47 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// the other half of that question.
     /// </remarks>
     public string MembershipHeading => IsJoining
-        ? "Joining a mesh"
+        ? $"Joining {(string.IsNullOrWhiteSpace(JoiningName) ? "a mesh" : JoiningName)}"
         : string.IsNullOrWhiteSpace(JoinToken)
             ? "Hosting your own mesh"
             : "In somebody else's mesh";
 
     /// <summary>What that membership means, in a sentence.</summary>
     public string MembershipDetail => IsJoining
-        ? $"Fetching an invite for {JoiningName} and restarting the node into it. This takes a few seconds."
+        ? "Getting an invite from the directory, then restarting the node into it. This takes a few seconds."
         : string.IsNullOrWhiteSpace(JoinToken)
-            ? "Nothing else can reach it until you invite a machine with the token below, or publish the mesh so it can be found."
-            : "You are joined by invite, so this machine is a member rather than the host. Leave the mesh puts your own back.";
+            ? "Nothing else can reach it until you invite a machine with your token, or publish the mesh so it can be found."
+            : "You are a member of this one rather than its host, so its models are what you can reach. Leaving puts your own mesh back.";
 
     /// <summary>The mesh's own name for itself, once the node is up and reporting one.</summary>
-    public string MembershipMeshName => Mesh.IsRunning && !string.IsNullOrWhiteSpace(Mesh.MeshName)
-        ? Mesh.MeshName
-        : string.IsNullOrWhiteSpace(JoinToken) ? MeshName : "not reported until the node is up";
+    public string MembershipMeshName
+    {
+        get
+        {
+            // What was pressed wins until the node has something of its own to say. Joining a mesh
+            // that has not named itself otherwise showed nothing at all for the seconds it takes,
+            // which is exactly the window somebody is watching.
+            if (IsJoining || !Mesh.IsRunning)
+            {
+                if (!string.IsNullOrWhiteSpace(JoiningName))
+                {
+                    return JoiningName;
+                }
+            }
+
+            if (Mesh.IsRunning && !string.IsNullOrWhiteSpace(Mesh.MeshName))
+            {
+                return Mesh.MeshName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(JoiningName))
+            {
+                return JoiningName;
+            }
+
+            return string.IsNullOrWhiteSpace(JoinToken) ? MeshName : "not reported until the node is up";
+        }
+    }
 
     /// <summary>How many machines are in it, this one included.</summary>
     public string MembershipSize => Mesh.IsRunning
@@ -494,8 +519,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// <summary>True while there is a token, which is what makes leaving meaningful.</summary>
     public bool IsGuestInAnotherMesh => !string.IsNullOrWhiteSpace(JoinToken);
 
-    /// <summary>The mesh currently being joined, for as long as that is happening.</summary>
+    /// <summary>
+    /// The mesh that was joined, or is being joined right now.
+    /// </summary>
+    /// <remarks>
+    /// Kept after the join rather than cleared, because most meshes in the directory have no name
+    /// of their own and the node reports nothing for them. Without this, joining one showed the
+    /// mesh for two seconds and then went blank.
+    /// </remarks>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MembershipMeshName))]
+    [NotifyPropertyChangedFor(nameof(MembershipDetail))]
     private string _joiningName = string.Empty;
 
     /// <summary>Which mesh this install is in, or means to be in once the node starts.</summary>
@@ -744,6 +778,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     private async Task LeaveMeshAsync()
     {
         JoinToken = string.Empty;
+        JoiningName = string.Empty;
         await ApplySettingsAsync();
     }
 
