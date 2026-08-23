@@ -235,7 +235,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             graph,
             Feed,
             OpenProjectCommand,
-            OpenSettingsCommand,
+
+            // Straight to Models, because that step is about pointing this at a model and the
+            // generic command opens wherever settings were last left.
+            new RelayCommand(() => OpenSettingsAt(SettingsSection.Models)),
             ApplyTemplateCommand,
             Templates);
 
@@ -504,6 +507,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Opens the settings panel over whichever section is showing.</summary>
     [RelayCommand]
     private void OpenSettings() => IsSettingsOpen = true;
+
+    /// <summary>
+    /// Opens settings on a particular section.
+    /// </summary>
+    /// <remarks>
+    /// For anything pointing somebody at a setting rather than at settings. Opening on whichever
+    /// section was last looked at means a button that says what it is for lands somewhere else, and
+    /// the person is back to hunting.
+    /// </remarks>
+    public void OpenSettingsAt(SettingsSection section)
+    {
+        Settings.Section = section;
+        IsSettingsOpen = true;
+    }
 
     /// <summary>
     /// Opens the extensions window.

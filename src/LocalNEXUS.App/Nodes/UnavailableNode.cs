@@ -61,7 +61,7 @@ public sealed class UnavailableNode : NodeBase
     public override Task<NodeResult> ExecuteAsync(NodeExecutionContext ctx, CancellationToken ct)
         => throw new InvalidOperationException(
             $"'{TypeKey}' is contributed by an extension that is not installed for this project. " +
-            "Install it from Settings, then open this graph again. The node and its wires have been kept.");
+            "Install it from Settings, Extensions, then open this graph again. The node and its wires have been kept.");
 
     /// <inheritdoc />
     public override JsonObject SaveSettings() => (JsonObject)_saved.DeepClone();

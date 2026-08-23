@@ -154,7 +154,7 @@ public sealed partial class WebSearchService : ObservableObject
         if (_credentials.Get(ProviderId) is not { Length: > 0 } key)
         {
             throw new SearchException(
-                $"There is no search key. Add one in Settings under Models; you can get one at {KeyUrl}.");
+                $"There is no search key. Add one in Settings under API keys, Search providers; you can get one at {KeyUrl}.");
         }
 
         using var request = new HttpRequestMessage(

@@ -89,7 +89,7 @@ These are settled. Do not relitigate them without being asked.
 
 **Graph model.** Freeform canvas, wire any node to any node. The execution engine is a general graph walker (topological sort, gather inputs from incoming wires) and knows nothing about specific node types. Adding a node type must never require changing the executor.
 
-**Typed pins.** Pins are color-coded by type and only compatible pins connect. Compatibility rules live in one explicit table (`PinTypeCompatibility`), never scattered as special cases. Current rule: types must match, with one exception, `Code` may flow into `Text` but not the reverse.
+**Typed pins.** Pins are color-coded by type and only compatible pins connect. Compatibility rules live in one explicit table (`PinTypeCompatibility`), never scattered as special cases. Current rule: types must match, with no exception. `Code` used to be allowed into `Text` so a model could feed another model, and what it produced was a Code pin wired into everything that reads prose, so a model asked a question answered with a class. The model node has its own `Text` output instead: two things to offer, said as two pins, rather than one that can be read as either.
 
 **Run model.** The graph is a reusable template. The request is separate per-run input typed into a chat-style box. Auto-run by default, with breakpoints droppable on wires to pause, inspect, and edit a payload mid-run.
 

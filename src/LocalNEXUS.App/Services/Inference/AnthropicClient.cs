@@ -92,7 +92,7 @@ public sealed class AnthropicClient : IModelClient, IDisposable
         if (!endpoint.RequiresAuthorization)
         {
             throw new ModelClientException(
-                "Anthropic needs an API key. Add one in Settings under Models, then run again.");
+                "Anthropic needs an API key. Add one in Settings under API keys, then run again.");
         }
 
         // Required by this API, unlike the OpenAI shape where it is optional. Caught here so the

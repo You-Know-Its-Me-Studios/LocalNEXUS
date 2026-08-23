@@ -84,7 +84,7 @@ public sealed class GeminiClient : IModelClient, IDisposable
         if (!endpoint.RequiresAuthorization)
         {
             throw new ModelClientException(
-                "Gemini needs an API key. Add one in Settings under Models, then run again.");
+                "Gemini needs an API key. Add one in Settings under API keys, then run again.");
         }
 
         var url = endpoint.GeminiStreamUrl;

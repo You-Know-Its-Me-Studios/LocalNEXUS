@@ -8,7 +8,12 @@ public enum SettingsSection
     /// <summary>Theme, and the type it is rendered in.</summary>
     Appearance,
 
-    /// <summary>Where models are looked for, and how cloud providers are reached.</summary>
+    /// <summary>Where models are looked for on this machine.</summary>
+    /// <remarks>
+    /// Finding models, and nothing else. How a hosted provider is reached used to be here too and
+    /// went to <see cref="ApiKeys"/> with the keys, because a provider without its key is not a
+    /// setting anybody can act on.
+    /// </remarks>
     Models,
 
     /// <summary>Every credential this installation holds, grouped by what it is for.</summary>
@@ -30,7 +35,12 @@ public enum SettingsSection
     /// </remarks>
     Project,
 
-    /// <summary>The Python environment and the mesh node.</summary>
+    /// <summary>What this installation runs: the Python environment, the mesh node and the tool call server.</summary>
+    /// <remarks>
+    /// Grouped by whose they are rather than by what they do. Each is a thing this install turns on
+    /// and off for itself, which is what makes them one section and what kept the tool call switch
+    /// out of <see cref="Project"/>, where it was an install wide setting under a project heading.
+    /// </remarks>
     Runtime,
 
     /// <summary>Extensions registered against the open project.</summary>

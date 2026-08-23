@@ -42,7 +42,7 @@
                        Margin="0,4,0,0"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource Status.Warning.Brush}"
-                       Text="This provider has no key yet. Add one in Settings under Models. The graph is fine; it just cannot run until there is a key."
+                       Text="This provider has no key yet. Add one in Settings under API keys. The graph is fine; it just cannot run until there is a key."
                        Visibility="{Binding NeedsKey, Converter={StaticResource BooleanToVisibility}}" />
 
             <TextBlock Style="{StaticResource FieldLabel}" Text="Model id" />

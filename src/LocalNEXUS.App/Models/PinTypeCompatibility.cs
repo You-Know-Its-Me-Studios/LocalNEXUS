@@ -4,14 +4,15 @@ namespace LocalNEXUS.App.Models;
 /// Decides which pin types may flow into which.
 /// </summary>
 /// <remarks>
-/// The rule is equality with one deliberate exception: a <see cref="PinType.Code"/> output may
-/// feed a <see cref="PinType.Text"/> input.
+/// The rule is equality. Types match or they do not connect, and there is no exception to it.
 /// <para>
-/// Without that exception a model node, which takes Text and emits Code, could only ever be fed
-/// by an input node, so chaining a planning model into a coding model would be impossible and
-/// the core workflow of the application could not be built. The exception is one directional on
-/// purpose: code is text, but arbitrary text is not code, so a Text output still cannot reach a
-/// Code input such as the one on the node that writes files.
+/// There used to be one: a <see cref="PinType.Code"/> output could feed a <see cref="PinType.Text"/>
+/// input, because a model node takes Text and emits Code and otherwise could only ever be fed by a
+/// prompt. What it produced in practice was a Code pin wired into everything that reads prose, so
+/// the pin meaning "a file was produced" was also the pin somebody drew from when they wanted an
+/// answer, and a model asked a question replied with a class. The model node grew its own Text
+/// output instead, which says the same thing honestly: it has two things to offer and they are
+/// different, rather than one that can be read as either.
 /// </para>
 /// <para>
 /// New pin types are added to <see cref="PinType"/> and, if they need to interoperate with an

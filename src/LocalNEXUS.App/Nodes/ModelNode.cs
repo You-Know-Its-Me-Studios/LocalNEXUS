@@ -2117,7 +2117,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     public string ProviderStatus => CloudProvider is not { } provider
         ? "No provider chosen."
         : NeedsKey
-            ? $"{provider.DisplayName} needs a key. Add one in Settings under Models."
+            ? $"{provider.DisplayName} needs a key. Add one in Settings under API keys."
             : $"{provider.DisplayName}, {provider.RateSummary}.";
 
     /// <summary>
@@ -2155,7 +2155,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
         {
             throw new InvalidOperationException(
                 $"{Title} uses {provider.DisplayName}, which has no key yet. " +
-                $"Add one in Settings under Models. Keys are stored encrypted and never saved into a graph.");
+                $"Add one in Settings under API keys. Keys are stored encrypted and never saved into a graph.");
         }
 
         // A base url typed on the node wins, so a provider can be pointed at a proxy without a

@@ -205,14 +205,24 @@
                                 <TextBlock Style="{StaticResource MonoText}" Text="Assets/Scripts/PlayerMovement.cs" />
                             </StackPanel>
 
+                            <!--
+                                Every node accent, and no count in the label. It said six while
+                                there were eleven, because a number in prose has to be maintained by
+                                somebody noticing.
+                            -->
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Prompt.Brush}" />
+                                <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Agent.Brush}" />
                                 <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Triage.Brush}" />
                                 <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Model.Brush}" />
+                                <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Loop.Brush}" />
+                                <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Debate.Brush}" />
+                                <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Judge.Brush}" />
                                 <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.Reshape.Brush}" />
                                 <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.CompilerCheck.Brush}" />
+                                <Rectangle Width="3" Height="18" Margin="0,0,7,0" Fill="{DynamicResource NodeType.TextOutput.Brush}" />
                                 <Rectangle Width="3" Height="18" Margin="0,0,14,0" Fill="{DynamicResource NodeType.Output.Brush}" />
-                                <TextBlock Style="{StaticResource MutedText}" VerticalAlignment="Center" Text="the six node accents" />
+                                <TextBlock Style="{StaticResource MutedText}" VerticalAlignment="Center" Text="the node accents" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -315,17 +325,7 @@
 
                     <TextBlock Style="{StaticResource HintText}" Text="{Binding Catalog.SearchSummary}" />
 
-                    <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Warn before an expensive run" />
-                    <TextBlock Style="{StaticResource HintText}" Text="{Binding Providers.ThresholdSummary}" TextWrapping="Wrap" />
-
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Ask above" />
-                    <TextBox Text="{Binding Providers.CostWarningThreshold, UpdateSourceTrigger=LostFocus}"
-                             AutomationProperties.Name="Cost warning threshold in dollars" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               TextWrapping="Wrap"
-                               Text="Dollars. What a run is measured against is a ceiling, being the whole input plus the most each node is allowed to write, so the real cost is usually lower and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it." />
                 </StackPanel>
 
                 <!--
@@ -497,6 +497,103 @@
                                Margin="0,4,0,14"
                                TextWrapping="Wrap"
                                Text="The key is yours and is stored encrypted for this Windows account, beside the model keys. Nothing is bundled, because a bundled key would bill every installation's searches to one account." />
+
+                    <!--
+                        Reading images. Here rather than under Project, which is where it was and
+                        where it never belonged: every part of it is stored per install, including a
+                        key, and it was the one key in the application that was not in the keys
+                        section. Nothing about it changes with the open project.
+                    -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Reading images" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Paste or drop an image on the request box and this reads it into text, which joins your request. The image never enters the graph, so the coding model does not have to be able to see." />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding VisionStatus}" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="A vision model on this machine" />
+
+                    <!--
+                        The local way in, which is the same way every other local model is chosen.
+                        Picking one that has no projector beside it is refused here rather than
+                        accepted and failed on the first image.
+                    -->
+                    <ComboBox Margin="0,2,0,0"
+                              Padding="8,6"
+                              ItemsSource="{Binding VisionModels}"
+                              SelectedItem="{Binding SelectedVisionModel}"
+                              DisplayMemberPath="DisplayName"
+                              ToolTip="A vision model from your model folders. This application starts it when you paste an image." />
+
+                    <!--
+                        Directly under the box that causes it, which is where the refusal is about.
+                        It used to sit below the button, with the address fields between it and the
+                        list it was complaining about.
+                    -->
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Field.Error.Brush}"
+                               Text="{Binding VisionProblem}"
+                               Visibility="{Binding VisionProblem, Converter={StaticResource StringToVisibility}}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="Started for you the first time you paste an image. A vision model ships as two files, the weights and an mmproj projector; keep both in the same folder and the projector is found on its own, because a model without one loads and then refuses every image." />
+
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Content="Use an address instead"
+                            Command="{Binding ClearVisionModelCommand}" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Or a hosted one" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap"
+                               Text="For a hosted model, or for a server you are already running yourself. Anything that speaks the OpenAI API and can see." />
+
+                    <TextBox Margin="0,6,0,0"
+                             Padding="8,6"
+                             behaviors:TextBoxHelper.Placeholder="Address, such as https://api.openai.com/v1"
+                             Text="{Binding VisionBaseUrl, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="The base url of an OpenAI compatible server that can see." />
+                    <TextBox Margin="0,6,0,0"
+                             Padding="8,6"
+                             behaviors:TextBoxHelper.Placeholder="Model id at that address, such as gpt-4o-mini"
+                             Text="{Binding VisionModelId, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="Which model at that address reads images." />
+                    <DockPanel Margin="0,6,0,14">
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="6,0,0,0"
+                                Content="Save key"
+                                Command="{Binding SetVisionKeyCommand}"
+                                CommandParameter="{Binding Path=(behaviors:PasswordBoxBehavior.Text), ElementName=VisionKeyBox}" />
+                        <PasswordBox x:Name="VisionKeyBox"
+                                     behaviors:PasswordBoxBehavior.IsBound="True"
+                                     behaviors:TextBoxHelper.Placeholder="API key for that address, if it needs one" />
+                    </DockPanel>
+
+                    <!--
+                        Here rather than under Models, where it sat because the provider keys once
+                        did. It only ever fires for a paid provider, and those are on this page.
+                    -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Warn before an expensive run" />
+                    <TextBlock Style="{StaticResource HintText}" Text="{Binding Providers.ThresholdSummary}" TextWrapping="Wrap" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Ask above" />
+                    <TextBox Text="{Binding Providers.CostWarningThreshold, UpdateSourceTrigger=LostFocus}"
+                             MaxWidth="160"
+                             HorizontalAlignment="Left"
+                             AutomationProperties.Name="Cost warning threshold in dollars" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Dollars. What a run is measured against is a ceiling, being the whole input plus the most each node is allowed to write, so the real cost is usually lower and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it." />
                 </StackPanel>
 
                 <!-- Project -->
@@ -537,7 +634,7 @@
                         <TextBlock Style="{StaticResource HintText}"
                                    Margin="0,4,0,14"
                                    TextWrapping="Wrap"
-                                   Text="Both this and the switch below have to be on. The one below decides whether this installation answers at all; this one decides whether it answers about this project." />
+                                   Text="Both this and the switch in Runtime have to be on. That one decides whether this installation answers at all; this one decides whether it answers about this project." />
 
                         <TextBlock Style="{StaticResource FieldLabel}" Text="Share these settings" />
                         <CheckBox Margin="0,2,0,0"
@@ -552,87 +649,12 @@
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,0,0,14"
                                TextWrapping="Wrap"
-                               Text="No project is open, so there is nothing here to set. Open one from the File menu."
+                               Text="No project is open, so there is nothing to set here yet. Open one from the File menu, or from the window that appears at startup."
                                Visibility="{Binding ProjectSettings.ProjectPath, Converter={StaticResource StringToVisibility}, ConverterParameter=Invert}" />
 
-                    <!--
-                        The one setting that changes what this installation will do when nobody is
-                        at the window, so it says what that means rather than only what it is
-                        called.
-                    -->
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Vision model" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Text="{Binding VisionStatus}" />
-                    <!--
-                        The local way in, which is the same way every other local model is chosen.
-                        Picking one that has no projector beside it is refused here rather than
-                        accepted and failed on the first image.
-                    -->
-                    <ComboBox Margin="0,6,0,0"
-                              Padding="8,6"
-                              ItemsSource="{Binding VisionModels}"
-                              SelectedItem="{Binding SelectedVisionModel}"
-                              DisplayMemberPath="DisplayName"
-                              ToolTip="A vision model from your model folders. This application starts it when you paste an image." />
-                    <DockPanel Margin="0,6,0,0">
-                        <Button DockPanel.Dock="Right"
-                                Style="{StaticResource SmallButton}"
-                                Content="Use an address instead"
-                                Command="{Binding ClearVisionModelCommand}" />
-                        <TextBlock />
-                    </DockPanel>
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,6,0,0"
-                               TextWrapping="Wrap"
-                               Foreground="{DynamicResource Field.Error.Brush}"
-                               Text="{Binding VisionProblem}"
-                               Visibility="{Binding VisionProblem, Converter={StaticResource StringToVisibility}}" />
-                    <!--
-                        Three boxes in a row under one heading, and nothing about an empty one says
-                        which is which. Each carries an example of the answer rather than a repeat
-                        of the question, because an address, a model id and a key are told apart by
-                        what goes in them and by nothing else.
-                    -->
-                    <TextBox Margin="0,6,0,0"
-                             Padding="8,6"
-                             behaviors:TextBoxHelper.Placeholder="Address, such as https://api.openai.com/v1"
-                             Text="{Binding VisionBaseUrl, UpdateSourceTrigger=LostFocus}"
-                             ToolTip="The base url of an OpenAI compatible server that can see." />
-                    <TextBox Margin="0,6,0,0"
-                             Padding="8,6"
-                             behaviors:TextBoxHelper.Placeholder="Model id at that address, such as gpt-4o-mini"
-                             Text="{Binding VisionModelId, UpdateSourceTrigger=LostFocus}"
-                             ToolTip="Which model at that address reads images." />
-                    <DockPanel Margin="0,6,0,0">
-                        <Button DockPanel.Dock="Right"
-                                Style="{StaticResource SmallButton}"
-                                Margin="6,0,0,0"
-                                Content="Save key"
-                                Command="{Binding SetVisionKeyCommand}"
-                                CommandParameter="{Binding Path=(behaviors:PasswordBoxBehavior.Text), ElementName=VisionKeyBox}" />
-                        <PasswordBox x:Name="VisionKeyBox"
-                                     behaviors:PasswordBoxBehavior.IsBound="True"
-                                     behaviors:TextBoxHelper.Placeholder="API key for that address, if it needs one" />
-                    </DockPanel>
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,14"
-                               TextWrapping="Wrap"
-                               Text="Paste or drop an image on the request box and this reads it into text, which joins your request. The image never enters the graph, so the coding model does not have to be able to see. Pick a local vision model and this starts it for you the first time you paste an image. A vision model is published as two files, the weights and an mmproj projector; keep both in the same folder and the projector is found on its own, because a model without one will load and then refuse every image. The address and model id below are for a hosted model, or for a server you are already running yourself." />
 
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Answer MCP tool calls" />
-                    <CheckBox Margin="0,2,0,0"
-                              IsChecked="{Binding McpServerEnabled}"
-                              Content="Let other tools open a project, open a graph and run it" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"
-                               Text="{Binding McpServerStatus}" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,4,0,14"
-                               TextWrapping="Wrap"
-                               Text="A local pipe, never a network port. A caller can run a graph, which writes files into the open project through the same rules a person's run goes through. It cannot write a file any other way and cannot read a stored key." />
+
+
 
                     <TextBlock Style="{StaticResource FieldLabel}" Text="Open project" />
                     <TextBlock Text="{Binding Index.IndexedProject, TargetNullValue=No project is open.}" />
@@ -775,6 +797,44 @@
                                Margin="0,6,0,0"
                                TextWrapping="Wrap"
                                Text="Everything above is read once, when the node starts, so a change does nothing until Apply and restart the node. Start or stop the node turns it on and off without changing any of it. Leave the mesh clears the invite token and goes back to hosting your own." />
+
+                    <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
+
+                    <!--
+                        Here rather than under Project, which is what it was under and what it is
+                        not: this switch decides what this installation does, and the project it
+                        does it about has its own switch beside its own settings. This section is
+                        the things this install runs, and a tool call server is one of them.
+                    -->
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Answer MCP tool calls" />
+                    <CheckBox Margin="0,8,0,0"
+                              IsChecked="{Binding McpServerEnabled}"
+                              Content="Let other tools open a project, open a graph and run it" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding McpServerStatus}" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="A local pipe, never a network port. A caller can run a graph, which writes files into the open project through the same rules a person's run goes through. It cannot write a file any other way and cannot read a stored key." />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="This switch and the one in Project both have to be on. This one decides whether this installation answers at all; that one decides whether it answers about the project you have open." />
+
+                    <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Where this install keeps its own files" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               TextWrapping="Wrap"
+                               Text="Engine logs, the model catalogue, the Python runtime and this application's configuration. Nothing a project owns is in here." />
+
+                    <Button Style="{StaticResource SmallButton}"
+                            Margin="0,10,0,0"
+                            HorizontalAlignment="Left"
+                            Content="Open this install's data folder"
+                            Command="{Binding OpenDataFolderCommand}" />
                 </StackPanel>
 
                 <!-- Behaviour -->
@@ -889,7 +949,7 @@
                     <TextBlock Style="{StaticResource HintText}"
                                Text="What a newly added node starts from. Graphs you have already saved keep their own values." />
 
-                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Compile check" />
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="Compiler check" />
 
                     <TextBlock Style="{StaticResource FieldLabel}" Text="Repair attempts after the first failure" />
                     <TextBox Text="{Binding DefaultRetryLimit, UpdateSourceTrigger=LostFocus}" MaxWidth="120" HorizontalAlignment="Left" />
@@ -927,13 +987,7 @@
 
                     <TextBlock Style="{StaticResource HintText}" Text="{Binding DefaultBudgetSummary}" />
 
-                    <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 
-                    <Button Style="{StaticResource SmallButton}"
-                            Margin="0,16,0,0"
-                            HorizontalAlignment="Left"
-                            Content="Open this install's data folder"
-                            Command="{Binding OpenDataFolderCommand}" />
                 </StackPanel>
             </Grid>
         </ScrollViewer>
