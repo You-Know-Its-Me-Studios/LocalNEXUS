@@ -117,15 +117,98 @@
             </DockPanel>
         </Border>
 
-        <!-- What the list amounts to, under the table. -->
+        <!--
+            What each heading means, in the order the headings appear. Every column here is either
+            a word nobody can define by looking at it, or a number that is only meaningful once you
+            know what it counts, and prose underneath made somebody read a paragraph to find the one
+            they were asking about.
+
+            Anything the mesh does not measure says so here rather than in the cell, so the table
+            keeps its shape and the reason is in one place.
+        -->
         <Border DockPanel.Dock="Bottom"
                 Background="{DynamicResource Surface.Window.Brush}"
                 BorderBrush="{DynamicResource Surface.Border.Brush}"
                 BorderThickness="0,1,0,0"
-                Padding="16,7">
-            <TextBlock Style="{StaticResource MutedText}"
-                       TextWrapping="Wrap"
-                       Text="Backups are just other machines that can take over if the one handling a section drops out. No throughput info from the mesh is provided, and only the size of meshes that show up in the directory are displayed. For everything else, the value reported by the mesh is used instead of trying to guess." />
+                Padding="16,8">
+            <ItemsControl>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="NAME" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="The model, or the mesh when the row came from the directory." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="SIZE" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Memory. For a directory mesh, what its machines have between them." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="COVERAGE" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="One block per section of the model. Filled means a machine holds it." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="SOURCES" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Machines holding part of it." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="BACKUPS" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Machines that could take a section over if the one holding it goes away. Zero means no stand in." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="STATUS" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Whether it can be used right now." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="CTX" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Context window the model was loaded with." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="PARAMS" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Parameter count." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="THROUGHPUT" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="Speed. The mesh does not measure this." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,4">
+                        <TextBlock Style="{StaticResource MonoText}"
+                                   Margin="0,0,7,0"
+                                   Foreground="{DynamicResource Text.Secondary.Brush}"
+                                   Text="VERIFIED" />
+                        <TextBlock Style="{StaticResource MutedText}" Text="When the mesh last confirmed any of the above." />
+                    </StackPanel>
+            </ItemsControl>
         </Border>
 
         <!-- Column headings. -->

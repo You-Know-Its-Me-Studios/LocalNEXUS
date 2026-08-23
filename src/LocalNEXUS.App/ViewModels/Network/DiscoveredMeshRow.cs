@@ -65,7 +65,13 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
     public string ContextText => Unreported;
 
     /// <inheritdoc />
-    public string ParametersText => Mesh.ClientCount > 0 ? $"{Mesh.ClientCount} using" : "no users";
+    /// <remarks>
+    /// A directory entry describes a mesh rather than a model, so it has no parameter count to
+    /// give. This briefly showed how many people were using the mesh, which put a fact about the
+    /// mesh under a heading that says parameters. That number is on the panel, where it can be
+    /// labelled.
+    /// </remarks>
+    public string ParametersText => Unreported;
 
     /// <inheritdoc />
     public string ThroughputText => Unreported;
