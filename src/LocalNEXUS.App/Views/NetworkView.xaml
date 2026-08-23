@@ -216,6 +216,8 @@
                     <ColumnDefinition Width="88" />
                 </Grid.ColumnDefinitions>
 
+                <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="NAME"
+                        Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Name}" />
                 <Button Grid.Column="7" Style="{StaticResource ColumnHeader}" Content="CONTENTS"
                         Command="{Binding SortCommand}" CommandParameter="{x:Static net:ModelColumn.Contents}" />
                 <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="SIZE"
