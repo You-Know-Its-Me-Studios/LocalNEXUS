@@ -46,6 +46,13 @@ public sealed record InspectorHeader(
             $"NodeType.{node.TypeKey}.Brush",
             $"NodeState.{node.State}.Brush"),
 
+        Network.HostedMeshRow hosted => new InspectorHeader(
+            hosted.DisplayName,
+            "Hosting",
+            hosted.StateText,
+            "NodeType.Prompt.Brush",
+            $"MeshNodeState.{hosted.State}.Brush"),
+
         JoinedMesh joined => new InspectorHeader(
             joined.DisplayName,
             "Joined",

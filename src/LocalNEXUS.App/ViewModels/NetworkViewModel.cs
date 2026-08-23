@@ -170,6 +170,13 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         RebuildOfferedModels();
         RefreshJoinedStates();
+
+        Hosted.Add(new HostedMeshRow(
+            Mesh,
+            () => MeshName,
+            () => Machines.Count,
+            () => OfferedCount,
+            () => Contribute));
         catalog.Models.CollectionChanged += (_, _) => RebuildOfferedModels();
 
         Groups = BuildFilterGroups();
@@ -211,6 +218,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     public object? InspectorTarget
         => (object?)SelectedSection
            ?? (object?)SelectedSource
+           ?? (object?)SelectedHosted
            ?? (object?)SelectedJoined
            ?? (object?)SelectedDirectoryMesh
            ?? SelectedModel;
@@ -404,9 +412,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (SelectedJoined is not null)
+        if (SelectedJoined is not null || SelectedHosted is not null)
         {
             SelectedJoined = null;
+            SelectedHosted = null;
             return;
         }
 
@@ -514,6 +523,37 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// </remarks>
     public ObservableCollection<JoinedMesh> Joined { get; } = new();
 
+    /// <summary>
+    /// The mesh this machine hosts, as a table of one.
+    /// </summary>
+    /// <remarks>
+    /// A collection so the table binds to it like the other two, and so hosting more than one is a
+    /// change to what fills this rather than a change to how it is drawn.
+    /// </remarks>
+    public ObservableCollection<HostedMeshRow> Hosted { get; } = new();
+
+    /// <summary>The hosted row the inspector is showing, or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InspectorTarget))]
+    [NotifyPropertyChangedFor(nameof(IsInsideAModel))]
+    [NotifyPropertyChangedFor(nameof(ClearInspectorText))]
+    private HostedMeshRow? _selectedHosted;
+
+    partial void OnSelectedHostedChanged(HostedMeshRow? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedSection = null;
+        SelectedSource = null;
+        SelectedDirectoryMesh = null;
+        SelectedJoined = null;
+        SelectedRow = null;
+        SelectedModel = null;
+    }
+
     /// <summary>True when this machine has joined anything, which is what the table is for.</summary>
     public bool HasJoined => Joined.Count > 0;
 
@@ -581,6 +621,15 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             : string.Equals(Mesh.DaemonState, "loading", StringComparison.OrdinalIgnoreCase)
                 ? JoinState.LoadingModels
                 : JoinState.Ready;
+    }
+
+    /// <summary>Re-reads the hosted row, all of which is derived from the node and the settings.</summary>
+    private void RefreshHosted()
+    {
+        foreach (var row in Hosted)
+        {
+            row.Refresh();
+        }
     }
 
     private void RefreshJoinedStates()
@@ -1038,10 +1087,16 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 }
 
                 ApplyFilters();
+                RefreshHosted();
                 break;
 
             case nameof(MeshManager.InviteToken):
                 OnPropertyChanged(nameof(InviteToken));
+                RefreshHosted();
+                break;
+
+            case nameof(MeshManager.MeshName):
+                RefreshHosted();
                 break;
 
             case nameof(MeshManager.DaemonState):
@@ -1058,6 +1113,7 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ApplyButtonText));
                 OnPropertyChanged(nameof(StartButtonText));
                 RefreshJoinedStates();
+                RefreshHosted();
                 break;
         }
     }

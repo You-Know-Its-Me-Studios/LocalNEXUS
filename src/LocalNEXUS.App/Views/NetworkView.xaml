@@ -173,6 +173,8 @@
                 <RowDefinition Height="*" MinHeight="120" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="190" MinHeight="76" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="150" MinHeight="76" />
             </Grid.RowDefinitions>
 
         <!--
@@ -534,6 +536,152 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+
+
+            <GridSplitter Grid.Row="3"
+                          Height="5"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Center"
+                          ResizeBehavior="PreviousAndNext"
+                          ResizeDirection="Rows"
+                          AutomationProperties.Name="Resize the hosted mesh section" />
+
+            <!--
+                The mesh this machine hosts, in the same shape as the two above it. One row, because
+                an install hosts one mesh, and a table anyway: the questions asked of a mesh you host
+                are the same shape as the ones asked of a mesh you joined, and answering them in a
+                different shape means learning two layouts for one idea.
+
+                Its own columns again. Who can see it, who is in it and what this machine puts in
+                are the things a host decides, and none of them apply to a mesh somebody else runs.
+            -->
+            <Border Grid.Row="4"
+                    Background="{DynamicResource Surface.Window.Brush}"
+                    BorderBrush="{DynamicResource Surface.Border.Brush}"
+                    BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Padding="16,10,16,8">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource SmallButton}"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Content="Copy the invite"
+                                        ToolTip="Puts the invite on the clipboard. Anybody with it can join this mesh."
+                                        Command="{Binding CopyInviteCommand}"
+                                        Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
+
+                                <Button Style="{StaticResource SmallButton}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Content="New invite"
+                                        ToolTip="Rotates this node's key, which makes every invite handed out so far stop working."
+                                        Command="{Binding RegenerateInviteCommand}"
+                                        Visibility="{Binding Mesh.HasInviteToken, Converter={StaticResource BooleanToVisibility}}" />
+                            </StackPanel>
+
+                            <TextBlock Text="The mesh you host"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+
+                            <TextBlock Style="{StaticResource MutedText}"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="Yours. Anybody you give the invite to joins this one." />
+                        </DockPanel>
+                    </Border>
+
+                    <Border DockPanel.Dock="Top"
+                            BorderBrush="{DynamicResource Surface.Border.Brush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="16,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="240" />
+                                <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="*" MinWidth="180" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" Style="{StaticResource ColumnHeader}" Content="MESH" IsEnabled="False" />
+                            <Button Grid.Column="1" Style="{StaticResource ColumnHeader}" Content="MESH ID" IsEnabled="False" />
+                            <Button Grid.Column="2" Style="{StaticResource ColumnHeader}" Content="WHO CAN FIND IT" IsEnabled="False" />
+                            <Button Grid.Column="3" Style="{StaticResource ColumnHeader}" Content="MEMBERS" IsEnabled="False" />
+                            <Button Grid.Column="4" Style="{StaticResource ColumnHeader}" Content="YOU ARE GIVING" IsEnabled="False" />
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ListBox ItemsSource="{Binding Hosted}"
+                                 SelectedItem="{Binding SelectedHosted}"
+                                 ItemContainerStyle="{StaticResource TableRow}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="16,7"
+                                            Background="Transparent"
+                                            BorderBrush="{DynamicResource Surface.Border.Brush}"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="240" />
+                                                <ColumnDefinition Width="160" />
+                                                <ColumnDefinition Width="160" />
+                                                <ColumnDefinition Width="160" />
+                                                <ColumnDefinition Width="*" MinWidth="180" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                <Ellipse Style="{StaticResource StateDot}"
+                                                         Width="6" Height="6"
+                                                         Margin="0,0,7,0"
+                                                         Fill="{Binding State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />
+                                                <TextBlock Style="{StaticResource MonoText}"
+                                                           FontSize="{StaticResource Font.Size.Normal}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Text="{Binding DisplayName}" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="1"
+                                                       Style="{StaticResource MonoText}"
+                                                       Margin="0,0,14,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Text="{Binding ShortId}" />
+
+                                            <TextBlock Grid.Column="2"
+                                                       Style="{StaticResource MonoText}"
+                                                       Margin="0,0,14,0"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Text="{Binding VisibilityText}" />
+
+                                            <TextBlock Grid.Column="3"
+                                                       Style="{StaticResource MonoText}"
+                                                       Margin="0,0,14,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       Text="{Binding MembersText}" />
+
+                                            <TextBlock Grid.Column="4"
+                                                       Style="{StaticResource MonoText}"
+                                                       Margin="0,0,14,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Text="{Binding SharingText}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
 
         </Grid>
     </DockPanel>
