@@ -184,7 +184,6 @@
                                 <Separator />
                                 <MenuItem Header="_Problems" Command="{Binding ShowPanelTabCommand}" CommandParameter="{x:Static vm:BottomPanelTab.Problems}" />
                                 <MenuItem Header="_Activity" Command="{Binding ShowPanelTabCommand}" CommandParameter="{x:Static vm:BottomPanelTab.Activity}" />
-                                <MenuItem Header="_Output" Command="{Binding ShowPanelTabCommand}" CommandParameter="{x:Static vm:BottomPanelTab.Output}" />
                             </MenuItem>
 
                             <MenuItem Header="_Run">
@@ -321,7 +320,7 @@
 
                             <Grid Width="264"
                                   Visibility="{Binding LeftPanel.IsExpanded, Converter={StaticResource BooleanToVisibility}}">
-                                <shell:WorkspaceSideBarView Visibility="{Binding IsWorkspace, Converter={StaticResource BooleanToVisibility}}" />
+                                <shell:WorkspaceSideBarView Visibility="{Binding ShowWorkspace, Converter={StaticResource BooleanToVisibility}}" />
                                 <shell:NetworkSideBarView DataContext="{Binding Network}"
                                                           Visibility="{Binding DataContext.IsNetwork, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibility}}" />
                             </Grid>
@@ -335,7 +334,13 @@
                                       Visibility="{Binding LeftPanel.IsExpanded, Converter={StaticResource BooleanToVisibility}}" />
 
                         <Grid Grid.Column="3">
-                            <shell:EditorAreaView Visibility="{Binding IsWorkspace, Converter={StaticResource BooleanToVisibility}}" />
+                            <!--
+                                The Workspace, drawn only when there is a project to work in. With
+                                none open the canvas has nowhere to write and the request has
+                                nothing to run against, so the tab says that instead of pretending.
+                            -->
+                            <shell:EditorAreaView Visibility="{Binding ShowWorkspace, Converter={StaticResource BooleanToVisibility}}" />
+                            <shell:WorkspaceWelcomeView Visibility="{Binding ShowWelcome, Converter={StaticResource BooleanToVisibility}}" />
                             <views:NetworkView DataContext="{Binding Network}"
                                                Visibility="{Binding DataContext.IsNetwork, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibility}}" />
 

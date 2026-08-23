@@ -23,37 +23,36 @@
         over the largest area the shell has. Every surface in here that carries text paints
         itself and stays solid.
     -->
-    <DockPanel Background="Transparent">
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <!--
+                The canvas and the conversation, with a handle between them.
 
-        <!-- Tabs -->
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource Surface.Chrome.Brush}"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal">
-                <ToggleButton Style="{StaticResource EditorTab}"
-                              IsChecked="True"
-                              IsHitTestVisible="False"
-                              ToolTip="{Binding Document.PathText}">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Style="{StaticResource StateDot}"
-                                 Width="6" Height="6"
-                                 Margin="0,0,7,0"
-                                 Fill="{Binding Feed.RunState, Converter={StaticResource ResourceLookup}, ConverterParameter=RunState}" />
+                The conversation used to be whatever was left at the bottom of the editor area,
+                under a canvas that took the rest, and it is where nearly all the time goes: the
+                graph is built once and the requests are typed forever. Which of the two matters
+                depends on what somebody is doing, so it is theirs to decide rather than a height
+                chosen here.
+            -->
+            <RowDefinition Height="*" MinHeight="120" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="220" MinHeight="140" />
+        </Grid.RowDefinitions>
 
-                        <TextBlock Text="{Binding Document.Name}" />
+        <!--
+            No tab strip. It held exactly one tab and always would: there is one document and no
+            way to open a second, so it was thirty pixels of an idea this application does not
+            have. The document's name and its unsaved mark are in the title bar, which is where
+            every other application puts them.
+        -->
 
-                        <TextBlock Text="&#x25CF;"
-                                   FontSize="8"
-                                   Margin="8,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource Text.Secondary.Brush}"
-                                   ToolTip="Unsaved changes"
-                                   Visibility="{Binding Document.IsDirty, Converter={StaticResource BooleanToVisibility}}" />
-                    </StackPanel>
-                </ToggleButton>
-            </StackPanel>
-        </Border>
+        <GridSplitter Grid.Row="1"
+                      Height="5"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center"
+                      ResizeBehavior="PreviousAndNext"
+                      ResizeDirection="Rows"
+                      AutomationProperties.Name="Resize the conversation" />
 
         <!--
             The request box, under the canvas it drives.
@@ -67,18 +66,18 @@
             No visibility of its own. The editor area is only on screen in the Workspace, which is
             the condition the binding it used to carry was expressing.
         -->
-        <Border DockPanel.Dock="Bottom"
+        <Border Grid.Row="2"
                 Background="{DynamicResource Surface.Panel.Brush}"
                 BorderBrush="{DynamicResource Surface.Border.Brush}"
                 BorderThickness="0,1,0,0"
                 Padding="16,10">
-            <StackPanel>
+            <DockPanel>
                 <!--
-                    The conversation, above the box that continues it. Bounded in height, because
-                    this belongs to the canvas rather than replacing it: the graph is still the
-                    machine and the transcript is how it is driven.
+                    The conversation, above the box that continues it. It takes whatever the handle
+                    gives it rather than a height fixed here, because this is the work surface and
+                    the canvas is the thing it drives.
                 -->
-                <DockPanel MaxHeight="240"
+                <DockPanel DockPanel.Dock="Top"
                            Margin="0,0,0,10"
                            Visibility="{Binding Feed.Conversation.HasTurns, Converter={StaticResource BooleanToVisibility}}">
 
@@ -87,7 +86,7 @@
                                 Style="{StaticResource SmallButton}"
                                 MinWidth="120"
                                 Content="New conversation"
-                                ToolTip="Starts a fresh thread. Nothing is deleted: the old one keeps every word and stays searchable in the run history."
+                                ToolTip="Previous conversations are kept in run history."
                                 Command="{Binding Feed.NewConversationCommand}" />
 
                         <TextBlock Style="{StaticResource HintText}"
@@ -145,7 +144,7 @@
                                     Style="{StaticResource SmallButton}"
                                     MinWidth="150"
                                     Content="Proceed without answering"
-                                    ToolTip="Carries on with a stated assumption, which the run says out loud."
+                                    ToolTip="Skips ahead with a stated assumption."
                                     Command="{Binding Feed.ProceedWithoutAnsweringCommand}" />
 
                             <TextBlock FontWeight="SemiBold"
@@ -157,7 +156,7 @@
                         <TextBlock Style="{StaticResource HintText}"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"
-                                   Text="Answer in the box below. Anything you send now is read as the answer rather than as a new request." />
+                                   Text="Your next message is read as the answer, not a new request." />
                     </StackPanel>
                 </Border>
 
@@ -257,7 +256,7 @@
                         <TextBlock Style="{StaticResource HintText}"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"
-                                   Text="Everything that compiled is already written. These were not, and nothing on disk was changed for them. Open one to see what was attempted, then either say what to do below and run again, or discard it. They are kept with the project, so closing the application does not lose them." />
+                                   Text="These files did not compile. Nothing on disk was changed. Open one to see what was attempted, or discard it." />
 
                         <ItemsControl ItemsSource="{Binding Feed.Staging.Pending}" Margin="0,8,0,0">
                             <ItemsControl.ItemTemplate>
@@ -384,28 +383,23 @@
                     <CheckBox Margin="0,0,0,6"
                               Content="Search the web"
                               IsChecked="{Binding Feed.SearchThisSend}"
-                              ToolTip="Let every Model node in this run call web search when it needs something newer than its training. Snippets only; no page is fetched."
+                              ToolTip="Applies to every Model node in this run. Snippets only; no page is fetched."
                               Visibility="{Binding Feed.CanSearch, Converter={StaticResource BooleanToVisibility}}" />
 
                     <!--
-                        Said on screen rather than only in the tooltip. It is a per send switch that
-                        reaches every Model node in the run, which is not what a checkbox beside one
-                        input box looks like, and a tooltip is not where somebody finds that out.
+                        Secondary, because the primary Run is in the title bar and is always
+                        visible. This one is the form's submit: you typed something, you send it.
+                        Two buttons for one command is right when they are two different
+                        affordances, and wrong when they compete to be the important one.
                     -->
-                    <TextBlock Style="{StaticResource HintText}"
-                               Margin="0,0,0,6"
-                               MaxWidth="150"
-                               TextWrapping="Wrap"
-                               Text="Applies to every Model node in this run."
-                               Visibility="{Binding Feed.SearchThisSend, Converter={StaticResource BooleanToVisibility}}" />
-
-                    <Button Style="{StaticResource PrimaryButton}"
+                    <Button Style="{StaticResource SmallButton}"
                             MinWidth="96"
                             Content="Run"
+                            ToolTip="Sends what is in the box. Ctrl+Enter does the same."
                             Command="{Binding Feed.RunCommand}" />
                 </StackPanel>
                 </Grid>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
         <!--
@@ -419,7 +413,7 @@
             The search is a layer over the canvas rather than a window, so the graph stays visible
             behind it and dismissing it costs an escape rather than a trip to a title bar.
         -->
-        <Grid>
+        <Grid Grid.Row="0">
         <nodify:NodifyEditor ItemsSource="{Binding Document.Nodes}"
                              Connections="{Binding Graph.Connections}"
                              PendingConnection="{Binding PendingConnection}"
@@ -480,7 +474,7 @@
                        Margin="0,6,0,0"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
-                       Text="Start from one of these, or double click anywhere to add a node. Every template runs as it is once a model is chosen on each Model node." />
+                       Text="Pick a template or double click to start from scratch." />
 
             <ItemsControl ItemsSource="{Binding Templates}" Margin="0,14,0,0">
                 <ItemsControl.ItemTemplate>
@@ -513,11 +507,8 @@
                     ToolTip="Puts these away and leaves the canvas empty. Double click anywhere to add a node."
                     Command="{Binding DataContext.DismissTemplatesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <StackPanel>
+                    <!-- The line above the cards already says what double clicking does. -->
                     <TextBlock Text="Build on my own" FontWeight="SemiBold" />
-                    <TextBlock Style="{StaticResource HintText}"
-                               TextWrapping="Wrap"
-                               MaxWidth="400"
-                               Text="Start from an empty canvas. Double click anywhere to add a node." />
                 </StackPanel>
             </Button>
         </StackPanel>
@@ -701,5 +692,5 @@
             </Border>
         </Grid>
         </Grid>
-    </DockPanel>
+    </Grid>
 </UserControl>

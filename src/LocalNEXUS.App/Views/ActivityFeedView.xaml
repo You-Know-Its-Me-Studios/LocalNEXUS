@@ -109,8 +109,13 @@
                                            Text="{Binding Progress}"
                                            Visibility="{Binding IsStreaming, Converter={StaticResource BooleanToVisibility}}" />
 
+                                <!--
+                                    Two way, so opening one entry and opening every entry are the
+                                    same state rather than two ideas that can disagree.
+                                -->
                                 <Expander Margin="0,3,0,0"
                                           Header="Output"
+                                          IsExpanded="{Binding IsBodyOpen, Mode=TwoWay}"
                                           Visibility="{Binding HasHiddenBody, Converter={StaticResource BooleanToVisibility}}">
                                     <TextBox Margin="0,4,0,0"
                                              MaxHeight="320"
@@ -153,11 +158,25 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <TextBlock Text="Wire up a graph, type a request below, then press Run."
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   IsHitTestVisible="False"
-                   Foreground="{DynamicResource Text.Muted.Brush}"
-                   Visibility="{Binding Events.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
+        <!--
+            The empty state, and the one place the engines' own logs are mentioned. That was a
+            footer under the Output tab, permanently occupying a row to say something true of every
+            run and needed after almost none of them.
+        -->
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding Events.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}">
+            <TextBlock Text="Wire up a graph, type a request, then press Run."
+                       HorizontalAlignment="Center"
+                       IsHitTestVisible="False"
+                       Foreground="{DynamicResource Text.Muted.Brush}" />
+
+            <Button Style="{StaticResource LinkButton}"
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Center"
+                    Content="Open the engine logs"
+                    ToolTip="The engines write their own logs to disk, separately from this transcript."
+                    Command="{Binding DataContext.Settings.OpenDataFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl, AncestorLevel=2}}" />
+        </StackPanel>
     </Grid>
 </UserControl>

@@ -298,6 +298,18 @@ public sealed partial class ActivityEvent : ObservableObject
     /// <summary>True when there is a body worth offering that is not being shown.</summary>
     public bool HasHiddenBody => HasText && !ShowsBodyInline;
 
+    /// <summary>
+    /// Whether this entry's body is open.
+    /// </summary>
+    /// <remarks>
+    /// State on the entry rather than a second panel showing the same events with everything
+    /// already expanded. Activity and Output were one stream rendered twice, differing only in
+    /// this, so somebody had to know which of two tabs held the thing they wanted before they
+    /// could go and look for it.
+    /// </remarks>
+    [ObservableProperty]
+    private bool _isBodyOpen;
+
     /// <summary>True while tokens are still arriving, which is what the progress line is for.</summary>
     /// <remarks>
     /// A streamed entry gets its detail when the stream ends, so having none is what being still

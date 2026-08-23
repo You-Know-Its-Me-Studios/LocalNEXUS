@@ -21,127 +21,8 @@
 
     <DockPanel>
 
-        <!--
-            Getting started.
-
-            In the side bar rather than over the canvas, because every step is a thing to do
-            elsewhere in the window and a panel that covered the thing it was pointing at would
-            have to be moved before it could be followed. It is above the outline so it is the
-            first thing read on a first launch, and it takes no room at all once dismissed.
-
-            A suggestion and not a gate. Nothing is disabled while it is showing.
-        -->
-        <Border DockPanel.Dock="Top"
-                Padding="12,10"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,0,0,1"
-                Visibility="{Binding Walkthrough.IsOpen, Converter={StaticResource BooleanToVisibility}}">
-            <StackPanel>
-                <DockPanel>
-                    <Button DockPanel.Dock="Right"
-                            Style="{StaticResource IconButton}"
-                            Content="&#xE711;"
-                            ToolTip="Hide this. Help, Getting started brings it back."
-                            AutomationProperties.Name="Hide the walkthrough"
-                            Command="{Binding Walkthrough.DismissCommand}" />
-
-                    <TextBlock Text="Getting started"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold" />
-                </DockPanel>
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,2,0,0"
-                           Text="{Binding Walkthrough.Progress}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,8,0,0"
-                           TextWrapping="Wrap"
-                           Visibility="{Binding Walkthrough.IsFinished, Converter={StaticResource BooleanToVisibility}}"
-                           Text="That is the whole of it. Close this and carry on; it is on the Help menu if you want it back." />
-
-                <ItemsControl ItemsSource="{Binding Walkthrough.Steps}" Margin="0,8,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,0,0,10">
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left"
-                                               Width="18"
-                                               VerticalAlignment="Top"
-                                               FontFamily="{StaticResource Font.Icons}"
-                                               Foreground="{DynamicResource Status.Success.Brush}"
-                                               Text="&#xE73E;"
-                                               Visibility="{Binding IsDone, Converter={StaticResource BooleanToVisibility}}" />
-
-                                    <TextBlock DockPanel.Dock="Left"
-                                               Width="18"
-                                               VerticalAlignment="Top"
-                                               FontFamily="{StaticResource Font.Icons}"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               Text="&#xE739;"
-                                               Visibility="{Binding IsDone, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
-
-                                    <TextBlock Text="{Binding Title}"
-                                               TextWrapping="Wrap"
-                                               VerticalAlignment="Center" />
-                                </DockPanel>
-
-                                <TextBlock Style="{StaticResource HintText}"
-                                           Margin="18,2,0,0"
-                                           TextWrapping="Wrap"
-                                           Text="{Binding Detail}" />
-
-                                <Button Margin="18,6,0,0"
-                                        HorizontalAlignment="Left"
-                                        Style="{StaticResource SmallButton}"
-                                        Content="{Binding ActionLabel}"
-                                        Command="{Binding Action}"
-                                        Visibility="{Binding HasAction, Converter={StaticResource BooleanToVisibility}}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
-
-        <!-- What the graph writes into, and what is known about it. -->
-        <Border DockPanel.Dock="Bottom"
-                BorderBrush="{DynamicResource Surface.Border.Brush}"
-                BorderThickness="0,1,0,0"
-                Padding="0,0,0,12">
-            <StackPanel>
-                <!--
-                    Not the kind of project. This works on any codebase, and what kind this one is
-                    is already on the status bar, read from detection rather than from a heading
-                    that could only ever say one thing.
-                -->
-                <TextBlock Style="{StaticResource SideBarHeader}" Text="PROJECT" />
-
-                <TextBlock Margin="14,0,14,2"
-                           Text="{Binding Project.ProjectName, TargetNullValue=No project open}"
-                           TextTrimming="CharacterEllipsis" />
-
-                <TextBlock Style="{StaticResource MonoText}"
-                           Margin="14,0,14,0"
-                           Foreground="{DynamicResource Text.Muted.Brush}"
-                           TextWrapping="Wrap"
-                           Text="{Binding Project.ProjectPath, TargetNullValue=Open one from the File menu}" />
-
-                <StackPanel Orientation="Horizontal" Margin="14,6,14,0">
-                    <Ellipse Style="{StaticResource StateDot}"
-                             Margin="0,0,7,0"
-                             Fill="{Binding ProjectIndex.State, Converter={StaticResource ResourceLookup}, ConverterParameter=ProjectIndexState}" />
-
-                    <TextBlock Style="{StaticResource MonoText}"
-                               Foreground="{DynamicResource Text.Muted.Brush}"
-                               Text="{Binding ProjectIndex.StatusText}"
-                               TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Style="{StaticResource SideBarHeader}" Text="EXPLORER" />
+            <TextBlock Style="{StaticResource SideBarHeader}" Text="RUN OUTLINE" />
 
             <!-- The open graph, with a dot while it has changes that are not on disk. -->
             <Grid Margin="14,0,14,4">
@@ -170,12 +51,6 @@
                            ToolTip="Unsaved changes"
                            Visibility="{Binding Document.IsDirty, Converter={StaticResource BooleanToVisibility}}" />
             </Grid>
-        </StackPanel>
-
-        <StackPanel DockPanel.Dock="Bottom" Margin="14,4,14,12">
-            <Button Style="{StaticResource LinkButton}"
-                    Content="+ New graph"
-                    Command="{Binding NewGraphCommand}" />
         </StackPanel>
 
         <!-- The run outline. -->
@@ -238,15 +113,6 @@
                         </Style>
                     </ListBox.ItemContainerStyle>
                 </ListBox>
-
-                <TextBlock Margin="14,6,14,0"
-                           VerticalAlignment="Top"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource Text.Muted.Brush}"
-                           FontSize="{StaticResource Font.Size.Small}"
-                           IsHitTestVisible="False"
-                           Text="No nodes yet. Add one from the Edit menu, or by right clicking the canvas."
-                           Visibility="{Binding Document.Nodes.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
             </Grid>
         </ScrollViewer>
     </DockPanel>

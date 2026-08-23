@@ -76,6 +76,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWorkspace))]
     [NotifyPropertyChangedFor(nameof(IsNetwork))]
+    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowWorkspace))]
+    [NotifyPropertyChangedFor(nameof(IsPanelShowing))]
     [NotifyPropertyChangedFor(nameof(CanDeleteSelection))]
     [NotifyCanExecuteChangedFor(nameof(AddNodeCommand))]
     [NotifyCanExecuteChangedFor(nameof(NewGraphCommand))]
@@ -93,6 +96,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(LeftPanel))]
     [NotifyPropertyChangedFor(nameof(RightPanel))]
     private PrimarySection _activeSection = PrimarySection.Workspace;
+
+    /// <summary>
+    /// True when the Workspace has a project to work in, which is when it is worth drawing.
+    /// </summary>
+    /// <remarks>
+    /// Nothing on this tab means anything without one. The canvas writes into a project, the
+    /// request runs against a project, and the index reads a project, so with none open every part
+    /// of the screen was live and none of it could do anything. Six separate pieces of furniture
+    /// each said the same emptiness in their own words: no nodes yet, select a node, nothing is
+    /// wrong, no project, open one from the File menu, and a template picker offering graphs that
+    /// had nowhere to write.
+    /// </remarks>
+    public bool HasWorkspace => Project.HasProject;
+
+    /// <summary>True when the Workspace should say what to do rather than pretending to work.</summary>
+    public bool ShowWelcome => IsWorkspace && !Project.HasProject;
+
+    /// <summary>True when the Workspace is worth drawing in full.</summary>
+    public bool ShowWorkspace => IsWorkspace && Project.HasProject;
 
     /// <summary>True while the settings panel is covering the primary view.</summary>
     [ObservableProperty]
@@ -441,7 +463,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// Network has no run to transcribe and nothing to type a request at, so the space goes to the
     /// table instead of to an empty transcript.
     /// </summary>
-    public bool IsPanelShowing => IsPanelVisible && IsWorkspace;
+    /// <summary>
+    /// True when the bottom panel is worth drawing.
+    /// </summary>
+    /// <remarks>
+    /// A transcript of runs that have not happened, and problems with code that cannot be written,
+    /// are two more empty states for somebody who has not opened a project. There is nothing to
+    /// report until there is somewhere to report about.
+    /// </remarks>
+    public bool IsPanelShowing => IsPanelVisible && ShowWorkspace;
 
     /// <summary>
     /// The height of the panel row. Bound two way so the splitter writes the dragged height back
@@ -480,9 +510,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var graphName = Document.Name;
 
+            // The unsaved mark, which the tab strip used to carry. Every other application puts
+            // it on the title, and the strip that held it held one tab and always would.
+            var unsaved = Document.IsDirty ? " ●" : string.Empty;
+
             return Project.ProjectName is { } project
-                ? $"{graphName} - {project}"
-                : graphName;
+                ? $"{graphName}{unsaved} - {project}"
+                : graphName + unsaved;
         }
     }
 
@@ -507,6 +541,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Opens the settings panel over whichever section is showing.</summary>
     [RelayCommand]
     private void OpenSettings() => IsSettingsOpen = true;
+
+    /// <summary>Brings the front door back, which is where the recent projects are.</summary>
+    [RelayCommand]
+    private void ShowFrontDoor() => FrontDoor.Show();
 
     /// <summary>
     /// Opens settings on a particular section.
@@ -857,13 +895,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Environment.NewLine,
                 Problems.Problems.Select(p => $"{p.SeverityGlyph} {p.File} {p.LocationText} {p.Id} {p.Message}".Trim())),
 
-            BottomPanelTab.Output => string.Join(
-                Environment.NewLine,
-                Feed.Events.Select(e => Line(e, log: true))),
-
+            // Bodies included, always. Copying the transcript to paste into a report and getting
+            // only the headlines is the one case where less is never what somebody meant.
             _ => string.Join(
                 Environment.NewLine,
-                Feed.Events.Select(e => Line(e, log: false)))
+                Feed.Events.Select(e => Line(e, log: true)))
         };
 
         if (text.Trim().Length == 0)
@@ -1350,6 +1386,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(WindowTitle));
             OnPropertyChanged(nameof(TitleText));
 
+            // The whole tab is drawn or not drawn on this, so it swaps here rather than being
+            // asked for separately by every part of it.
+            OnPropertyChanged(nameof(HasWorkspace));
+            OnPropertyChanged(nameof(ShowWelcome));
+            OnPropertyChanged(nameof(ShowWorkspace));
+            OnPropertyChanged(nameof(IsPanelShowing));
+            OnPropertyChanged(nameof(PanelRowHeight));
+
             // What a check can reach depends entirely on which project is open, so the answer the
             // nodes are showing is stale the moment that changes. So is the staged work, which
             // belongs to a project rather than to this install: opening another project must not
@@ -1373,7 +1417,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             OnPropertyChanged(nameof(StatusSummary));
         }
-        else if (e.PropertyName is nameof(GraphDocumentViewModel.Name))
+        else if (e.PropertyName is nameof(GraphDocumentViewModel.Name)
+                 or nameof(GraphDocumentViewModel.IsDirty))
         {
             OnPropertyChanged(nameof(WindowTitle));
             OnPropertyChanged(nameof(TitleText));

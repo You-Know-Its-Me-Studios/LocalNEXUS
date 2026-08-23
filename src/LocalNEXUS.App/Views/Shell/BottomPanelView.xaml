@@ -51,15 +51,27 @@
                         </StackPanel>
                     </ToggleButton>
 
-                    <ToggleButton Style="{StaticResource PanelTab}"
-                                  IsChecked="{Binding PanelTab, Converter={StaticResource EnumToBoolean}, ConverterParameter=Output, Mode=OneWay}"
-                                  Command="{Binding ShowPanelTabCommand}"
-                                  CommandParameter="{x:Static vm:BottomPanelTab.Output}">
-                        <TextBlock Text="Output" />
-                    </ToggleButton>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
+                    <!--
+                        What the Output tab was. Two buttons rather than a second copy of the same
+                        events with every body already open.
+                    -->
+                    <Button Style="{StaticResource IconButton}"
+                            Content="&#xE746;"
+                            ToolTip="Open every entry"
+                            AutomationProperties.Name="Open every entry"
+                            Command="{Binding ExpandTranscriptCommand}"
+                            Visibility="{Binding PanelTab, Converter={StaticResource EnumToVisibility}, ConverterParameter=Activity}" />
+
+                    <Button Style="{StaticResource IconButton}"
+                            Content="&#xE745;"
+                            ToolTip="Close every entry"
+                            AutomationProperties.Name="Close every entry"
+                            Command="{Binding CollapseTranscriptCommand}"
+                            Visibility="{Binding PanelTab, Converter={StaticResource EnumToVisibility}, ConverterParameter=Activity}" />
+
                     <Button Style="{StaticResource IconButton}"
                             Content="&#xE8C8;"
                             ToolTip="Copy everything in this panel"
@@ -141,91 +153,13 @@
                        VerticalAlignment="Center"
                        IsHitTestVisible="False"
                        Foreground="{DynamicResource Text.Muted.Brush}"
-                       Text="Nothing is wrong with the generated code right now."
+                       Text="No problems with the generated code."
                        Visibility="{Binding Problems.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
         </Grid>
 
         <!-- Activity -->
         <views:ActivityFeedView DataContext="{Binding Feed}"
                                 Visibility="{Binding DataContext.PanelTab, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource EnumToVisibility}, ConverterParameter=Activity}" />
-
-        <!-- Output -->
-        <Grid Visibility="{Binding PanelTab, Converter={StaticResource EnumToVisibility}, ConverterParameter=Output}">
-            <DockPanel>
-                <Border DockPanel.Dock="Bottom"
-                        BorderBrush="{DynamicResource Surface.Border.Brush}"
-                        BorderThickness="0,1,0,0"
-                        Padding="16,6">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource MutedText}"
-                                   VerticalAlignment="Center"
-                                   Text="The engines write their own logs to disk." />
-
-                        <Button Style="{StaticResource LinkButton}"
-                                Margin="10,0,0,0"
-                                Content="Open the log folder"
-                                Command="{Binding Settings.OpenDataFolderCommand}" />
-                    </StackPanel>
-                </Border>
-
-                <!--
-                    Everything the run wrote, one line each and unformatted. The Activity tab is
-                    the same events read as a transcript; this is them read as a log.
-                -->
-                <ScrollViewer behaviors:AutoScrollBehavior.IsEnabled="True"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto"
-                              Padding="16,8">
-                    <ItemsControl ItemsSource="{Binding Feed.Events}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="0,0,0,1">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource MonoText}"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               Text="{Binding TimeText}"
-                                               Margin="0,0,10,0" />
-
-                                    <TextBlock Style="{StaticResource MonoText}"
-                                               Width="110"
-                                               Foreground="{Binding Kind, Converter={StaticResource ResourceLookup}, ConverterParameter=Activity}"
-                                               Text="{Binding Kind}" />
-
-                                    <TextBox Style="{StaticResource SelectableText}"
-                                             Text="{Binding Title, Mode=OneWay}" />
-
-                                    <TextBox Style="{StaticResource SelectableText}"
-                                             Margin="10,0,0,0"
-                                             Foreground="{DynamicResource Text.Muted.Brush}"
-                                             Text="{Binding Detail, Mode=OneWay}" />
-                                </StackPanel>
-
-                                <!--
-                                    The body, in full and unfolded. The Activity tab is the same
-                                    events read as a transcript and shows what happened; this is
-                                    them read as a log and shows what was produced. Nothing was
-                                    lost when the transcript stopped printing generated code, it
-                                    moved here.
-                                -->
-                                <TextBox Margin="20,1,0,4"
-                                         Text="{Binding Text, Mode=OneWay}"
-                                         IsReadOnly="True"
-                                         BorderThickness="0"
-                                         Background="Transparent"
-                                         Foreground="{DynamicResource Text.Secondary.Brush}"
-                                         FontFamily="{StaticResource Font.Mono}"
-                                         FontSize="{StaticResource Font.Size.Small}"
-                                         TextWrapping="NoWrap"
-                                         Padding="0"
-                                         HorizontalScrollBarVisibility="Disabled"
-                                         Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </DockPanel>
-        </Grid>
 
         </Grid>
     </DockPanel>
