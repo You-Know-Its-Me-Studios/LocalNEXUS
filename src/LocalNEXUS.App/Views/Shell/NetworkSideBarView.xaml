@@ -19,7 +19,54 @@
     -->
 
     <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Style="{StaticResource SideBarHeader}" Text="MACHINES" />
+
+        <!--
+            What this machine is in, before the machines it can see. The engine reports peers as one
+            flat list with no mesh attached to any of them, so being in two meshes looked exactly
+            like being in none, and a node that had not met a peer yet left the panel empty while it
+            was plainly running.
+
+            Read from what this install decided rather than from what the engine has noticed, so it
+            is right the moment something is joined. Which mesh a peer belongs to is not reported and
+            is not guessed at, which is why the two lists are separate rather than nested.
+        -->
+        <TextBlock DockPanel.Dock="Top" Style="{StaticResource SideBarHeader}" Text="CONNECTED TO" />
+
+        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ConnectedMeshes}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel Margin="14,3">
+                        <Ellipse DockPanel.Dock="Left"
+                                 Style="{StaticResource StateDot}"
+                                 Width="6" Height="6"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{Binding RowStateBrushKey, Converter={StaticResource BrushKey}}" />
+
+                        <StackPanel>
+                            <TextBlock Text="{Binding RowTitle}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Style="{StaticResource MonoText}"
+                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding RowDetail}"
+                                       Text="{Binding RowDetail}" />
+                        </StackPanel>
+                    </DockPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Style="{StaticResource HintText}"
+                   Margin="14,0,14,10"
+                   TextWrapping="Wrap"
+                   Text="Nothing. Start the node to host your own mesh, or join one."
+                   Visibility="{Binding HasConnections, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+
+        <TextBlock DockPanel.Dock="Top"
+                   Style="{StaticResource SideBarHeader}"
+                   Margin="0,10,0,0"
+                   Text="MACHINES" />
 
         <TextBlock DockPanel.Dock="Top"
                    Style="{StaticResource HintText}"

@@ -188,6 +188,12 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         Mesh.PropertyChanged += OnMeshChanged;
 
         RebuildRows();
+
+        // Seeded rather than waiting for a change. The node is restored at startup, so by the time
+        // this is built the engine may already have reported every machine it can see, and a list
+        // that is only ever filled by a change event stays empty for a set that never changes again.
+        RebuildMachines();
+
         SelectedModel = Mesh.Models.FirstOrDefault();
     }
 
@@ -562,6 +568,44 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Every mesh this machine is actually in: the one it hosts, and any it has joined.
+    /// </summary>
+    /// <remarks>
+    /// The machine panel showed peers and nothing else, so being in two meshes looked the same as
+    /// being in none: the engine reports one flat list of machines with no mesh attached to any of
+    /// them, and if it had not seen a peer yet the panel was empty while the node was plainly up.
+    ///
+    /// This is read from what this install decided rather than from what the engine has noticed,
+    /// which is why it is right immediately. Whether a peer belongs to one mesh or another is not
+    /// reported and is not guessed at.
+    /// </remarks>
+    public ObservableCollection<object> ConnectedMeshes { get; } = new();
+
+    /// <summary>True when the node is up, which is when being connected to anything is possible.</summary>
+    public bool HasConnections => ConnectedMeshes.Count > 0;
+
+    /// <summary>Rebuilds that list from the mesh this machine hosts and the ones it joined.</summary>
+    private void RebuildConnections()
+    {
+        ConnectedMeshes.Clear();
+
+        if (Mesh.IsRunning)
+        {
+            foreach (var hosted in Hosted)
+            {
+                ConnectedMeshes.Add(hosted);
+            }
+        }
+
+        foreach (var joined in Joined)
+        {
+            ConnectedMeshes.Add(joined);
+        }
+
+        OnPropertyChanged(nameof(HasConnections));
+    }
+
+    /// <summary>
     /// Every mesh in one list, grouped by what it is to this machine.
     /// </summary>
     /// <remarks>
@@ -586,6 +630,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
     /// </remarks>
     private void RebuildMeshGroups()
     {
+        RebuildConnections();
+
         if (MeshGroups.Count == 0)
         {
             MeshGroups.Add(_yours);
@@ -1160,6 +1206,13 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
     private void OnSourcesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        RebuildMachines();
+        OnPropertyChanged(nameof(CoverageSummary));
+    }
+
+    /// <summary>Puts the machine list back in step with what the node reports.</summary>
+    private void RebuildMachines()
+    {
         Machines.Clear();
 
         foreach (var source in Mesh.Sources)
@@ -1171,8 +1224,6 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         {
             SelectedSource = null;
         }
-
-        OnPropertyChanged(nameof(CoverageSummary));
     }
 
     private void OnMeshChanged(object? sender, PropertyChangedEventArgs e)
@@ -1216,6 +1267,13 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
                 // live view swap here rather than being asked for separately.
                 OnPropertyChanged(nameof(IsNodeOff));
                 OnPropertyChanged(nameof(IsNodeOn));
+                RebuildConnections();
+
+                // The node coming up or going down changes what it can see, and the collection
+                // itself does not always announce that: a restart can leave the same machines in
+                // the same order, which is no change to a list and a great deal of change to what
+                // it means.
+                RebuildMachines();
 
                 RefreshJoinedStates();
                 RefreshHosted();
