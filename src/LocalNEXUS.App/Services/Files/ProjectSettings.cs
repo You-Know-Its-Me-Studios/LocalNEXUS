@@ -74,8 +74,15 @@ public sealed class ProjectSettings
     /// Here rather than in the application configuration, which is where it used to be written and
     /// never read. A graph belongs to a project: it names that project's files, reaches for that
     /// project's default model, and is meaningless against a different one. Kept per machine
-    /// because it is a path on this machine.
+    /// because both of these describe this machine's disk.
+    ///
+    /// The identifier is what is meant, and the path is only where it was last seen. Recorded the
+    /// other way round, renaming the file lost the graph, and the message said it was no longer
+    /// there while it sat in the same folder under a different name.
     /// </remarks>
+    public Guid LastGraphId { get; set; }
+
+    /// <summary>Where the last graph was, checked before the project is scanned for its identifier.</summary>
     public string LastGraphPath { get; set; } = string.Empty;
 
     /// <summary>True once the setup window has been answered or skipped for this project.</summary>
@@ -132,6 +139,7 @@ public sealed class ProjectSettings
             settings.McpServerEnabled = local["mcpServerEnabled"]?.GetValue<bool>() == true;
             settings.HasBeenSetUp = local["hasBeenSetUp"]?.GetValue<bool>() == true;
             settings.LastGraphPath = Text(local, "lastGraphPath") ?? string.Empty;
+            settings.LastGraphId = Guid.TryParse(Text(local, "lastGraphId"), out var graphId) ? graphId : Guid.Empty;
 
             // The shared file may not exist, in which case the conventions live here instead. That
             // is the ordinary case, because sharing them is off until somebody says otherwise.
@@ -158,6 +166,7 @@ public sealed class ProjectSettings
             ["defaultModelPath"] = DefaultModelPath,
             ["mcpServerEnabled"] = McpServerEnabled,
             ["hasBeenSetUp"] = HasBeenSetUp,
+            ["lastGraphId"] = LastGraphId == Guid.Empty ? null : LastGraphId.ToString(),
             ["lastGraphPath"] = LastGraphPath
         };
 

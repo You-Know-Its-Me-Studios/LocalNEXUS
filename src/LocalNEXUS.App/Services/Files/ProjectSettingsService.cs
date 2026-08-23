@@ -55,6 +55,15 @@ public sealed partial class ProjectSettingsService : ObservableObject
     private bool _hasBeenSetUp;
 
     /// <summary>The graph last open in this project, restored when it is opened again.</summary>
+    /// <remarks>
+    /// The identifier is the reference and the path is a shortcut to where it was last seen, so a
+    /// graph that has been renamed or moved within the project is still the graph this project was
+    /// working on.
+    /// </remarks>
+    [ObservableProperty]
+    private Guid _lastGraphId;
+
+    /// <summary>Where that graph was last seen, checked before the project is scanned for it.</summary>
     [ObservableProperty]
     private string _lastGraphPath = string.Empty;
 
@@ -80,6 +89,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
         {
             Kind = ProjectKind.None;
             HasBeenSetUp = false;
+            LastGraphId = Guid.Empty;
             LastGraphPath = string.Empty;
             return;
         }
@@ -96,6 +106,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
         McpServerEnabled = settings.McpServerEnabled;
         ShareSettings = settings.ShareSettings;
         HasBeenSetUp = settings.HasBeenSetUp;
+        LastGraphId = settings.LastGraphId;
         LastGraphPath = settings.LastGraphPath;
 
         EnsureFolderIgnored(projectPath);
@@ -173,6 +184,7 @@ public sealed partial class ProjectSettingsService : ObservableObject
             McpServerEnabled = McpServerEnabled,
             ShareSettings = ShareSettings,
             HasBeenSetUp = HasBeenSetUp,
+            LastGraphId = LastGraphId,
             LastGraphPath = LastGraphPath
         };
 

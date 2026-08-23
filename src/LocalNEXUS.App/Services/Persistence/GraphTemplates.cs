@@ -5,10 +5,16 @@ using LocalNEXUS.App.Nodes;
 namespace LocalNEXUS.App.Services.Persistence;
 
 /// <summary>One graph somebody can start from.</summary>
-/// <param name="Id">What it is called in the config and on the File menu, stable across renames.</param>
+/// <param name="Id">What it is known by, stable across renames.</param>
 /// <param name="Name">What it is called on screen.</param>
 /// <param name="Description">What shape of work it is for.</param>
 /// <param name="Path">The file it comes from, or null when it is one of the built in ones.</param>
+/// <remarks>
+/// A built in one is identified by a short word, because it is built by code rather than read from
+/// a file and there is nothing else it could be called. A saved one is identified by the graph
+/// identifier inside its file, so renaming the file does not turn it into a different template.
+/// One that predates identifiers falls back to its file name, which is exactly what it had before.
+/// </remarks>
 public sealed record GraphTemplate(string Id, string Name, string Description, string? Path)
 {
     /// <summary>True when this is one somebody saved rather than one that ships.</summary>
@@ -98,7 +104,7 @@ public sealed class GraphTemplates
                 .EnumerateFiles(Folder, "*" + GraphSerializer.FileExtension)
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .Select(path => new GraphTemplate(
-                    Path.GetFileName(path),
+                    GraphLocator.ReadId(path)?.ToString() ?? Path.GetFileName(path),
                     NameOf(path),
                     "Saved from a graph on this machine.",
                     path))
@@ -124,6 +130,12 @@ public sealed class GraphTemplates
         {
             var warnings = _serializer.LoadInto(graph, path);
             graph.Name = template.Name;
+
+            // A graph started from a template is a new document, not the template opened in place.
+            // Keeping the identifier would have the next save either overwrite the template or
+            // leave two files answering to the same name.
+            graph.Id = Guid.NewGuid();
+
             return warnings;
         }
 
@@ -159,7 +171,10 @@ public sealed class GraphTemplates
         Directory.CreateDirectory(Folder);
 
         var path = Path.Combine(Folder, safe + GraphSerializer.FileExtension);
-        _serializer.Save(graph, path);
+
+        // Its own identity rather than the graph's. Saving a graph as a template makes a second
+        // document, and a project that recorded the graph must not find the template instead.
+        _serializer.Save(graph, path, Guid.NewGuid());
 
         return path;
     }

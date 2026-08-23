@@ -30,17 +30,6 @@ public static class AppPaths
     /// <summary>Default folder scanned for GGUF model files.</summary>
     public static string Models { get; } = Path.Combine(Root, "models");
 
-    /// <summary>
-    /// Where graphs used to be written, and are still read from.
-    /// </summary>
-    /// <remarks>
-    /// A graph belongs with the codebase it was arranged against, so new ones go into that
-    /// project's own folder. This one is not emptied and nothing is moved out of it: it can hold
-    /// graphs from any number of projects with no record of which belongs where, and a graph
-    /// guessed into the wrong project writes into the wrong codebase.
-    /// </remarks>
-    public static string Graphs { get; } = Path.Combine(Root, "graphs");
-
     /// <summary>Folder that application and llama-server logs are written to.</summary>
     public static string Logs { get; } = Path.Combine(Root, "logs");
 

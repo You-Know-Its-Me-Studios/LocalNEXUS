@@ -33,6 +33,21 @@ public sealed class GraphSerializer
     public void Save(GraphModel graph, string path)
     {
         ArgumentNullException.ThrowIfNull(graph);
+        Save(graph, path, graph.Id);
+    }
+
+    /// <summary>
+    /// Writes the graph under an identity other than its own.
+    /// </summary>
+    /// <remarks>
+    /// One caller, and it is saving a graph as a template. A template made from a graph is a
+    /// second document rather than the same one in another folder, and letting it keep the
+    /// identity would leave two files claiming to be the same graph with no way to tell which a
+    /// project meant.
+    /// </remarks>
+    public void Save(GraphModel graph, string path, Guid identity)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var directory = Path.GetDirectoryName(path);
@@ -44,6 +59,7 @@ public sealed class GraphSerializer
         var document = new JsonObject
         {
             ["version"] = FormatVersion,
+            ["id"] = identity.ToString(),
             ["nodes"] = SerializeNodes(graph),
             ["connections"] = SerializeConnections(graph)
         };
@@ -89,6 +105,23 @@ public sealed class GraphSerializer
         target.Clear();
 
         var renames = new List<string>();
+
+        // Before the nodes, because clearing the graph mints a fresh identity for the empty canvas
+        // and the one in the file has to win. A file saved before graphs had identities is given
+        // one here rather than refused, and it is only on disk once the graph is next saved.
+        var idText = document["id"]?.GetValueKind() == JsonValueKind.String
+            ? document["id"]!.GetValue<string>()
+            : null;
+
+        if (Guid.TryParse(idText, out var id))
+        {
+            target.Id = id;
+        }
+        else
+        {
+            renames.Add($"{Path.GetFileName(path)} had no identifier, so it was given one.");
+        }
+
         var restored = RestoreNodes(document["nodes"] as JsonArray, target, warnings, renames);
         RestoreConnections(document["connections"] as JsonArray, target, restored, warnings, renames);
 
@@ -103,13 +136,6 @@ public sealed class GraphSerializer
         Migrations = renames;
 
         return warnings;
-    }
-
-    /// <summary>Builds a default file path inside the graphs folder for a given graph name.</summary>
-    public static string BuildDefaultPath(string graphName)
-    {
-        var safe = string.Concat(graphName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-        return Path.Combine(AppPaths.Graphs, safe + FileExtension);
     }
 
     private static JsonArray SerializeNodes(GraphModel graph)

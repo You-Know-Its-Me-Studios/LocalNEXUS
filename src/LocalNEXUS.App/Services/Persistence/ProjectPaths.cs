@@ -58,11 +58,15 @@ public static class ProjectPaths
     /// Every folder a graph for this project may be in, in the order they should be looked at.
     /// </summary>
     /// <remarks>
-    /// Two, for as long as anybody has graphs from before they lived with their project. Nothing
-    /// is moved out of the old folder: it can hold graphs from any number of projects with no
-    /// record of which belongs where, so moving them would mean guessing, and a graph put in the
-    /// wrong project writes into the wrong codebase. They are read where they are instead, and
-    /// saving one from an open project is what puts it with that project.
+    /// One, now that the machine wide folder is gone. It is still a sequence rather than a single
+    /// path because a project may yet grow a second place to keep graphs, and because every caller
+    /// was already written to iterate.
+    ///
+    /// Nothing was moved out of the old folder and nothing was deleted from it. It could hold
+    /// graphs from any number of projects with no record of which belonged where, so moving one
+    /// would have meant guessing, and a graph guessed into the wrong project writes into the wrong
+    /// codebase. It is simply no longer read; anything in it is opened by pointing the open dialog
+    /// at it, and saving from an open project is what puts it with that project.
     /// </remarks>
     public static IEnumerable<string> GraphFolders(string? projectPath)
     {
@@ -70,48 +74,23 @@ public static class ProjectPaths
         {
             yield return Graphs(project);
         }
-
-        if (Directory.Exists(AppPaths.Graphs))
-        {
-            yield return AppPaths.Graphs;
-        }
     }
 
     /// <summary>
-    /// Where a graph save or load dialog should start.
+    /// Where a graph save or load dialog should start, or null when there is nowhere it belongs.
     /// </summary>
     /// <remarks>
-    /// The project's own folder, unless it has no graphs yet and the old one does, in which case
-    /// starting there is what stops somebody having to go looking for work they already did.
+    /// Null rather than a machine wide folder. A graph names one project's files and reaches for
+    /// one project's default model, so with no project open there is no correct answer, and
+    /// inventing one is how graphs ended up somewhere they could not be matched to a codebase. The
+    /// dialog opens wherever the system last left it instead.
+    ///
+    /// The same answer for saving and for opening, which it did not used to be. It differed only
+    /// so that opening could fall back to the old machine wide folder, and there is no longer one
+    /// to fall back to.
     /// </remarks>
-    public static string GraphFolderToShow(string? projectPath, bool forSaving)
-    {
-        if (projectPath is not { Length: > 0 } project)
-        {
-            return AppPaths.Graphs;
-        }
-
-        var mine = Graphs(project);
-
-        if (forSaving || HasGraphs(mine) || !HasGraphs(AppPaths.Graphs))
-        {
-            return mine;
-        }
-
-        return AppPaths.Graphs;
-    }
-
-    private static bool HasGraphs(string folder)
-    {
-        try
-        {
-            return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*" + GraphSerializer.FileExtension).Any();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
+    public static string? GraphFolderToShow(string? projectPath)
+        => projectPath is { Length: > 0 } project ? Graphs(project) : null;
 
     /// <summary>
     /// Creates the graphs folder, and returns it.

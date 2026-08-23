@@ -761,20 +761,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     ///
     /// Clearing is the other half. Switching projects with the previous one's graph still on the
     /// canvas is the same mistake arrived at from the other direction.
+    ///
+    /// Found by identifier rather than by path, so renaming the file or moving it into a subfolder
+    /// of the project's graphs folder does not lose it. The path is tried first and only trusted
+    /// when the file at the end of it turns out to be the right graph.
     /// </remarks>
     private void RestoreProjectGraph()
     {
-        var path = ProjectSettings.LastGraphPath;
+        var id = ProjectSettings.LastGraphId;
+        var hint = ProjectSettings.LastGraphPath;
 
-        if (path is { Length: > 0 } && File.Exists(path))
+        var found = id != Guid.Empty
+            ? GraphLocator.Find(Project.ProjectPath, id, hint)
+            : hint is { Length: > 0 } && File.Exists(hint) ? hint : null;
+
+        if (found is not null)
         {
-            LoadGraphFrom(path);
+            LoadGraphFrom(found);
             return;
         }
 
-        if (path is { Length: > 0 })
+        if (id != Guid.Empty || hint is { Length: > 0 })
         {
-            _feed.Info("Last graph not found", $"{path} is no longer there, so the canvas was left empty.");
+            _feed.Info(
+                "Last graph not found",
+                hint is { Length: > 0 }
+                    ? $"{hint} is gone and nothing in this project carries its identifier, so the canvas was left empty."
+                    : "Nothing in this project carries the identifier it recorded, so the canvas was left empty.");
+
+            ProjectSettings.LastGraphId = Guid.Empty;
             ProjectSettings.LastGraphPath = string.Empty;
             ProjectSettings.Save();
         }
@@ -1039,7 +1054,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             "Save graph",
             suggested,
             $"LocalNEXUS graph (*{GraphSerializer.FileExtension})|*{GraphSerializer.FileExtension}|JSON (*.json)|*.json",
-            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder(forSaving: true));
+            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder());
 
         if (path is not null)
         {
@@ -1073,7 +1088,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var path = _dialogs.PickOpenFile(
             "Load graph",
             $"LocalNEXUS graph (*{GraphSerializer.FileExtension})|*{GraphSerializer.FileExtension}|JSON (*.json)|*.json|All files (*.*)|*.*",
-            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder(forSaving: false));
+            Path.GetDirectoryName(CurrentGraphPath) ?? GraphFolder());
 
         if (path is null)
         {
@@ -1097,9 +1112,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// dialog opens on it while it holds graphs and the project holds none, which is what stops
     /// anybody having to go looking.
     /// </remarks>
-    private string GraphFolder(bool forSaving)
+    private string GraphFolder()
     {
-        var folder = ProjectPaths.GraphFolderToShow(Project.ProjectPath, forSaving);
+        // No project means nowhere a graph belongs, so the dialog opens wherever the system last
+        // left it rather than somewhere invented.
+        if (ProjectPaths.GraphFolderToShow(Project.ProjectPath) is not { } folder)
+        {
+            return string.Empty;
+        }
 
         try
         {
@@ -1129,6 +1149,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        ProjectSettings.LastGraphId = Graph.Id;
         ProjectSettings.LastGraphPath = path;
         ProjectSettings.Save();
     }

@@ -114,9 +114,9 @@ public sealed class McpAppSurface : IMcpAppSurface
             names.Add($"{template.Name} (template): {template.Description}");
         }
 
-        // The project's own graphs and any left in the old machine wide folder. The tool, its
-        // arguments and what it answers with are unchanged; only where a graph is looked for is,
-        // because a graph now lives with the project it was arranged against.
+        // The project's own graphs. The tool, its arguments and what it answers with are
+        // unchanged; only where a graph is looked for is, because a graph lives with the project
+        // it was arranged against.
         foreach (var folder in ProjectPaths.GraphFolders(_project.ProjectPath))
         {
             foreach (var path in Directory.EnumerateFiles(folder, "*" + GraphSerializer.FileExtension))

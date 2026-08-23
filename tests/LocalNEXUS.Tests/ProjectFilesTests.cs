@@ -17,7 +17,9 @@ namespace LocalNEXUS.Tests;
 /// belongs with the codebase it was arranged against rather than in a pile on one machine, and the
 /// extension registry, which lived under a Unity shaped path in projects that need not be Unity.
 ///
-/// And that nothing already saved has been lost, which is the part a person notices.
+/// The pile is now gone rather than read as a second place to look. Nothing in it was moved or
+/// deleted, because it could hold graphs from any number of projects with no record of which
+/// belonged where, and a graph guessed into the wrong project writes into the wrong codebase.
 /// </remarks>
 [Trait(Layers.Name, Layers.Deterministic)]
 public sealed class ProjectFilesTests : IDisposable
@@ -95,7 +97,7 @@ public sealed class ProjectFilesTests : IDisposable
     {
         var project = Project("app");
 
-        Assert.Equal(ProjectPaths.Graphs(project), ProjectPaths.GraphFolderToShow(project, forSaving: true));
+        Assert.Equal(ProjectPaths.Graphs(project), ProjectPaths.GraphFolderToShow(project));
 
         var folder = ProjectPaths.EnsureGraphs(project);
 
@@ -103,68 +105,47 @@ public sealed class ProjectFilesTests : IDisposable
         Assert.StartsWith(project, folder, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Saving does not go to the old folder even when the old folder has graphs in it.</summary>
-    [Fact]
-    public void SavingNeverGoesBackToTheOldFolder()
-    {
-        var project = Project("app");
-
-        Assert.NotEqual(AppPaths.Graphs, ProjectPaths.GraphFolderToShow(project, forSaving: true));
-    }
-
-    /// <summary>
-    /// A graph left in the old folder is still found.
-    /// </summary>
+    /// <summary>The machine wide graphs folder is gone rather than still quietly read.</summary>
     /// <remarks>
-    /// Both folders are read for as long as anybody has graphs from before they lived with their
-    /// project, and the project's own is looked at first.
+    /// It could hold graphs from any number of projects with no record of which belonged where, so
+    /// a graph opened out of it wrote into whichever codebase happened to be open. Nothing on disk
+    /// was moved or deleted; it is simply no longer somewhere the application looks.
     /// </remarks>
     [Fact]
-    public void AGraphInTheOldFolderIsStillFound()
+    public void TheMachineWideGraphsFolderIsGone()
+    {
+        Assert.Null(typeof(AppPaths).GetProperty("Graphs"));
+        Assert.Null(typeof(GraphSerializer).GetMethod("BuildDefaultPath"));
+    }
+
+    /// <summary>Only the project's own folder is read.</summary>
+    [Fact]
+    public void OnlyTheProjectsOwnFolderIsRead()
     {
         var project = Project("app");
 
         WriteGraph(ProjectPaths.Graphs(project), "mine");
 
-        var folders = ProjectPaths.GraphFolders(project).ToList();
-
-        Assert.Equal(ProjectPaths.Graphs(project), folders[0]);
-
-        if (Directory.Exists(AppPaths.Graphs))
-        {
-            Assert.Contains(AppPaths.Graphs, folders);
-        }
+        Assert.Equal(new[] { ProjectPaths.Graphs(project) }, ProjectPaths.GraphFolders(project));
     }
 
-    /// <summary>With no project open there is only the old folder to look in.</summary>
+    /// <summary>With no project open there is nowhere a graph belongs, and nowhere is the answer.</summary>
     [Fact]
-    public void WithNoProjectThereIsOnlyTheOldFolder()
+    public void WithNoProjectThereIsNowhereAGraphBelongs()
     {
-        Assert.DoesNotContain(ProjectPaths.GraphFolders(null), f => f.Contains(".localnexus", StringComparison.Ordinal));
-        Assert.Equal(AppPaths.Graphs, ProjectPaths.GraphFolderToShow(null, forSaving: true));
+        Assert.Empty(ProjectPaths.GraphFolders(null));
+        Assert.Null(ProjectPaths.GraphFolderToShow(null));
     }
 
-    /// <summary>
-    /// A project with no graphs of its own opens on the old folder rather than on an empty one.
-    /// </summary>
-    /// <remarks>
-    /// This is the whole of not making anybody go hunting. Nothing is moved, because the old folder
-    /// can hold graphs from any number of projects with no record of which belongs where, and a
-    /// graph guessed into the wrong project writes into the wrong codebase.
-    /// </remarks>
+    /// <summary>Opening and saving start in the same place, because there is only one place.</summary>
     [Fact]
-    public void AProjectWithNoGraphsOpensWhereTheOldOnesAre()
+    public void OpeningAndSavingStartInTheSamePlace()
     {
         var project = Project("app");
 
-        // Standing in for the old machine wide folder, which a test must not write into.
-        var legacy = Path.Combine(_root, "legacy-graphs");
-        WriteGraph(legacy, "from-before");
-
-        // The project's own folder wins the moment it has anything in it.
         WriteGraph(ProjectPaths.Graphs(project), "mine");
 
-        Assert.Equal(ProjectPaths.Graphs(project), ProjectPaths.GraphFolderToShow(project, forSaving: false));
+        Assert.Equal(ProjectPaths.Graphs(project), ProjectPaths.GraphFolderToShow(project));
     }
 
     /// <summary>The extension registry is no longer in a Unity shaped path.</summary>

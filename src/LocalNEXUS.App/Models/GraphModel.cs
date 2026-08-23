@@ -29,6 +29,22 @@ public sealed partial class GraphModel : ObservableObject
     [ObservableProperty]
     private string _name = "untitled";
 
+    /// <summary>
+    /// What this graph is, as opposed to where it happens to be.
+    /// </summary>
+    /// <remarks>
+    /// A path is not an identity. Renaming a file, moving it into a subfolder or saving it under a
+    /// new name all produce a different path for the same document, and everything that referred
+    /// to it by path lost it. This is written into the file and survives all three.
+    ///
+    /// A new graph gets one immediately rather than at its first save, so a graph is identifiable
+    /// before it has anywhere to live. Emptying the canvas is a new document and takes a new one:
+    /// keeping the old identity would have two unrelated graphs claiming to be the same thing, and
+    /// whichever was saved last would answer for both.
+    /// </remarks>
+    [ObservableProperty]
+    private Guid _id = Guid.NewGuid();
+
     /// <summary>Every node on the canvas.</summary>
     public ObservableCollection<NodeBase> Nodes { get; } = new();
 
@@ -106,6 +122,7 @@ public sealed partial class GraphModel : ObservableObject
     public void Clear()
     {
         Name = "untitled";
+        Id = Guid.NewGuid();
 
         Connections.Clear();
         Nodes.Clear();
