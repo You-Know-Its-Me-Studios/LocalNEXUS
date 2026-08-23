@@ -1,0 +1,41 @@
+<UserControl x:Class="LocalNEXUS.App.Views.Settings.AgentNodeSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nodes="clr-namespace:LocalNEXUS.App.Nodes"
+             d:DataContext="{d:DesignInstance Type=nodes:AgentNode}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!--
+        The agent has almost nothing to configure, and that is the point of it. Its model, its
+        extensions and its search key all come from the Model node wired into it, so the only
+        things here are how long it may go on for and what it is told it is.
+    -->
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource HintText}"
+                   TextWrapping="Wrap"
+                   Text="Wire a Model node into the Model pin and type a request. It decides each step for itself: reading files, writing them, compiling, searching the project, and calling whatever tools that Model node has selected. Everything it writes goes through the same rules the Output node writes through." />
+
+        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Limit" />
+
+        <TextBlock Style="{StaticResource FieldLabel}" Text="Turns" />
+        <TextBox Text="{Binding MaxTurns, UpdateSourceTrigger=LostFocus}"
+                 ToolTip="One turn is one model call and the tools it asked for" />
+        <TextBlock Style="{StaticResource HintText}"
+                   TextWrapping="Wrap"
+                   Text="The budget for the whole task, not for one file. When it runs out, everything already written stays written and everything refused stays waiting, and it says where it got to." />
+
+        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Prompt" />
+
+        <TextBlock Style="{StaticResource FieldLabel}" Text="System prompt" />
+        <TextBox Style="{StaticResource MonoTextBox}"
+                 Text="{Binding SystemPrompt, UpdateSourceTrigger=PropertyChanged}"
+                 MinHeight="140"
+                 MaxHeight="300" />
+        <TextBlock Style="{StaticResource HintText}"
+                   TextWrapping="Wrap"
+                   Text="What each tool does is on the tool itself, where the model reads it, so this says only the things no tool description can: look before changing anything, a refusal is an answer, and not every request needs a file written." />
+    </StackPanel>
+</UserControl>

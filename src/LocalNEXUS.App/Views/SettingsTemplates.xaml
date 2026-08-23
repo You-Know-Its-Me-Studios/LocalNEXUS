@@ -17,6 +17,10 @@
         <settings:TriageNodeSettingsView />
     </DataTemplate>
 
+    <DataTemplate DataType="{x:Type nodes:AgentNode}">
+        <settings:AgentNodeSettingsView />
+    </DataTemplate>
+
     <DataTemplate DataType="{x:Type nodes:ModelNode}">
         <settings:ModelNodeSettingsView />
     </DataTemplate>

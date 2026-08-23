@@ -153,6 +153,16 @@ public sealed class NodeFactory
             new[] { "Input" },
             _ => new PromptNode()),
 
+        // One node with a model, a set of tools and a loop, beside the pipeline rather than
+        // instead of it. The pipeline is right when the same work runs the same way every time;
+        // this is right when the request is not the shape the pipeline describes.
+        new BuiltInNode(
+            "Agent",
+            "Agent",
+            "Does the work itself: reads, writes, compiles and calls tools, deciding each step. Wire a Model node into it.",
+            Array.Empty<string>(),
+            _ => new AgentNode()),
+
         new BuiltInNode(
             "Triage",
             "Triage",

@@ -37,7 +37,7 @@ namespace LocalNEXUS.App.Nodes;
 /// it runs once per file and emits a list. That is the whole of fan out: a wire carries one item
 /// or many identically, so a graph that writes five files is the same graph that writes one.
 /// </remarks>
-public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandle
+public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandle, IToolCallingModel
 {
     /// <summary>Base URL used for every OpenRouter request.</summary>
     public const string OpenRouterBaseUrl = "https://openrouter.ai/api/v1";
@@ -1243,6 +1243,110 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// after a confusing answer. A model with no tool template does not refuse; it ignores the
     /// tools and writes prose, which looks exactly like a bug in this application.
     /// </remarks>
+    /// <inheritdoc />
+    public string ModelName => ModelDisplayName;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The endpoint is resolved to ask it, because whether a model can call tools is a question its
+    /// own server answers and the answer decides whether offering any is worth the context.
+    /// </remarks>
+    public async Task<IReadOnlyList<ToolDefinition>> ConfiguredToolsAsync(
+        NodeExecutionContext ctx,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+
+        var entry = ctx.Feed.Add(ActivityKind.Info, $"{Title}: listing its tools", null, Id);
+
+        try
+        {
+            var endpoint = await ResolveEndpointAsync(ctx, entry, ct).ConfigureAwait(false);
+            var tools = await GatherToolsAsync(ctx, endpoint, ct).ConfigureAwait(false);
+
+            entry.Detail = tools.Count == 0 ? "none" : $"{tools.Count} tool(s)";
+
+            return tools;
+        }
+        catch (ModelClientException ex)
+        {
+            entry.Detail = "unavailable";
+            ctx.Feed.Error($"{Title} could not be asked for its tools", ex.Message);
+
+            return Array.Empty<ToolDefinition>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<ChatCompletionResult> ContinueAsync(
+        IReadOnlyList<ChatMessage> messages,
+        IReadOnlyList<ToolDefinition> tools,
+        NodeExecutionContext ctx,
+        IProgress<string>? onToken,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+
+        var entry = ctx.Feed.Add(ActivityKind.ModelStream, $"{Title}  ({ModelDisplayName})", null, Id);
+
+        try
+        {
+            var endpoint = await ResolveEndpointAsync(ctx, entry, ct).ConfigureAwait(false);
+
+            var result = await ctx.Services.ModelClient
+                .StreamChatAsync(
+                    endpoint,
+                    messages,
+                    tools.Count == 0 ? null : tools,
+                    Temperature,
+                    MaxTokens,
+                    onToken ?? new DelegateProgress<string>(entry.Append),
+                    ct)
+                .ConfigureAwait(false);
+
+            entry.Flush();
+            entry.Detail = result.Summary;
+
+            ctx.Services.Cost.Add(CloudProvider, result.PromptTokens, result.CompletionTokens);
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            entry.Flush();
+            entry.Detail = "cancelled";
+            throw;
+        }
+        catch (Exception)
+        {
+            entry.Flush();
+            entry.Detail = "failed";
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<(string Text, bool IsError)> CallConfiguredToolAsync(
+        ToolCall call,
+        string ownerId,
+        NodeExecutionContext ctx,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+
+        if (string.Equals(ownerId, Services.Search.WebSearchService.OwnerId, StringComparison.Ordinal))
+        {
+            return SearchAsync(ctx, call, ct);
+        }
+
+        if (_toolset is null)
+        {
+            return Task.FromResult(("This installation has no extension host, so that tool cannot be run.", true));
+        }
+
+        return _toolset.CallAsync(call, ownerId, ct);
+    }
+
     private async Task<IReadOnlyList<ToolDefinition>> GatherToolsAsync(
         NodeExecutionContext ctx,
         ModelEndpoint endpoint,
