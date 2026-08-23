@@ -65,6 +65,21 @@
                                Visibility="{Binding FilterText, Converter={StaticResource StringToVisibility}, ConverterParameter=Invert}" />
                 </Grid>
 
+                <!--
+                    Turning the node on lives here, beside the line that says it is off, rather
+                    than in Settings where it was. Nothing else about the mesh is in Settings that
+                    somebody needs mid use, and a start button on a different screen from the one
+                    the feature lives on is a start button nobody finds.
+                -->
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource SmallButton}"
+                        Margin="10,0,12,0"
+                        MinWidth="110"
+                        VerticalAlignment="Center"
+                        Content="{Binding StartButtonText}"
+                        ToolTip="Starts the mesh node with the settings on the left, or stops it if it is already up."
+                        Command="{Binding ToggleMeshCommand}" />
+
                 <Ellipse Style="{StaticResource StateDot}"
                          Margin="0,0,9,0"
                          Fill="{Binding Mesh.State, Converter={StaticResource ResourceLookup}, ConverterParameter=MeshNodeState}" />

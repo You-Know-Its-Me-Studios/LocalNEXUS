@@ -787,20 +787,24 @@
                                TextWrapping="Wrap"
                                Text="What this machine shares, which models and how much memory, is set in the Network tab rather than here. Nothing is shared until you tick it." />
 
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"
+                               Text="Turning the node on and off is in the Network tab, beside the line that says whether it is running. It is an everyday action rather than a setting, so it lives where the mesh is used." />
+
                     <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                         <Button Style="{StaticResource SmallButton}"
                                 Margin="0,0,8,0"
                                 Content="{Binding Network.ApplyButtonText}"
                                 ToolTip="Saves everything above. Restarts the node too, when there is one running to restart."
                                 Command="{Binding Network.ApplySettingsCommand}" />
-                        <Button Style="{StaticResource SmallButton}" Margin="0,0,8,0" Content="Start or stop the node" Command="{Binding Network.ToggleMeshCommand}" />
                         <Button Style="{StaticResource SmallButton}" Content="Leave the mesh" Command="{Binding Network.LeaveMeshCommand}" />
                     </StackPanel>
 
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,6,0,0"
                                TextWrapping="Wrap"
-                               Text="Everything above is read once, when the node starts. The first button saves it, and restarts the node as well when one is running, because a running node cannot pick any of this up without coming back up. With the node stopped it only saves, and says so. Start or stop the node turns it on and off without changing any of it. Leave the mesh clears the invite token and goes back to hosting your own." />
+                               Text="Everything above is read once, when the node starts. The first button saves it, and restarts the node as well when one is running, because a running node cannot pick any of this up without coming back up. With the node stopped it only saves, and says so. Leave the mesh clears the invite token and goes back to hosting your own." />
 
                     <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 

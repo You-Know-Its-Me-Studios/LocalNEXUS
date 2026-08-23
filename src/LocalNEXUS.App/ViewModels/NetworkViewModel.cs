@@ -351,6 +351,16 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         await Mesh.RotateIdentityAsync(CancellationToken.None).ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// What the start button says, which is the opposite of what the node is doing.
+    /// </summary>
+    /// <remarks>
+    /// One button rather than two, because the node is either up or it is not and a pair would
+    /// leave one of them dead at all times. It says the action rather than the pair of actions:
+    /// "Start or stop the node" makes somebody work out which of the two they are about to get.
+    /// </remarks>
+    public string StartButtonText => Mesh.IsRunning ? "Stop the node" : "Start the node";
+
     /// <summary>Starts or stops this install's mesh node.</summary>
     [RelayCommand]
     private async Task ToggleMeshAsync()
@@ -611,9 +621,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             case nameof(MeshManager.State):
                 OnPropertyChanged(nameof(CoverageSummary));
 
-                // The apply button says what pressing it will do, and what it will do depends on
-                // whether there is a node up to restart.
+                // Both buttons say what pressing them will do, and both answers depend on whether
+                // there is a node up.
                 OnPropertyChanged(nameof(ApplyButtonText));
+                OnPropertyChanged(nameof(StartButtonText));
                 break;
         }
     }
