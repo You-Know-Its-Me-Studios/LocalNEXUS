@@ -769,7 +769,7 @@
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,4,0,0"
                                TextWrapping="Wrap"
-                               Text="Paste the invite token from the machine that is hosting, then press Apply and restart the node. Whoever is hosting finds their token in the Network tab, under Invite token, with a Copy button beside it. Leave this empty to host a mesh of your own instead of joining one." />
+                               Text="Paste the invite token from the machine that is hosting, then press the save button below. Whoever is hosting finds their token in the Network tab, under Invite token, with a Copy button beside it. Leave this empty to host a mesh of your own instead of joining one." />
 
                     <CheckBox Style="{StaticResource ToggleSwitch}"
                               Margin="0,14,0,0"
@@ -788,7 +788,11 @@
                                Text="What this machine shares, which models and how much memory, is set in the Network tab rather than here. Nothing is shared until you tick it." />
 
                     <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                        <Button Style="{StaticResource SmallButton}" Margin="0,0,8,0" Content="Apply and restart the node" Command="{Binding Network.ApplySettingsCommand}" />
+                        <Button Style="{StaticResource SmallButton}"
+                                Margin="0,0,8,0"
+                                Content="{Binding Network.ApplyButtonText}"
+                                ToolTip="Saves everything above. Restarts the node too, when there is one running to restart."
+                                Command="{Binding Network.ApplySettingsCommand}" />
                         <Button Style="{StaticResource SmallButton}" Margin="0,0,8,0" Content="Start or stop the node" Command="{Binding Network.ToggleMeshCommand}" />
                         <Button Style="{StaticResource SmallButton}" Content="Leave the mesh" Command="{Binding Network.LeaveMeshCommand}" />
                     </StackPanel>
@@ -796,7 +800,7 @@
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,6,0,0"
                                TextWrapping="Wrap"
-                               Text="Everything above is read once, when the node starts, so a change does nothing until Apply and restart the node. Start or stop the node turns it on and off without changing any of it. Leave the mesh clears the invite token and goes back to hosting your own." />
+                               Text="Everything above is read once, when the node starts. The first button saves it, and restarts the node as well when one is running, because a running node cannot pick any of this up without coming back up. With the node stopped it only saves, and says so. Start or stop the node turns it on and off without changing any of it. Leave the mesh clears the invite token and goes back to hosting your own." />
 
                     <Rectangle Height="1" Margin="0,20,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
 

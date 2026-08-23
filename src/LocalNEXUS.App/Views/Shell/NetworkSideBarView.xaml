@@ -127,7 +127,8 @@
                 <Button Style="{StaticResource SmallButton}"
                         Margin="0,12,0,0"
                         HorizontalAlignment="Left"
-                        Content="Apply and restart"
+                        Content="{Binding ApplyButtonText}"
+                        ToolTip="Saves everything on this panel. Restarts the node too, when there is one running to restart."
                         Command="{Binding ApplySettingsCommand}" />
             </StackPanel>
         </Border>
@@ -226,7 +227,7 @@
 
                 <TextBlock Style="{StaticResource HintText}"
                            Margin="14,2,14,10"
-                           Text="Changes take effect when you apply and restart the node."
+                           Text="Nothing here is in force until you press the button at the bottom of this panel. A running node is restarted so it picks them up; a stopped one just keeps them for next time."
                            Visibility="{Binding OfferedModels.Count, Converter={StaticResource CountToVisibility}}" />
 
                 <!-- Machines. A machine is a thing to inspect rather than the spine of the page. -->

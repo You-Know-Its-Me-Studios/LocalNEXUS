@@ -373,7 +373,21 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// What the apply button says, which depends on what pressing it can actually do.
+    /// </summary>
+    /// <remarks>
+    /// A stopped node has nothing to restart, so a button promising a restart did the saving half
+    /// in silence and looked broken. Every field on the panel says changes take effect when you
+    /// apply and restart, so pressing it and seeing nothing at all is the worst possible answer.
+    /// </remarks>
+    public string ApplyButtonText => Mesh.IsRunning ? "Apply and restart the node" : "Save these settings";
+
     /// <summary>Applies the contribution and membership settings, restarting the node if it is up.</summary>
+    /// <remarks>
+    /// Always says what it did. Saving without a word is indistinguishable from a button that is
+    /// not wired to anything, which is what it was reported as.
+    /// </remarks>
     [RelayCommand]
     private async Task ApplySettingsAsync()
     {
@@ -381,6 +395,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
         if (!Mesh.IsRunning)
         {
+            _feed.Info(
+                "Mesh settings saved",
+                "The node is not running, so there was nothing to restart. Start it and it will come up with these.");
+
             return;
         }
 
@@ -388,6 +406,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         {
             await Mesh.StopAsync();
             await Mesh.StartAsync(CancellationToken.None);
+
+            _feed.Info("Mesh settings applied", "The node was restarted, so it is running with them now.");
         }
         catch (ModelClientException ex)
         {
@@ -590,6 +610,10 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
             case nameof(MeshManager.State):
                 OnPropertyChanged(nameof(CoverageSummary));
+
+                // The apply button says what pressing it will do, and what it will do depends on
+                // whether there is a node up to restart.
+                OnPropertyChanged(nameof(ApplyButtonText));
                 break;
         }
     }
