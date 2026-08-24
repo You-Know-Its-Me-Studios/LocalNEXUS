@@ -2,7 +2,7 @@
 
 Every string this application shows a person, where it lives, and when it appears.
 
-**1417 strings**, gathered from 155 files. Extracted mechanically and
+**1416 strings**, gathered from 155 files. Extracted mechanically and
 then classified, so the counts are exact and the "when it shows" column is a reading of the
 surrounding code rather than a guess: for XAML it comes from the element, its style, its colour and
 what governs its visibility, and for C# from the surface the string is handed to.
@@ -24,7 +24,7 @@ because a quarter of a sentence tells nobody how it sounds.
 
 - [Window shell](#window-shell) (75)
 - [Network tab](#network-tab) (48)
-- [Settings](#settings) (156)
+- [Settings](#settings) (155)
 - [Node inspector panels](#node-inspector-panels) (202)
 - [Run history window](#run-history-window) (7)
 - [Extensions window](#extensions-window) (31)
@@ -76,7 +76,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Release unchanged | line 193, `Button` `Content` | Button label |
 | Carry on with the value exactly as it arrived. | line 194, `Button` `ToolTip` | Tooltip, on hover |
 | Continue | line 198, `Button` `Content` | Button label |
-| Carry on, with whatever the box now holds. | line 199, `Button` `ToolTip` | Tooltip, on hover |
+| Carry on with whatever the box now holds. | line 199, `Button` `ToolTip` | Tooltip, on hover |
 | Discard all | line 245, `Button` `Content` | Button label |
 | Forgets every attempt below. No file on disk is touched. | line 246, `Button` `ToolTip` | Tooltip, on hover |
 | These files did not compile. Nothing on disk was changed. Open one to see what was attempted, or discard it. | line 259, `TextBlock` `Text` | Hint under a control or section |
@@ -93,7 +93,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Pick a template or double click to start from scratch. | line 477, `TextBlock` `Text` | Hint under a control or section |
 | Puts these away and leaves the canvas empty. Double click anywhere to add a node. | line 507, `Button` `ToolTip` | Tooltip, on hover |
 | Build on my own | line 511, `TextBlock` `Text` | Static label |
-| Nothing matches. Every node type is offered here, so a name that finds nothing is a name no node has. | line 572, `TextBlock` `Text` | Conditional text, shown when NodeSearch.HasResults is true |
+| Nothing matches. Every node type is listed here, so there is no node by that name. | line 572, `TextBlock` `Text` | Empty state, shown when there is nothing to list |
 
 ### `src/LocalNEXUS.App/Views/Shell/InspectorView.xaml`
 
@@ -227,7 +227,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | See through the window | line 92, `TextBlock` `Text` | Section header |
 | See through | line 114, `TextBlock` `Text` | Hint under a control or section |
 | Solid | line 115, `TextBlock` `Text` | Hint under a control or section |
-| The slider stops short of clear on purpose. What is behind the window is not ours to make readable, and past this point the palette stops winning against it. | line 121, `TextBlock` `Text` | Hint under a control or section |
+| The slider stops short of fully clear. Past that point, whatever is behind the window makes the text unreadable. | line 121, `TextBlock` `Text` | Hint under a control or section |
 | a panel stays solid | line 156, `TextBlock` `Text` | Static label |
 | How states look | line 171, `TextBlock` `Text` | Section header |
 | pending | line 182, `TextBlock` `Text` | Static label |
@@ -244,11 +244,11 @@ because a quarter of a sentence tells nobody how it sounds.
 | Add model folder | line 251, `Button` `Content` | Button label |
 | One safetensors model: a folder holding config.json beside its weights. | line 252, `Button` `ToolTip` | Tooltip, on hover |
 | Search a folder | line 257, `Button` `Content` | Button label |
-| Look inside this folder, and keep looking, for anything that is a model. | line 258, `Button` `ToolTip` | Tooltip, on hover |
+| Search this folder and everything under it for models. | line 258, `Button` `ToolTip` | Tooltip, on hover |
 | Rescan | line 263, `Button` `Content` | Button label |
 | Edit model-paths.txt | line 267, `Button` `Content` | Button label |
 | Find a model to download | line 276, `Expander` `Header` | Section header, on a collapsible section |
-| Searches Hugging Face for GGUF models. No account and no sign in: a repository that requires one is reported as gated with a link, rather than worked around. | line 281, `TextBlock` `Text` | Hint under a control or section |
+| Searches Hugging Face for GGUF models. No account and no sign in. A repository that requires one is shown as gated, with a link. | line 281, `TextBlock` `Text` | Hint under a control or section |
 | Search | line 288, `Button` `Content` | Button label |
 | qwen2.5-coder, llama-3.1, mistral | line 293, `TextBox` `Placeholder` | Placeholder, in an empty text box |
 | Open the page | line 311, `Button` `Content` | Button label |
@@ -259,11 +259,11 @@ because a quarter of a sentence tells nobody how it sounds.
 | Stop | line 417, `Button` `Content` | Button label |
 | Stops, and keeps what arrived so it can carry on later. | line 418, `Button` `ToolTip` | Tooltip, on hover |
 | Search history by meaning | line 445, `Expander` `Header` | Section header, on a collapsible section |
-| Keyword search finds the words that were written. Asked for the thing that spawns enemies it finds nothing, because what was written was add a wave spawner. Embedding both and comparing them closes that gap, and it needs a small model on this machine. Nothing leaves the machine. | line 452, `TextBlock` `Text` | Hint under a control or section |
+| Keyword search finds only the words that were written: a search for the thing that spawns enemies finds nothing when what was written was add a wave spawner. Comparing meanings closes that gap. It needs a small model on this machine, and nothing leaves the machine. | line 452, `TextBlock` `Text` | Hint under a control or section |
 | Choose a model | line 468, `Button` `Content` | Button label |
 | Turns it on. Any GGUF embedding model on this machine. | line 469, `Button` `ToolTip` | Tooltip, on hover |
 | Index the history | line 474, `Button` `Content` | Button label |
-| The one time pass over runs already recorded. New runs are indexed as they finish. | line 475, `Button` `ToolTip` | Tooltip, on hover |
+| One pass over the runs already recorded. New runs are indexed as they finish. | line 475, `Button` `ToolTip` | Tooltip, on hover |
 | Stop | line 482, `Button` `Content` | Button label |
 | Turn off | line 488, `Button` `Content` | Button label |
 | Back to keyword search. The vectors are kept. | line 489, `Button` `ToolTip` | Tooltip, on hover |
@@ -282,7 +282,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Add another endpoint | line 645, `TextBlock` `Text` | Section header |
 | Anything that speaks the OpenAI API works here, listed above or not. | line 648, `TextBlock` `Text` | Hint under a control or section |
 | Search providers | line 668, `TextBlock` `Text` | Section header |
-| five dollars of credit a month, then per thousand requests | line 687, `TextBlock` `Text` | Hint under a control or section |
+| Five dollars of credit a month, then charged per thousand requests | line 687, `TextBlock` `Text` | Hint under a control or section |
 | Brave | line 690, `TextBlock` `Text` | Static label |
 | Save | line 710, `Button` `Content` | Button label |
 | Clear | line 714, `Button` `Content` | Button label |
@@ -292,7 +292,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Paste or drop an image on the request box and this reads it into text, which joins your request. The image never enters the graph, so the coding model does not have to be able to see. | line 747, `TextBlock` `Text` | Hint under a control or section |
 | A vision model on this machine | line 754, `TextBlock` `Text` | Field label, above an input |
 | A vision model from your model folders. This application starts it when you paste an image. | line 766, `ComboBox` `ToolTip` | Tooltip, on hover |
-| Started for you the first time you paste an image. A vision model ships as two files, the weights and an mmproj projector; keep both in the same folder and the projector is found on its own, because a model without one loads and then refuses every image. | line 783, `TextBlock` `Text` | Hint under a control or section |
+| Started the first time you paste an image. A vision model ships as two files, the weights and an mmproj projector. Keep both in the same folder and the projector is found on its own; without it, the model loads and then refuses every image. | line 783, `TextBlock` `Text` | Hint under a control or section |
 | Use an address instead | line 788, `Button` `Content` | Button label |
 | Or a hosted one | line 791, `TextBlock` `Text` | Field label, above an input |
 | For a hosted model, or for a server you are already running yourself. Anything that speaks the OpenAI API and can see. | line 795, `TextBlock` `Text` | Hint under a control or section |
@@ -304,7 +304,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | API key for that address, if it needs one | line 816, `PasswordBox` `Placeholder` | Placeholder, in an empty text box |
 | Warn before an expensive run | line 823, `TextBlock` `Text` | Section header |
 | Ask above | line 826, `TextBlock` `Text` | Field label, above an input |
-| Dollars. What a run is measured against is a ceiling, being the whole input plus the most each node is allowed to write, so the real cost is usually lower and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it. | line 833, `TextBlock` `Text` | Hint under a control or section |
+| Dollars. A run is measured against a ceiling: the whole input plus the most each node is allowed to write. The real cost is usually lower, and can be higher. Set it to zero to never be asked. Local models cost nothing and never trigger it. | line 833, `TextBlock` `Text` | Hint under a control or section |
 | Project | line 838, `TextBlock` `Text` | Section header |
 | Where generated code goes | line 848, `TextBlock` `Text` | Field label, above an input |
 | Relative to the project root. This is what a newly added Output node starts from. It does not move anything in a graph you have already saved, because that value belongs to the node and was saved with it; open the node and change it there. | line 856, `TextBlock` `Text` | Hint under a control or section |
@@ -327,7 +327,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Open its folder | line 962, `Button` `Content` | Button label |
 | Only needed to run safetensors models. GGUF models work without it. | line 966, `TextBlock` `Text` | Hint under a control or section |
 | Mesh node | line 977, `TextBlock` `Text` | Section header |
-| All of it is in the Network tab: what the mesh is called, joining somebody else's, what this machine shares, publishing, and starting and stopping the node. It used to be split between here and there, which meant looking in two places to answer one question. | line 981, `TextBlock` `Text` | Hint under a control or section |
+| All of it is in the Network tab: what the mesh is called, joining somebody else's, what this machine shares, publishing, and starting and stopping the node. | line 981, `TextBlock` `Text` | Hint under a control or section |
 | Answer MCP tool calls | line 991, `TextBlock` `Text` | Section header |
 | Let other tools open a project, open a graph and run it | line 994, `CheckBox` `Content` | Checkbox label |
 | A local pipe, never a network port. A caller can run a graph, which writes files into the open project through the same rules a person's run goes through. It cannot write a file any other way and cannot read a stored key. | line 1002, `TextBlock` `Text` | Hint under a control or section |
@@ -357,26 +357,25 @@ because a quarter of a sentence tells nobody how it sounds.
 | Every snapshot, whatever the limits say. Transcripts are kept. | line 1133, `Button` `ToolTip` | Tooltip, on hover |
 | Delete everything | line 1138, `Button` `Content` | Button label |
 | Every transcript and every snapshot for this project. | line 1139, `Button` `ToolTip` | Tooltip, on hover |
-| Recount measures again and changes nothing. Delete old snapshots applies the two limits above right now rather than waiting for the next run. Delete all snapshots takes every one of them whatever the limits say, keeping the transcripts, so nothing can be undone but everything can still be read. Delete everything takes the transcripts as well and cannot be reversed. | line 1146, `TextBlock` `Text` | Hint under a control or section |
-| What undo reaches | line 1150, `TextBlock` `Text` | Section header |
-| Undo puts back only the files this application wrote or edited during a run. Anything a build or an editor regenerated, an extension changed, or you edited by hand is invisible to it, and putting a file back also discards whatever was done to it since. This is run undo, not version control. | line 1154, `TextBlock` `Text` | Warning text, shown when something needs attention |
-| Behaviour | line 1158, `TextBlock` `Text` | Section header |
-| Starting values for nodes you add from here on. Every one of them can be changed on the node itself, and a graph you have already saved keeps whatever was set on it, so nothing here reaches backwards. | line 1161, `TextBlock` `Text` | Hint under a control or section |
-| Compiler check | line 1163, `TextBlock` `Text` | Section header |
-| The Compiler check node compiles what a model wrote before anything is written to disk. When it does not build, the errors go back to the model that produced the code and it tries again. | line 1166, `TextBlock` `Text` | Hint under a control or section |
-| Repair attempts after the first failure | line 1168, `TextBlock` `Text` | Field label, above an input |
-| How many more times to hand the errors back before giving up. Zero checks the code and reports what is wrong without trying to fix it. Each attempt is another request to the model, so this is the setting that decides how long a bad first answer takes to resolve. | line 1172, `TextBlock` `Text` | Hint under a control or section |
-| Plan context budget | line 1174, `TextBlock` `Text` | Section header |
-| How much of your project the Triage node is allowed to put in front of a model when it works out what to change. A model can only read so much at once, so this is a deliberate allowance split three ways rather than an attempt to send everything. | line 1177, `TextBlock` `Text` | Hint under a control or section |
-| All three are in characters, roughly four characters to a token. Raising them costs money on a hosted model and time on a local one. Anything that does not fit is dropped in rank order and the run says what was dropped, so a budget that is too small is visible rather than silent. | line 1181, `TextBlock` `Text` | Hint under a control or section |
-| Project map | line 1193, `TextBlock` `Text` | Field label, above an input |
-| One line per type in the whole project, so the model knows what already exists and does not write a second copy of it. | line 1198, `TextBlock` `Text` | Hint under a control or section |
-| Candidate detail | line 1202, `TextBlock` `Text` | Field label, above an input |
-| The actual contents of the files the request looks like it is about. The largest of the three, because this is what a change is written against. | line 1207, `TextBlock` `Text` | Hint under a control or section |
-| Signatures this run | line 1211, `TextBlock` `Text` | Field label, above an input |
-| What earlier files in this same run declared, so the fifth file can call into the first by its real name instead of guessing. | line 1216, `TextBlock` `Text` | Hint under a control or section |
-| Candidate files offered before any is read | line 1220, `TextBlock` `Text` | Field label, above an input |
-| How many files get shortlisted by ranking before any of them is opened. Only what survives the shortlist spends any of the candidate detail budget above. Files you never mentioned but which the work depends on still make the list. | line 1224, `TextBlock` `Text` | Hint under a control or section |
+| What undo reaches | line 1145, `TextBlock` `Text` | Section header |
+| Undo puts back only the files this application wrote or edited during a run. Anything a build or an editor regenerated, an extension changed, or you edited by hand is invisible to it, and putting a file back also discards whatever was done to it since. This is run undo, not version control. | line 1149, `TextBlock` `Text` | Warning text, shown when something needs attention |
+| Behaviour | line 1153, `TextBlock` `Text` | Section header |
+| Starting values for nodes you add from here on. Every one of them can be changed on the node itself, and a graph you have already saved keeps whatever was set on it, so nothing here reaches backwards. | line 1156, `TextBlock` `Text` | Hint under a control or section |
+| Compiler check | line 1158, `TextBlock` `Text` | Section header |
+| The Compiler check node compiles what a model wrote before anything is written to disk. When it does not build, the errors go back to the model that produced the code and it tries again. | line 1161, `TextBlock` `Text` | Hint under a control or section |
+| Repair attempts after the first failure | line 1163, `TextBlock` `Text` | Field label, above an input |
+| How many more times to hand the errors back before giving up. Zero checks the code and reports what is wrong without trying to fix it. Each attempt is another request to the model, so this is the setting that decides how long a bad first answer takes to resolve. | line 1167, `TextBlock` `Text` | Hint under a control or section |
+| Plan context budget | line 1169, `TextBlock` `Text` | Section header |
+| How much of your project the Triage node is allowed to put in front of a model when it works out what to change. A model can only read so much at once, so this is a deliberate allowance split three ways rather than an attempt to send everything. | line 1172, `TextBlock` `Text` | Hint under a control or section |
+| All three are in characters, roughly four characters to a token. Raising them costs money on a hosted model and time on a local one. Anything that does not fit is dropped in rank order and the run says what was dropped, so a budget that is too small is visible rather than silent. | line 1176, `TextBlock` `Text` | Hint under a control or section |
+| Project map | line 1188, `TextBlock` `Text` | Field label, above an input |
+| One line per type in the whole project, so the model knows what already exists and does not write a second copy of it. | line 1193, `TextBlock` `Text` | Hint under a control or section |
+| Candidate detail | line 1197, `TextBlock` `Text` | Field label, above an input |
+| The actual contents of the files the request looks like it is about. The largest of the three, because this is what a change is written against. | line 1202, `TextBlock` `Text` | Hint under a control or section |
+| Signatures this run | line 1206, `TextBlock` `Text` | Field label, above an input |
+| What earlier files in this same run declared, so the fifth file can call into the first by its real name instead of guessing. | line 1211, `TextBlock` `Text` | Hint under a control or section |
+| Candidate files offered before any is read | line 1215, `TextBlock` `Text` | Field label, above an input |
+| How many files get shortlisted by ranking before any of them is opened. Only what survives the shortlist spends any of the candidate detail budget above. Files you never mentioned but which the work depends on still make the list. | line 1219, `TextBlock` `Text` | Hint under a control or section |
 
 ## Node inspector panels
 
@@ -440,10 +439,10 @@ because a quarter of a sentence tells nobody how it sounds.
 | One arguing from the project and one from what is generally right is the pairing worth having. Both may debate, but two defenders never disagree and two critics never propose anything, so those two pairings are refused before the run starts. | line 81, `TextBlock` `Text` | Hint under a control or section |
 | When it has settled | line 84, `TextBlock` `Text` | Section header |
 | Agreement needed | line 86, `TextBlock` `Text` | Field label, above an input |
-| Two numbers are reported each round. Each model says how far it has come, which is free because it rides on a call already being made, and drifts optimistic because models tend to agree. The other is measured from what the two positions actually name and propose, which costs nothing and is the same every time. Only the measured number decides, and the gap between them is worth watching: both models claiming ninety while a count of what they named says forty means they are being agreeable rather than agreeing. | line 110, `TextBlock` `Text` | Hint under a control or section |
-| The measurement is arithmetic, not another model. Types, members and files both sides named are seventy percent of it, and the verbs of what they propose doing are the other thirty. Connectives and hedging count for nothing, which is where counting shared words goes wrong. Naming the same type and wanting opposite things done to it takes twenty off each time, up to sixty, because that is real disagreement that shared words would score as agreement. Every round writes its working to the Activity panel: what both named, what only one named, and what contradicted. | line 115, `TextBlock` `Text` | Hint under a control or section |
+| Two numbers are reported each round. Each model says how far it has come, and that drifts optimistic because models tend to agree. The other is measured from what the two positions actually name and propose. Only the measured number decides. A wide gap between the two means the models are being agreeable rather than agreeing. | line 110, `TextBlock` `Text` | Hint under a control or section |
+| The measurement is arithmetic, not another model. It counts the types, members and files both sides named, and the verbs of what they propose doing. Naming the same type and proposing opposite things counts as disagreement, which shared words alone would score as agreement. Every round writes its working to the Activity panel: what both named, what only one named, and what contradicted. | line 115, `TextBlock` `Text` | Hint under a control or section |
 | Stop after | line 117, `TextBlock` `Text` | Field label, above an input |
-| Minutes and seconds, for example 05:00. However the debate is going, it stops there. It also stops after six rounds whatever the clock says, because a fast pair of local models can get through twenty exchanges inside a generous budget and two that have not come together by the sixth are not going to. | line 123, `TextBlock` `Text` | Hint under a control or section |
+| Minutes and seconds, for example 05:00. However the debate is going, it stops there. It also stops after six rounds whatever the clock says, because two models that have not come together by the sixth are not going to. | line 123, `TextBlock` `Text` | Hint under a control or section |
 | Which model writes it up and judges | line 125, `TextBlock` `Text` | Field label, above an input |
 | Model A | line 127, `RadioButton` `Content` | Button label |
 | Model B | line 130, `RadioButton` `Content` | Button label |
@@ -742,7 +741,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | LAYERS | line 96, `TextBlock` `Text` | Value shown in monospace |
 | COVERED BY | line 97, `TextBlock` `Text` | Value shown in monospace |
 | BACKUPS | line 98, `TextBlock` `Text` | Value shown in monospace |
-| Backups are just other machines that can take over if the one handling a section drops out. No throughput info from the mesh is provided, and only the size of meshes that show up in the directory are displayed. For everything else, the value reported by the mesh is used instead of trying to guess. | line 164, `TextBlock` `Text` | Hint under a control or section |
+| Backups are other machines that can take over if the one holding a section drops out. The mesh does not report throughput, and size is shown only for meshes listed in the directory. Everything else is shown exactly as the mesh reports it. | line 164, `TextBlock` `Text` | Hint under a control or section |
 | Read from the mesh. | line 172, `TextBlock` `Text` | Hint under a control or section |
 | Reported by the mesh. Nothing about another machine can be changed from here. | line 182, `TextBlock` `Text` | Hint under a control or section |
 | Peer key | line 184, `TextBlock` `Text` | Field label, above an input |
@@ -768,7 +767,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | Covered by | line 283, `TextBlock` `Text` | Field label, above an input |
 | Backups | line 286, `TextBlock` `Text` | Field label, above an input |
 | Other machines with room to take these layers over. If the machine holding them goes away, the mesh moves the work to one of these without the model going down. | line 292, `TextBlock` `Text` | Hint under a control or section |
-| You're looking at a mesh that's being hosted by someone else. The details here come from the person running it, so they're not something this machine can verify. If you want to actually use the mesh, you'll need to join it first. | line 304, `TextBlock` `Text` | Hint under a control or section |
+| This mesh is hosted by someone else. The details come from whoever runs it and cannot be verified from this machine. To use it, join it first. | line 304, `TextBlock` `Text` | Hint under a control or section |
 | Size | line 306, `TextBlock` `Text` | Field label, above an input |
 | Serving now | line 309, `TextBlock` `Text` | Field label, above an input |
 | Nothing loaded. | line 318, `TextBlock` `Text` | Hint under a control or section |
@@ -856,7 +855,7 @@ because a quarter of a sentence tells nobody how it sounds.
 
 | Text | Where | When it shows |
 | --- | --- | --- |
-| Asked once, so the application stops guessing. All of it can be changed later in Settings under Project. | line 41, `TextBlock` `Text` | Hint under a control or section |
+| Asked once. Everything here can be changed later in Settings under Project. | line 41, `TextBlock` `Text` | Hint under a control or section |
 | Skip | line 48, `Button` `Content` | Button label |
 | Take the defaults. Nothing is blocked, and this is not asked again. | line 49, `Button` `ToolTip` | Tooltip, on hover |
 | Save | line 53, `Button` `Content` | Button label |
@@ -885,7 +884,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | LocalNEXUS Setup | line 76, `TextBlock` `Text` | Static label |
 | Minimise | line 83, `Button` `ToolTip` | Tooltip, on hover |
 | Close | line 84, `Button` `ToolTip` | Tooltip, on hover |
-| localNEXUS 1.6.0 | line 164, `TextBlock` `Text` | Static label |
+| LocalNEXUS 1.6.0 | line 164, `TextBlock` `Text` | Static label |
 | Cancel | line 233, `Button` `Content` | Button label |
 | Back | line 238, `Button` `Content` | Button label |
 | Retry | line 243, `Button` `Content` | Button label |
@@ -895,38 +894,38 @@ because a quarter of a sentence tells nobody how it sounds.
 
 | Text | Where | When it shows |
 | --- | --- | --- |
-| Welcome to the localNEXUS 1.6.0 Setup Wizard | line 28, `TextBlock` `Text` | Static label |
-| It is recommended that you close all other applications before continuing. | line 37, `TextBlock` `Text` | Static label |
+| Welcome to the LocalNEXUS 1.6.0 Setup Wizard | line 28, `TextBlock` `Text` | Static label |
+| Close other applications before continuing. | line 37, `TextBlock` `Text` | Static label |
 | Runs on your hardware | line 41, `TextBlock` `Text` | Static label |
 | Nothing sent to a cloud | line 44, `TextBlock` `Text` | Static label |
 | License Agreement | line 62, `TextBlock` `Text` | Static label |
-| Please read the following license agreement before continuing. | line 63, `TextBlock` `Text` | Static label |
+| Read the license agreement before continuing. | line 63, `TextBlock` `Text` | Static label |
 | I accept the agreement | line 103, `TextBlock` `Text` | Static label |
 | I do not accept | line 115, `TextBlock` `Text` | Static label |
 | Select Components | line 134, `TextBlock` `Text` | Static label |
-| Choose which parts of localNEXUS to install. | line 135, `TextBlock` `Text` | Static label |
+| Choose which parts of LocalNEXUS to install. | line 135, `TextBlock` `Text` | Static label |
 | Everything | line 139, `Button` `Content` | Button label |
 | Local models only | line 140, `Button` `Content` | Button label |
 | required | line 192, `TextBlock` `Text` | Static label |
 | Create a desktop shortcut | line 233, `TextBlock` `Text` | Static label |
 | Choose a llama.cpp Build | line 248, `TextBlock` `Text` | Static label |
 | Ready to Install | line 315, `TextBlock` `Text` | Static label |
-| Setup is now ready to install localNEXUS on this computer. | line 316, `TextBlock` `Text` | Static label |
+| Setup is now ready to install LocalNEXUS on this computer. | line 316, `TextBlock` `Text` | Static label |
 | DESTINATION | line 321, `TextBlock` `Text` | Static label |
 | ENGINES TO FETCH | line 327, `TextBlock` `Text` | Static label |
-| Nothing optional is ticked. localNEXUS will install and start, and it will not be able to run a model, because the engine that does that is one of the boxes on the previous step. You can add them later by running this installer again. | line 334, `TextBlock` `Text` | Conditional text, shown when NothingSelected is true |
+| Nothing optional is ticked. LocalNEXUS will install and start, but it will not be able to run a model, because no engine was selected on the previous step. Add one later by running this installer again. | line 334, `TextBlock` `Text` | Empty state, shown when there is nothing to list |
 | Installing | line 361, `TextBlock` `Text` | Static label |
 | Please wait while the engines are downloaded and set up. | line 362, `TextBlock` `Text` | Static label |
-| Completing the localNEXUS Setup Wizard | line 428, `TextBlock` `Text` | Static label |
-| Setup has finished installing localNEXUS on this computer. | line 429, `TextBlock` `Text` | Static label |
-| Launch localNEXUS | line 453, `TextBlock` `Text` | Static label |
+| Completing the LocalNEXUS Setup Wizard | line 428, `TextBlock` `Text` | Static label |
+| Setup has finished installing LocalNEXUS on this computer. | line 429, `TextBlock` `Text` | Static label |
+| Launch LocalNEXUS | line 453, `TextBlock` `Text` | Static label |
 
 ### `src/LocalNEXUS.Installer/Views/UninstallWindow.xaml`
 
 | Text | Where | When it shows |
 | --- | --- | --- |
-| Remove localNEXUS | line 5, `Window` `Title` | Window title |
-| Remove localNEXUS | line 32, `TextBlock` `Text` | Static label |
+| Remove LocalNEXUS | line 5, `Window` `Title` | Window title |
+| Remove LocalNEXUS | line 32, `TextBlock` `Text` | Static label |
 | This removes the application and the engine binaries it installed. | line 33, `TextBlock` `Text` | Static label |
 | Also remove my settings, saved graphs and models catalogue | line 53, `TextBlock` `Text` | Static label |
 | Leave this unticked and your work stays where it is, so reinstalling picks up where you left off. Ticking it also removes the Python runtime, which is a multi gigabyte download to rebuild. Model files themselves are never touched wherever they live. | line 60, `TextBlock` `Text` | Static label |
@@ -1321,7 +1320,7 @@ because a quarter of a sentence tells nobody how it sounds.
 | &#123;TitleText&#125; - LocalNEXUS | line 496, `WindowTitle` | Bound to the interface and read whenever the panel is drawn |
 | Node not added | line 646, `AddNode` | Modal dialog, shown over whatever is on screen |
 | Node not added | line 669, `PlaceSearchedNode` | Modal dialog, shown over whatever is on screen |
-| Node added without a wire &#123;node.Title&#125; was offered as somewhere &#123;from.Owner.Title&#125;.&#123;from.Name&#125; could go, and then no pin on it would take the connection. | line 694, `PlaceSearchedNode` | Activity feed entry, written while a run is going on |
+| Node added without a wire &#123;node.Title&#125; was added, but no pin on it would take the connection from &#123;from.Owner.Title&#125;.&#123;from.Name&#125;. | line 694, `PlaceSearchedNode` | Activity feed entry, written while a run is going on |
 | Started from &#123;template.Name&#125; Choose a model on each Model node, then type a request. | line 731, `ApplyTemplate` | Activity feed entry, written while a run is going on |
 | Part of the template did not open | line 736, `ApplyTemplate` | Activity feed entry, written while a run is going on |
 | Template not opened | line 741, `ApplyTemplate` | Modal dialog, shown over whatever is on screen |
@@ -1456,15 +1455,15 @@ because a quarter of a sentence tells nobody how it sounds.
 | Text | Where | When it shows |
 | --- | --- | --- |
 | Off. History is searched by keyword, which finds the words that were actually written and needs no model. | line 106, `ModelName` | Bound to the interface and read whenever the panel is drawn |
-| If you have no embedding model, &#123;RecommendedFile&#125; is a good small one at about 35 MB: search for &#123;RecommendedRepository&#125; under Find a model to download, above. A model this small is quick and costs almost nothing to run. | line 122, `Recommendation` | Bound to the interface and read whenever the panel is drawn |
-| Chosen. Nothing is indexed yet: runs from now on are indexed as they finish, and Index the history covers what is already recorded. | line 144, `ChooseAsync` | Status line, updated as the thing it describes changes |
-| Off. Searches are by keyword again. The vectors are kept, so turning it back on with the same model does not mean indexing everything twice. | line 160, `TurnOff` | Status line, updated as the thing it describes changes |
-| Every vector was deleted. Indexing again rebuilds them. | line 170, `ForgetAsync` | Status line, updated as the thing it describes changes |
-| Indexing. The first run also starts the embedding model, which takes a moment. | line 203, `BackfillAsync` | Status line, updated as the thing it describes changes |
-| Indexed &#123;p.Done&#125; of &#123;p.Total&#125;. | line 209, `BackfillAsync` | Status line, updated as the thing it describes changes |
-| Nothing was indexed. &#123;result.Failed&#125; run(s) could not be embedded, which usually means the file chosen is not an embedding model. Indexed &#123;result.Indexed&#125; run(s) in &#123;result.Elapsed.TotalSeconds:0.0&#125; seconds, | line 214, `BackfillAsync` | Status line, updated as the thing it describes changes |
-| about &#123;result.Each.TotalMilliseconds:0&#125; ms each. &#123;result.Failed&#125; could not be embedded. | line 217, `BackfillAsync` | Status line, updated as the thing it describes changes |
-| Stopped. What was indexed is kept, and indexing again carries on from there. | line 222, `BackfillAsync` | Status line, updated as the thing it describes changes |
+| If you have no embedding model, &#123;RecommendedFile&#125; is a good small one at about 35 MB: search for &#123;RecommendedRepository&#125; under Find a model to download, above. | line 122, `Recommendation` | Bound to the interface and read whenever the panel is drawn |
+| Chosen. Nothing is indexed yet: runs from now on are indexed as they finish, and Index the history covers what is already recorded. | line 143, `ChooseAsync` | Status line, updated as the thing it describes changes |
+| Off. Searches are by keyword again. The vectors are kept, so turning it back on with the same model does not mean indexing everything twice. | line 159, `TurnOff` | Status line, updated as the thing it describes changes |
+| Every vector was deleted. Indexing again rebuilds them. | line 169, `ForgetAsync` | Status line, updated as the thing it describes changes |
+| Indexing. The first run also starts the embedding model, which takes a moment. | line 202, `BackfillAsync` | Status line, updated as the thing it describes changes |
+| Indexed &#123;p.Done&#125; of &#123;p.Total&#125;. | line 208, `BackfillAsync` | Status line, updated as the thing it describes changes |
+| Nothing was indexed. &#123;result.Failed&#125; run(s) could not be embedded, which usually means the file chosen is not an embedding model. Indexed &#123;result.Indexed&#125; run(s) in &#123;result.Elapsed.TotalSeconds:0.0&#125; seconds, | line 213, `BackfillAsync` | Status line, updated as the thing it describes changes |
+| about &#123;result.Each.TotalMilliseconds:0&#125; ms each. &#123;result.Failed&#125; could not be embedded. | line 216, `BackfillAsync` | Status line, updated as the thing it describes changes |
+| Stopped. What was indexed is kept, and indexing again carries on from there. | line 221, `BackfillAsync` | Status line, updated as the thing it describes changes |
 
 ### `src/LocalNEXUS.App/ViewModels/SpecViewModel.cs`
 
