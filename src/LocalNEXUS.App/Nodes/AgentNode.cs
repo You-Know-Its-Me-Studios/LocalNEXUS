@@ -78,6 +78,106 @@ public sealed partial class AgentNode : NodeBase
         Request = AddInput("Text", PinType.Text);
         Model = AddInput("Model", PinType.Model);
         Result = AddOutput("Text", PinType.Text);
+
+        // The warning below is about the node on the other end of the Model wire, so it has to be
+        // rebuilt when that wire changes and when that node's answer changes.
+        Model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Pin.SourcePin))
+            {
+                WatchModel();
+                RaiseToolWarning();
+            }
+        };
+    }
+
+    /// <summary>The model node currently being watched, so its notifications can be let go.</summary>
+    private ModelNode? _watched;
+
+    private void WatchModel()
+    {
+        if (_watched is not null)
+        {
+            _watched.PropertyChanged -= OnModelNodeChanged;
+        }
+
+        _watched = Model.SourcePin?.Owner as ModelNode;
+
+        if (_watched is not null)
+        {
+            _watched.PropertyChanged += OnModelNodeChanged;
+        }
+    }
+
+    private void OnModelNodeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ModelNode.ToolSupport) or nameof(ModelNode.ModelDisplayName))
+        {
+            RaiseToolWarning();
+        }
+    }
+
+    private void RaiseToolWarning()
+    {
+        OnPropertyChanged(nameof(ToolWarning));
+        OnPropertyChanged(nameof(HasToolWarning));
+        OnPropertyChanged(nameof(IsToolWarningSevere));
+    }
+
+    /// <summary>
+    /// Whether the model wired in will not call tools, which the agent cannot work without.
+    /// </summary>
+    /// <remarks>
+    /// This is the worst failure this application has, which is why it is a warning at the point
+    /// of use rather than a line in a settings panel. A model that cannot emit a tool call does
+    /// not fail loudly when it is asked to. It writes out what it would have done, in prose, and
+    /// the loop reads no tool calls, concludes the work is finished, and reports success. Nothing
+    /// was written, nothing was compiled, and the run says it went fine.
+    ///
+    /// Three states, because Unknown is not No. A model nobody has asked about might be perfectly
+    /// capable, and saying it will not work would be a guess presented as a fact.
+    /// </remarks>
+    public ToolSupport ModelToolSupport =>
+        Model.SourcePin?.Owner is ModelNode model ? model.ToolSupport : ToolSupport.Unknown;
+
+    /// <summary>True when there is anything to say about the wired model's tool calling.</summary>
+    public bool HasToolWarning => ToolWarning.Length > 0;
+
+    /// <summary>True when the warning is a refusal rather than a caution, and is painted as one.</summary>
+    public bool IsToolWarningSevere =>
+        Model.SourcePin?.Owner is ModelNode && ModelToolSupport == ToolSupport.Unsupported;
+
+    /// <summary>What to say, before a run, about whether this agent can work at all.</summary>
+    public string ToolWarning
+    {
+        get
+        {
+            if (Model.SourcePin?.Owner is not ModelNode model)
+            {
+                return "No model is wired in. The Agent borrows the model on its Model pin, and "
+                    + "that model has to be able to call tools.";
+            }
+
+            var named = string.IsNullOrWhiteSpace(model.ModelDisplayName)
+                ? "The model wired in"
+                : model.ModelDisplayName;
+
+            return model.ToolSupport switch
+            {
+                ToolSupport.Unsupported =>
+                    $"{named} does not call tools, and the Agent cannot work with it. It will "
+                    + "describe the work in prose instead of doing it, and the run will report "
+                    + "success having written nothing. Wire in a model that calls tools, or use "
+                    + "the Prompt and Model pipeline for this instead.",
+
+                ToolSupport.Unknown =>
+                    $"Whether {named} calls tools has not been established. Check it on the Model "
+                    + "node before running: an Agent given a model that cannot call tools reports "
+                    + "success without doing anything.",
+
+                _ => string.Empty
+            };
+        }
     }
 
     /// <inheritdoc />

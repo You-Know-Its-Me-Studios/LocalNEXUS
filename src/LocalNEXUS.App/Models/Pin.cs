@@ -18,6 +18,24 @@ public sealed partial class Pin : ObservableObject
     [ObservableProperty]
     private bool _isConnected;
 
+    /// <summary>
+    /// For an input, the output pin currently feeding it. Null for an output, and for an input
+    /// with nothing wired in.
+    /// </summary>
+    /// <remarks>
+    /// Maintained by <see cref="GraphModel"/> everywhere <see cref="IsConnected"/> is, and for the
+    /// same reason: the graph owns wiring, and a pin records what was done to it. It exists so a
+    /// node can answer a question about its neighbour without a run in progress. During a run the
+    /// executor already provides that through the execution context, but a panel drawn before
+    /// anybody presses Run has no context to ask, and a warning that only appears once the run has
+    /// started is a warning about a decision already taken.
+    ///
+    /// An input takes one wire, which the connection validator enforces, so this is one pin rather
+    /// than a list.
+    /// </remarks>
+    [ObservableProperty]
+    private Pin? _sourcePin;
+
     public Pin(NodeBase owner, string name, PinType pinType, PinDirection direction)
     {
         Owner = owner;

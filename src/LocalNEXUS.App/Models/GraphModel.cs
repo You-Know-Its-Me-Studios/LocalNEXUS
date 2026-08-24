@@ -88,6 +88,7 @@ public sealed partial class GraphModel : ObservableObject
         Connections.Add(connection);
         source.IsConnected = true;
         target.IsConnected = true;
+        target.SourcePin = source;
         failureReason = string.Empty;
         return true;
     }
@@ -143,5 +144,8 @@ public sealed partial class GraphModel : ObservableObject
     public bool IsInputOccupied(Pin pin) => Connections.Any(c => c.Target == pin);
 
     private void RefreshConnectedFlag(Pin pin)
-        => pin.IsConnected = Connections.Any(c => c.Source == pin || c.Target == pin);
+    {
+        pin.IsConnected = Connections.Any(c => c.Source == pin || c.Target == pin);
+        pin.SourcePin = Connections.FirstOrDefault(c => c.Target == pin)?.Source;
+    }
 }

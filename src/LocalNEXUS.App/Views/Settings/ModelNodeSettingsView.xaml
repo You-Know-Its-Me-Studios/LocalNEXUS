@@ -476,10 +476,24 @@
                     ToolTip="Gives the model one small tool and sees whether it actually calls it. The model has to be loaded."
                     Command="{Binding CheckToolSupportCommand}" />
 
-            <TextBlock Style="{StaticResource HintText}"
-                       VerticalAlignment="Center"
+            <!--
+                Painted as a warning once the answer is known to be no, because at that point
+                every tool ticked below is context spent on a call that will never come.
+            -->
+            <TextBlock VerticalAlignment="Center"
                        TextWrapping="Wrap"
-                       Text="{Binding ToolSupportText}" />
+                       Text="{Binding ToolSupportText}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ToolsWillBeIgnored}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource Status.Danger.Brush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </DockPanel>
 
         <ItemsControl ItemsSource="{Binding ToolExtensions}" Margin="0,8,0,0">

@@ -14,6 +14,51 @@
     -->
 
     <StackPanel>
+
+        <!--
+            First thing in the panel, and a bordered callout rather than a coloured hint, because
+            this is the one failure in the application that looks like success. A model that cannot
+            emit a tool call does not refuse: it writes out what it would have done and the loop
+            reports finished. Somebody has to see this before they press Run, not after.
+        -->
+        <Border Margin="0,0,0,14"
+                Padding="10,8"
+                CornerRadius="3"
+                BorderThickness="1"
+                Visibility="{Binding HasToolWarning, Converter={StaticResource BooleanToVisibility}}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Status.Warning.Brush}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsToolWarningSevere}" Value="True">
+                            <Setter Property="BorderBrush" Value="{DynamicResource Status.Danger.Brush}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Top"
+                           FontFamily="{StaticResource Font.Icons}"
+                           Text="&#xE7BA;">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Status.Warning.Brush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsToolWarningSevere}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Status.Danger.Brush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <TextBlock TextWrapping="Wrap" Text="{Binding ToolWarning}" />
+            </DockPanel>
+        </Border>
+
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
                    Text="Wire a Model node into the Model pin and type a request. It works out the steps itself: reading and writing files, compiling, searching the project, and using whatever tools that Model node has selected. Writes go through the same project rules the Output node uses." />

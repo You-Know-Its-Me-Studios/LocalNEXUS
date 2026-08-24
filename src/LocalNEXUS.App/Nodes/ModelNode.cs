@@ -650,6 +650,7 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// <summary>Whether the model behind this node can call tools at all.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ToolSupportText))]
+    [NotifyPropertyChangedFor(nameof(ToolsWillBeIgnored))]
     private ToolSupport _toolSupport = ToolSupport.Unknown;
 
     /// <summary>What the probe said, when it said anything.</summary>
@@ -670,6 +671,16 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// that reports both tool flags true and then writes the call out as text in a code fence is
     /// the ordinary case rather than the odd one.
     /// </remarks>
+    /// <summary>
+    /// True when tools selected here will be sent, paid for in context, and not called.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the text so the panel can paint it as a warning rather than a hint. An
+    /// established No is a different thing from a not yet asked, and only the first is worth
+    /// colouring: telling somebody in red that nothing is known would be alarming about nothing.
+    /// </remarks>
+    public bool ToolsWillBeIgnored => ToolSupport == ToolSupport.Unsupported;
+
     public string ToolSupportText => ToolSupport switch
     {
         ToolSupport.Supported => ToolSupportDetail.Length > 0
