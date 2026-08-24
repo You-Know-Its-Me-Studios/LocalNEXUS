@@ -77,6 +77,27 @@
             <TextBlock Style="{StaticResource HintText}"
                        Text="{Binding DataContext.Catalog.SearchSummary, RelativeSource={RelativeSource AncestorType=Window}}" />
 
+            <!--
+                Directly under the list it is about. Whether a model fits was knowable before and
+                was nowhere near the moment of choosing one, so the way to find out was to pick it
+                and wait. Painted only when the answer is trouble, since colouring a model that
+                fits would make the colour mean nothing.
+            -->
+            <TextBlock Margin="0,6,0,0"
+                       TextWrapping="Wrap"
+                       Text="{Binding FitText}"
+                       Visibility="{Binding HasFitAnswer, Converter={StaticResource BooleanToVisibility}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding WillNotFit}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource Status.Warning.Brush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
             <WrapPanel Margin="0,8,0,0">
                 <Button Style="{StaticResource SmallButton}"
                         Content="Add folder"

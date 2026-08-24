@@ -98,6 +98,10 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     [NotifyPropertyChangedFor(nameof(NeedsKey))]
     [NotifyPropertyChangedFor(nameof(ProviderStatus))]
     [NotifyPropertyChangedFor(nameof(ModelDisplayName))]
+    [NotifyPropertyChangedFor(nameof(CloudProvider))]
+    [NotifyPropertyChangedFor(nameof(FitText))]
+    [NotifyPropertyChangedFor(nameof(HasFitAnswer))]
+    [NotifyPropertyChangedFor(nameof(WillNotFit))]
     private ModelProvider _provider = ModelProvider.Local;
 
     /// <summary>The model selected from the catalog, when the provider is local.</summary>
@@ -105,6 +109,9 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     [NotifyPropertyChangedFor(nameof(ModelDisplayName))]
     [NotifyPropertyChangedFor(nameof(ModelSourceText))]
     [NotifyPropertyChangedFor(nameof(EffectiveLocalModelPath))]
+    [NotifyPropertyChangedFor(nameof(FitText))]
+    [NotifyPropertyChangedFor(nameof(HasFitAnswer))]
+    [NotifyPropertyChangedFor(nameof(WillNotFit))]
     private LocalModelInfo? _selectedLocalModel;
 
     /// <summary>
@@ -183,6 +190,9 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LoadedText))]
     [NotifyPropertyChangedFor(nameof(HasLoadDrift))]
+    [NotifyPropertyChangedFor(nameof(FitText))]
+    [NotifyPropertyChangedFor(nameof(HasFitAnswer))]
+    [NotifyPropertyChangedFor(nameof(WillNotFit))]
     private int _contextSize = LlamaLaunchOptions.DefaultContextSize;
 
     /// <summary>GPU layers requested when this node starts a llama-server.</summary>
@@ -671,6 +681,60 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// that reports both tool flags true and then writes the call out as text in a code fence is
     /// the ordinary case rather than the odd one.
     /// </remarks>
+    /// <summary>
+    /// Whether the chosen model is expected to fit on this machine, said at the moment of choosing.
+    /// </summary>
+    /// <remarks>
+    /// The other half of what somebody needs to know while picking a model, beside whether it
+    /// calls tools. Both answers already existed and both lived somewhere nobody looks: one in a
+    /// probe result, the other in a debugging evening. Neither was in front of the list of models.
+    ///
+    /// Local models only. A hosted model runs on somebody else's hardware and how much of this
+    /// card it would use is not a question, and a mesh model is placed by the engine rather than
+    /// by this machine.
+    /// </remarks>
+    public string FitText
+    {
+        get
+        {
+            if (Provider != ModelProvider.Local || SelectedLocalModel is not { } model)
+            {
+                return string.Empty;
+            }
+
+            var card = Services.Python.AcceleratorProbe.DetectMemory();
+
+            return ModelFit.Describe(model.Descriptor.SizeGb, ContextSize, card?.TotalGb);
+        }
+    }
+
+    /// <summary>True when there is a fit answer worth showing.</summary>
+    public bool HasFitAnswer => FitText.Length > 0;
+
+    /// <summary>
+    /// True when the model is expected not to fit, so the answer is painted as a warning.
+    /// </summary>
+    /// <remarks>
+    /// Only for the verdicts that mean trouble. A model that fits, or one on a machine with no
+    /// card to measure, is stated plainly: colouring everything would make the colour mean
+    /// nothing.
+    /// </remarks>
+    public bool WillNotFit
+    {
+        get
+        {
+            if (Provider != ModelProvider.Local || SelectedLocalModel is not { } model)
+            {
+                return false;
+            }
+
+            var card = Services.Python.AcceleratorProbe.DetectMemory();
+
+            return ModelFit.Verdict(model.Descriptor.SizeGb, ContextSize, card?.TotalGb)
+                is FitVerdict.Spills or FitVerdict.TooLarge;
+        }
+    }
+
     /// <summary>
     /// True when tools selected here will be sent, paid for in context, and not called.
     /// </summary>
@@ -2109,6 +2173,14 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     }
 
     /// <summary>The catalogue entry this node points at, or null when it points at nothing yet.</summary>
+    /// <summary>
+    /// The hosted provider this node would actually be billed by, or null when none.
+    /// </summary>
+    /// <remarks>
+    /// Null for a local, mesh or self hosted node even when a provider was chosen earlier and is
+    /// still stored, because what this answers is what the next call costs rather than what is
+    /// remembered in a dropdown.
+    /// </remarks>
     public CloudProvider? CloudProvider => ProviderCatalog.Find(EffectiveProviderId);
 
     /// <summary>
@@ -2138,8 +2210,18 @@ public sealed partial class ModelNode : NodeBase, ICodeRepairSource, IModelHandl
     /// OpenRouter predates the catalogue and its own provider value, so it maps onto the
     /// catalogue entry of the same name rather than being a second way of saying the same thing.
     /// </remarks>
-    private string EffectiveProviderId
-        => Provider == ModelProvider.OpenRouter ? "openrouter" : CloudProviderId;
+    private string EffectiveProviderId => Provider switch
+    {
+        ModelProvider.OpenRouter => "openrouter",
+        ModelProvider.Cloud => CloudProviderId,
+
+        // Everything else is served without a bill. This used to return the stored provider id
+        // whatever the node was set to, so choosing a hosted provider and then switching back to
+        // Local left the node still reporting that provider, and anything asking what this call
+        // would cost was answered about a call that is not going to happen. The stored id is kept
+        // rather than cleared, so switching back to Cloud finds the earlier choice still there.
+        _ => string.Empty
+    };
 
     /// <summary>
     /// Builds an endpoint for a hosted provider, taking the key from the store.
