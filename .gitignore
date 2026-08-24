@@ -118,11 +118,14 @@ logs/
 runtime/
 
 # ---------------------------------------------------------------------------
-# The Python folder holds committed lockfiles and nothing else. An environment
-# built here by hand would be gigabytes.
+# The Python folder holds committed lockfiles and the distributed inference
+# package. An environment built here by hand would be gigabytes, and the
+# compiled bytecode beside the source is rebuilt on every run and belongs to
+# whichever interpreter happened to import it.
 # ---------------------------------------------------------------------------
 vendor/python/.venv/
-vendor/python/__pycache__/
+vendor/python/**/__pycache__/
+*.pyc
 
 # ---------------------------------------------------------------------------
 # Local tooling state
