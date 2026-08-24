@@ -419,6 +419,8 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
         Execute(connection, "PRAGMA journal_mode=WAL;");
         Execute(connection, "PRAGMA synchronous=NORMAL;");
 
+        CreateVectorSchema(connection);
+
         Execute(connection, """
             CREATE TABLE IF NOT EXISTS runs (
                 run_id TEXT PRIMARY KEY,

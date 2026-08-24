@@ -84,6 +84,15 @@ public sealed partial class AppSettingsViewModel : ObservableObject
     /// </remarks>
     public ModelBrowserViewModel Browser { get; }
 
+    /// <summary>
+    /// Searching run history by meaning, which is off until somebody chooses a model.
+    /// </summary>
+    /// <remarks>
+    /// In the Models section because what it needs is a model, and somebody arranging one is
+    /// already looking at the place models come from.
+    /// </remarks>
+    public SemanticSearchViewModel? Semantic { get; init; }
+
     /// <summary>The Python runtime, with its provisioning, healthy and broken states.</summary>
     public PythonEnvironmentViewModel Python { get; }
 

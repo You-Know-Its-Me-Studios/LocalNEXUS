@@ -574,10 +574,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// The view model is built here and handed over each time, so the window opens onto whatever
     /// the record holds now rather than onto whatever it held when the application started.
     /// </remarks>
+    /// <summary>
+    /// Searching history by meaning, or null when that is off.
+    /// </summary>
+    /// <remarks>
+    /// Set at composition and read whenever the history window opens, so turning the feature on
+    /// does not need the application restarted to reach the panel that uses it.
+    /// </remarks>
+    public Services.Search.SemanticHistorySearch? SemanticSearch { get; set; }
+
     [RelayCommand]
     private void OpenHistory()
     {
-        var history = new HistoryViewModel(_history, _feed);
+        var history = new HistoryViewModel(_history, _feed)
+        {
+            // Null unless semantic search was switched on, in which case the panel searches by
+            // meaning and says that it did. A fresh view model per opening means this is read
+            // each time rather than fixed when the application started.
+            Semantic = SemanticSearch
+        };
 
         // Taking a past request back is the half of undo that leaves the files alone.
         history.RequestReused += request => Feed.RequestText = request;

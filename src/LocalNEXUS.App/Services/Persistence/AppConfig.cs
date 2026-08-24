@@ -309,6 +309,21 @@ public sealed class AppConfig
     /// </remarks>
     public string? LastReportedCrash { get; set; }
 
+    /// <summary>
+    /// The embedding model that lets run history be searched by meaning, or null for keyword only.
+    /// </summary>
+    /// <remarks>
+    /// Off unless somebody sets it, and the whole feature is off with it. An embedding model is a
+    /// real dependency: another file on disk and another server to start, for a search that worked
+    /// before without either. So it is opted into rather than arranged, and keyword search stays
+    /// exactly as it was for anybody who does not.
+    ///
+    /// A path rather than a flag, because the model is the setting. Changing it makes every vector
+    /// made by the previous one unusable, which is why they are stored with the model that made
+    /// them and why the panel offers to index again.
+    /// </remarks>
+    public string? EmbeddingModelPath { get; set; }
+
     /// <summary>True once a run has finished on this machine, which is the walkthrough's last step.</summary>
     /// <remarks>
     /// The one step nothing else can see. A run that completed leaves nothing behind that is still

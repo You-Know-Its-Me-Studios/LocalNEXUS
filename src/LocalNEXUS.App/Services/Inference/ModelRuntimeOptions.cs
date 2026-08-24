@@ -27,7 +27,24 @@ public sealed record ModelRuntimeOptions
     /// </remarks>
     public string? ProjectorPath { get; init; }
 
+    /// <summary>
+    /// Serve embeddings rather than completions.
+    /// </summary>
+    /// <remarks>
+    /// Only semantic search asks for this, and it is here rather than reached for directly so that
+    /// an embedding model is started the same way every other model is: through the resolver, with
+    /// the same ownership and the same lifetime. A runtime that cannot serve embeddings ignores it,
+    /// which is the rule the other settings already follow.
+    /// </remarks>
+    public bool Embeddings { get; init; }
+
     /// <summary>The llama.cpp shaped view of these options.</summary>
     public LlamaLaunchOptions ToLlamaLaunchOptions()
-        => new() { ContextSize = ContextSize, GpuLayers = GpuLayers, ProjectorPath = ProjectorPath };
+        => new()
+        {
+            ContextSize = ContextSize,
+            GpuLayers = GpuLayers,
+            ProjectorPath = ProjectorPath,
+            Embeddings = Embeddings
+        };
 }

@@ -38,6 +38,22 @@ public sealed record LlamaLaunchOptions
     public string? ProjectorPath { get; init; }
 
     /// <summary>
+    /// Serves embeddings rather than completions, passed with <c>--embeddings</c>.
+    /// </summary>
+    /// <remarks>
+    /// A different mode rather than a different endpoint. A server started without this answers
+    /// requests for an embedding with an error, and one started with it is pooling every token
+    /// into one vector rather than predicting the next, so the two cannot be the same process even
+    /// for the same weights. That is why it is part of the key.
+    ///
+    /// Mean pooling is stated rather than left to the model's own default, because the vectors
+    /// stored on one machine have to be comparable to the ones stored on it last week, and a
+    /// default that changed with a version of the engine would silently make old vectors mean
+    /// something slightly different.
+    /// </remarks>
+    public bool Embeddings { get; init; }
+
+    /// <summary>
     /// The key a server started with these options is tracked under, so one entry exists per
     /// model and configuration pair.
     /// </summary>
@@ -69,12 +85,24 @@ public sealed record LlamaLaunchOptions
             arguments.Add(projector);
         }
 
+        if (Embeddings)
+        {
+            arguments.Add("--embeddings");
+            arguments.Add("--pooling");
+            arguments.Add("mean");
+        }
+
         return arguments;
     }
 
     public string BuildServerKey(string fullModelPath)
     {
         var key = $"{fullModelPath}|c{ContextSize}|ngl{GpuLayers}";
+
+        if (Embeddings)
+        {
+            key += "|embed";
+        }
 
         return ProjectorPath is { Length: > 0 } projector ? $"{key}|mmproj{projector}" : key;
     }

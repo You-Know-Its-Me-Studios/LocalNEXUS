@@ -37,6 +37,16 @@ public sealed class RunRecorder
         feed.Recorder = OnEntry;
     }
 
+    /// <summary>
+    /// What gives a finished run its vector, or null when semantic search is off.
+    /// </summary>
+    /// <remarks>
+    /// Settable rather than injected, because the embedding model can be chosen and changed while
+    /// the application is running and the recorder is built long before anybody opens Settings.
+    /// Null is the ordinary state and means history is recorded exactly as it always was.
+    /// </remarks>
+    public Search.HistoryIndexer? Indexer { get; set; }
+
     /// <summary>Starts recording a run and returns its identity.</summary>
     public string BeginRun(string request, string graphName, int nodeCount, int connectionCount)
     {
@@ -59,6 +69,14 @@ public sealed class RunRecorder
 
         _store.EndRun(runId, state, cost, calls);
         Volatile.Write(ref _runId, null);
+
+        // After the run is recorded, never before, and never awaited. History is written whether
+        // or not semantic search is switched on, whether or not a model is there, and whether or
+        // not embedding works. A run is not lost because a vector could not be made for it.
+        if (Indexer is { } indexer)
+        {
+            _ = Task.Run(() => indexer.IndexAsync(runId, CancellationToken.None));
+        }
     }
 
     /// <summary>

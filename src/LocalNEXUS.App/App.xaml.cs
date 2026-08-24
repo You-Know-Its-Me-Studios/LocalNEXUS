@@ -305,6 +305,21 @@ public partial class App : Application
         var extensionsWindow = new ExtensionsWindowService();
         _extensionsWindow = extensionsWindow;
 
+        // Searching history by meaning. Off unless a model has been chosen, and everything
+        // downstream of it is null in that case, so nothing about recording or searching changes
+        // for somebody who never opts in.
+        var semantic = new SemanticSearchViewModel(
+            config,
+            _history!,
+            _llamaServers,
+            dialogs,
+            new System.Net.Http.HttpClient());
+
+        if (semantic.Build() is { } semanticParts)
+        {
+            recorder.Indexer = semanticParts.Indexer;
+        }
+
         var settingsViewModel = new AppSettingsViewModel(
             config,
             themes,
@@ -316,7 +331,10 @@ public partial class App : Application
             new CloudProvidersViewModel(credentials, config, dialogs, feed),
             projectIndex,
             dialogs,
-            () => IndexProjectAsync(projectIndex, project.ProjectPath, feed, indexing.Token));
+            () => IndexProjectAsync(projectIndex, project.ProjectPath, feed, indexing.Token))
+        {
+            Semantic = semantic
+        };
 
         // The settings panel reports what the record holds, so it is pointed at the same one the
         // recorder writes to rather than at a second instance of nothing.
@@ -401,6 +419,10 @@ public partial class App : Application
         }
 
         ReportEnvironment(feed, catalog);
+
+        // The history panel is built fresh each time it opens, so it reads this then rather than
+        // being fixed now, which is what lets the feature be switched on without a restart.
+        mainViewModel.SemanticSearch = semantic.Build()?.Search;
 
         _mainViewModel = mainViewModel;
 

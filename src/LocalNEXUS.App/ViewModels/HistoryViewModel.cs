@@ -56,6 +56,27 @@ public sealed partial class HistoryViewModel : ObservableObject
     }
 
     /// <summary>The runs on screen, either the recent ones or the search hits.</summary>
+    /// <summary>
+    /// Searching by meaning, or null when it is off.
+    /// </summary>
+    /// <remarks>
+    /// Settable, because the embedding model is chosen in Settings while this panel already
+    /// exists. Null is the ordinary state and means the search is exactly what it always was.
+    /// </remarks>
+    public Services.Search.SemanticHistorySearch? Semantic { get; set; }
+
+    /// <summary>True when the last search compared meaning rather than words.</summary>
+    [ObservableProperty]
+    private bool _searchedByMeaning;
+
+    /// <summary>Why the last search fell back to words, when it did.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSearchNote))]
+    private string _searchNote = string.Empty;
+
+    /// <summary>True when there is something to say about how the search ran.</summary>
+    public bool HasSearchNote => SearchNote.Length > 0;
+
     public ObservableCollection<RunSummary> Runs { get; } = new();
 
     /// <summary>The transcript of the selected run, in the order it happened.</summary>
@@ -119,7 +140,19 @@ public sealed partial class HistoryViewModel : ObservableObject
             }
             else
             {
-                var hits = await _store.SearchAsync(SearchText, SearchLimit, ct).ConfigureAwait(true);
+                // By meaning when that is switched on and working, and by word otherwise. The
+                // search itself decides and says which it did, because falling back quietly would
+                // leave somebody wondering why a phrase they know works found nothing.
+                var found = Semantic is { } semantic
+                    ? await semantic.SearchAsync(SearchText, SearchLimit, ct).ConfigureAwait(true)
+                    : new Services.Search.SearchOutcome(
+                        await _store.SearchAsync(SearchText, SearchLimit, ct).ConfigureAwait(true),
+                        Services.Search.SearchMethod.Keyword,
+                        string.Empty);
+
+                var hits = found.Hits;
+                SearchNote = found.Note;
+                SearchedByMeaning = found.Method == Services.Search.SearchMethod.Semantic;
 
                 foreach (var hit in hits)
                 {
@@ -131,9 +164,11 @@ public sealed partial class HistoryViewModel : ObservableObject
 
                 rows = all.Where(r => matched.Contains(r.RunId)).ToList();
 
+                var how = SearchedByMeaning ? "match" : "mention";
+
                 ListSummary = rows.Count == 0
                     ? $"Nothing in this project's history matches \"{SearchText}\"."
-                    : $"{rows.Count} run(s) mention \"{SearchText}\".";
+                    : $"{rows.Count} run(s) {how} \"{SearchText}\".";
             }
 
             Runs.Clear();
