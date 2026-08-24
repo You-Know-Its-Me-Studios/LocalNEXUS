@@ -166,6 +166,17 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private ModelRepository? _selectedRepository;
 
+    /// <summary>
+    /// Choosing a repository is what fills the panel beside it.
+    /// </summary>
+    /// <remarks>
+    /// Not awaited, because a selection has already happened by the time this runs and there is
+    /// nothing to hold up: the files and the card arrive into observable collections and the panel
+    /// fills in as they do. The work it starts catches its own failures and turns them into the
+    /// status line, so nothing escapes here.
+    /// </remarks>
+    partial void OnSelectedRepositoryChanged(ModelRepository? value) => _ = ShowAsync(value);
+
     /// <summary>What went wrong, or what is worth saying about the last thing that happened.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasStatus))]
@@ -388,16 +399,26 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         }
     }
 
-    /// <summary>Lists what a repository holds, with a verdict per file.</summary>
-    [RelayCommand]
-    private async Task OpenAsync(ModelRepository? repository)
+    /// <summary>
+    /// Loads whatever was selected: its card, and the files inside it.
+    /// </summary>
+    /// <remarks>
+    /// Driven by the selection changing rather than by a command bound to a click. The first
+    /// version was a mouse binding on the list, and it never fired: a ListBoxItem handles the
+    /// click itself, so the binding on the list above it was never reached, and the selection was
+    /// bound one way so nothing wrote it back either. The row lit up and the panel beside it went
+    /// on saying choose a model on the left.
+    ///
+    /// Selection is the one source of truth now. The list writes to it, this reacts to it, and
+    /// there is no second path that has to agree with the first.
+    /// </remarks>
+    private async Task ShowAsync(ModelRepository? repository)
     {
         if (repository is null)
         {
             return;
         }
 
-        SelectedRepository = repository;
         Files.Clear();
         VisibleFiles.Clear();
         Card.Clear();

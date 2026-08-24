@@ -295,7 +295,7 @@
                      HorizontalContentAlignment="Stretch"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ItemsSource="{Binding Results}"
-                     SelectedItem="{Binding SelectedRepository, Mode=OneWay}">
+                     SelectedItem="{Binding SelectedRepository, Mode=TwoWay}">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                         <Setter Property="Padding" Value="8,6" />
@@ -333,11 +333,6 @@
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
-                <ListBox.InputBindings>
-                    <MouseBinding MouseAction="LeftClick"
-                                  Command="{Binding OpenCommand}"
-                                  CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListBox}}" />
-                </ListBox.InputBindings>
                 </ListBox>
             </DockPanel>
 
