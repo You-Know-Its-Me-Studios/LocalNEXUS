@@ -30,6 +30,10 @@ The counterbalance, equally important: build seams and interfaces for the vision
 - **When something fails twice, stop.** Report what failed and what you tried. Do not keep trying variations. Repeatedly re-running an expensive step is worse than reporting a blocker.
 - Do not re-run a build, publish, or long-running step that already succeeded. Reuse the artefact.
 - Answer a direct question directly and immediately, before doing anything else.
+- **Never use Write on a file that exists without reading it in the same session first.** If Write
+  targets an existing path, Read it, then decide between Edit and Write. A file that looks like it
+  should be created is often one that already exists with more in it than was expected, and
+  overwriting it destroys work silently: the build still passes, because what was lost was tests.
 
 ## Stack
 
