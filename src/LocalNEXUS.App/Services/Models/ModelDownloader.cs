@@ -121,9 +121,62 @@ public sealed class ModelDownloader
             return await FinishAsync(file, part, destination, ct).ConfigureAwait(false);
         }
 
-        await FetchAsync(file, part, alreadyHave, progress, ct).ConfigureAwait(false);
+        await FetchWithRetryAsync(file, part, alreadyHave, progress, ct).ConfigureAwait(false);
 
         return await FinishAsync(file, part, destination, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Fetches, and asks again from wherever it got to when the connection drops.
+    /// </summary>
+    /// <remarks>
+    /// The retry is around the whole fetch rather than around the request, and that is the point.
+    /// The failure being handled is a reset mid response, so the request succeeds, the headers
+    /// arrive, and the connection dies part way through the body: a policy wrapped around sending
+    /// alone never sees it. Retrying the request and retrying the copy would also be two nested
+    /// policies multiplying into nine attempts for a failure that is one thing.
+    ///
+    /// Each attempt reads how much is on disk again rather than trusting what it was told, because
+    /// the previous attempt wrote an unknown amount before it died. That is what makes a retry a
+    /// resume: the second attempt asks for the rest.
+    /// </remarks>
+    private async Task FetchWithRetryAsync(
+        ModelFileOption file,
+        string part,
+        long alreadyHave,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken ct)
+    {
+        var from = alreadyHave;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                await FetchAsync(file, part, from, progress, ct).ConfigureAwait(false);
+                return;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (attempt < HubRetry.Attempts && HubRetry.WorthRetrying(ex))
+            {
+                var landed = File.Exists(part) ? new FileInfo(part).Length : 0L;
+
+                HubTransport.LogFailure(
+                    $"Download of {file.Path} was interrupted at byte {landed} on attempt {attempt}",
+                    ex);
+
+                // No progress at all means asking again from the same place, which is fine: the
+                // failure may have been in getting the response rather than in reading it.
+                from = landed;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), ct).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>One attempt at the bytes from a given offset.</summary>
@@ -150,12 +203,7 @@ public sealed class ModelDownloader
 
         try
         {
-            // A request message cannot be sent twice, so each attempt builds its own. The range
-            // header is what makes a retry a resume: the second attempt asks for what is left
-            // rather than starting again.
-            response = await HubRetry
-                .SendAsync(token => Send(file, from, token), ct)
-                .ConfigureAwait(false);
+            response = await Send(file, from, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

@@ -54,6 +54,23 @@ public sealed partial class ModelFileViewModel : ObservableObject
     /// <summary>Whether it will run here, in words, including what the estimate assumed.</summary>
     public string FitText => ModelFit.Describe(File.SizeGb, ContextTokens, _cardGb);
 
+    /// <summary>
+    /// The verdict in as few words as fit on a badge.
+    /// </summary>
+    /// <remarks>
+    /// The sentence underneath still says the whole thing, including the context it assumed. This
+    /// is for the scan down a list of fifteen quantizations, where three words in the right colour
+    /// is the whole decision and a sentence is something to read afterwards.
+    /// </remarks>
+    public string FitBadge => ModelFit.Verdict(File.SizeGb, ContextTokens, _cardGb) switch
+    {
+        FitVerdict.Fits => "fits",
+        FitVerdict.Tight => "fits, tight",
+        FitVerdict.Spills => "spills, slower",
+        FitVerdict.TooLarge => "will not fit",
+        _ => "not known"
+    };
+
     /// <summary>True when it is not expected to run well, so the row is marked.</summary>
     public bool WillNotFit =>
         ModelFit.Verdict(File.SizeGb, ContextTokens, _cardGb) is FitVerdict.Spills or FitVerdict.TooLarge;
@@ -170,14 +187,64 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         _dialogs = dialogs;
     }
 
+    /// <summary>Show only files this machine could actually run.</summary>
+    /// <remarks>
+    /// Off by default. A repository with fifteen quantizations is showing its work, and hiding
+    /// most of it before somebody has looked once is deciding for them. This is for the second
+    /// look, when the question has narrowed to which of these can I have.
+    /// </remarks>
+    [ObservableProperty]
+    private bool _onlyWhatFits;
+
+    /// <summary>True while the model card is being fetched.</summary>
+    [ObservableProperty]
+    private bool _isReadingCard;
+
+    /// <summary>Said instead of a card when there is not one to show.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCardNote))]
+    private string _cardNote = string.Empty;
+
+    /// <summary>How many downloads have finished this session.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DownloadSummary))]
+    private int _completed;
+
     /// <summary>What the search found.</summary>
     public ObservableCollection<ModelRepository> Results { get; } = new();
 
     /// <summary>The files inside the selected repository.</summary>
     public ObservableCollection<ModelFileViewModel> Files { get; } = new();
 
+    /// <summary>The files actually shown, which is all of them unless the fit filter is on.</summary>
+    public ObservableCollection<ModelFileViewModel> VisibleFiles { get; } = new();
+
+    /// <summary>The selected repository's model card, broken into drawable blocks.</summary>
+    public ObservableCollection<CardBlock> Card { get; } = new();
+
+    /// <summary>Downloads going right now, for the strip along the bottom.</summary>
+    public ObservableCollection<ModelFileViewModel> Active { get; } = new();
+
     /// <summary>True when a repository is selected and its files are worth showing.</summary>
     public bool HasSelection => SelectedRepository is not null;
+
+    /// <summary>True when there is something to say instead of a card.</summary>
+    public bool HasCardNote => CardNote.Length > 0;
+
+    /// <summary>True when some file was hidden by the fit filter.</summary>
+    public bool IsFiltering => OnlyWhatFits && VisibleFiles.Count < Files.Count;
+
+    /// <summary>How many were hidden, so the filter cannot quietly empty the list.</summary>
+    public string FilteredAwayText => $"{Files.Count - VisibleFiles.Count} file(s) hidden, because they would not fit.";
+
+    /// <summary>What the strip along the bottom says.</summary>
+    public string DownloadSummary => (Active.Count, Completed) switch
+    {
+        (0, 0) => "No downloads yet.",
+        (0, var done) => $"{done} finished this session.",
+        (var going, 0) => $"{going} downloading.",
+        var (going, done) => $"{going} downloading, {done} finished."
+    };
 
     /// <summary>True when there is something to say.</summary>
     public bool HasStatus => Status.Length > 0;
@@ -211,6 +278,9 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         Link = string.Empty;
         Results.Clear();
         Files.Clear();
+        VisibleFiles.Clear();
+        Card.Clear();
+        CardNote = string.Empty;
         SelectedRepository = null;
 
         try
@@ -247,10 +317,18 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
 
         SelectedRepository = repository;
         Files.Clear();
+        VisibleFiles.Clear();
+        Card.Clear();
+        CardNote = string.Empty;
         Status = string.Empty;
         Link = string.Empty;
 
         var card = AcceleratorProbe.DetectMemory()?.TotalGb;
+
+        // The card and the files are fetched together rather than one after the other, because
+        // they are two requests to the same host and waiting for prose before showing the files
+        // gets the order of importance backwards.
+        var reading = ReadCardAsync(repository);
 
         try
         {
@@ -260,6 +338,8 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
             {
                 Files.Add(new ModelFileViewModel(file, card, ContextTokens));
             }
+
+            ApplyFileFilter();
 
             if (files.Count == 0)
             {
@@ -274,6 +354,72 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         catch (CatalogueUnavailableException ex)
         {
             Status = ex.Message;
+        }
+
+        await reading.ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Fetches the model card, and says so plainly when there is not one.
+    /// </summary>
+    /// <remarks>
+    /// A missing card is never an error here. The files are the point and they are already on
+    /// screen by the time this finishes.
+    /// </remarks>
+    private async Task ReadCardAsync(ModelRepository repository)
+    {
+        IsReadingCard = true;
+
+        try
+        {
+            var text = await _catalogue.CardAsync(repository.Id, CancellationToken.None).ConfigureAwait(true);
+
+            // Another repository was chosen while this was in flight.
+            if (SelectedRepository?.Id != repository.Id)
+            {
+                return;
+            }
+
+            Card.Clear();
+
+            foreach (var block in ModelCard.Parse(text))
+            {
+                Card.Add(block);
+            }
+
+            CardNote = Card.Count > 0
+                ? string.Empty
+                : "This repository has no readable model card. The files below are unaffected.";
+        }
+        finally
+        {
+            IsReadingCard = false;
+        }
+    }
+
+    /// <summary>Rebuilds the shown list from the filter.</summary>
+    private void ApplyFileFilter()
+    {
+        VisibleFiles.Clear();
+
+        foreach (var file in Files.Where(file => !OnlyWhatFits || !file.WillNotFit))
+        {
+            VisibleFiles.Add(file);
+        }
+
+        OnPropertyChanged(nameof(IsFiltering));
+        OnPropertyChanged(nameof(FilteredAwayText));
+    }
+
+    partial void OnOnlyWhatFitsChanged(bool value) => ApplyFileFilter();
+
+    /// <summary>Opens the selected repository's page on Hugging Face.</summary>
+    [RelayCommand]
+    private void OpenRepositoryPage()
+    {
+        if (SelectedRepository is { } repository)
+        {
+            _dialogs.OpenUrl(repository.PageUrl);
         }
     }
 
@@ -306,6 +452,8 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         Status = string.Empty;
         Link = string.Empty;
 
+        Track(row);
+
         try
         {
             var outcome = await _downloader
@@ -324,6 +472,7 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
             // is asked to look again through the same command the Rescan button uses, and the
             // model appears without a restart.
             _installed.RefreshCommand.Execute(null);
+            Completed++;
         }
         catch (OperationCanceledException)
         {
@@ -341,7 +490,33 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         finally
         {
             row.IsDownloading = false;
+            Untrack(row);
         }
+    }
+
+    /// <summary>
+    /// Puts a file on the strip along the bottom, and takes it off again when it stops.
+    /// </summary>
+    /// <remarks>
+    /// The strip is presentation over the download that was already happening. Nothing about
+    /// starting, stopping, discarding or resuming changed: this is the same row object the file
+    /// list is bound to, shown in a second place, so the two can never disagree about how far it
+    /// has got.
+    /// </remarks>
+    private void Track(ModelFileViewModel row)
+    {
+        if (!Active.Contains(row))
+        {
+            Active.Add(row);
+        }
+
+        OnPropertyChanged(nameof(DownloadSummary));
+    }
+
+    private void Untrack(ModelFileViewModel row)
+    {
+        Active.Remove(row);
+        OnPropertyChanged(nameof(DownloadSummary));
     }
 
     /// <summary>Stops the download in progress, keeping what arrived so it can resume.</summary>

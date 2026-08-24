@@ -11,7 +11,13 @@ namespace LocalNEXUS.App.Services.Models;
 /// <param name="Id">The owner and name, as Hugging Face writes it.</param>
 /// <param name="Downloads">How many times it has been downloaded, for ordering.</param>
 /// <param name="Likes">How many people marked it.</param>
-public sealed record ModelRepository(string Id, long Downloads, long Likes)
+public sealed record ModelRepository(
+    string Id,
+    long Downloads,
+    long Likes,
+    DateTimeOffset? LastModified = null,
+    IReadOnlyList<string>? Tags = null,
+    string? PipelineTag = null)
 {
     /// <summary>The owner, which is often the only signal of whose build this is.</summary>
     public string Owner => Id.Contains('/', StringComparison.Ordinal)
@@ -23,8 +29,40 @@ public sealed record ModelRepository(string Id, long Downloads, long Likes)
         ? Id[(Id.IndexOf('/', StringComparison.Ordinal) + 1)..]
         : Id;
 
+    /// <summary>Downloads and likes, as one line, because they are read together.</summary>
+    public string CountsText => $"{Downloads:N0} downloads, {Likes:N0} likes";
+
     /// <summary>Where somebody would go to read about it.</summary>
     public string PageUrl => $"https://huggingface.co/{Id}";
+
+    /// <summary>
+    /// When it last changed, as a phrase rather than a date.
+    /// </summary>
+    /// <remarks>
+    /// A model card is not a news article and the exact minute is never the question. What is
+    /// being asked is whether this is current, which an age answers and a timestamp does not.
+    /// </remarks>
+    public string UpdatedText
+    {
+        get
+        {
+            if (LastModified is not { } when)
+            {
+                return "not reported";
+            }
+
+            var days = (DateTimeOffset.Now - when).TotalDays;
+
+            return days switch
+            {
+                < 1 => "updated today",
+                < 2 => "updated yesterday",
+                < 31 => $"updated {days:0} days ago",
+                < 365 => $"updated {days / 30:0} months ago",
+                _ => $"updated {days / 365:0.0} years ago"
+            };
+        }
+    }
 }
 
 /// <summary>One downloadable file inside a repository.</summary>
@@ -115,6 +153,9 @@ public sealed class HuggingFaceCatalogue
     /// <summary>How many repositories one search returns.</summary>
     private const int SearchLimit = 25;
 
+    /// <summary>How much of a model card is worth putting in a side panel.</summary>
+    private const int CardLimit = 24000;
+
     /// <summary>
     /// What is said when every attempt was interrupted.
     /// </summary>
@@ -156,13 +197,13 @@ public sealed class HuggingFaceCatalogue
 
         var url = "https://huggingface.co/api/models"
             + $"?search={Uri.EscapeDataString(query.Trim())}"
-            + $"&filter=gguf&limit={SearchLimit}&sort=downloads&direction=-1";
+            + $"&filter=gguf&limit={SearchLimit}&sort=downloads&direction=-1&full=true";
 
         var found = await ReadAsync<List<SearchRow>>(url, ct).ConfigureAwait(false);
 
         return found
             .Where(row => !string.IsNullOrWhiteSpace(row.Id) && !row.Private)
-            .Select(row => new ModelRepository(row.Id!, row.Downloads, row.Likes))
+            .Select(Describe)
             .ToList();
     }
 
@@ -185,6 +226,54 @@ public sealed class HuggingFaceCatalogue
             .OrderBy(file => file.SizeBytes)
             .ToList();
     }
+
+    /// <summary>
+    /// The repository's model card, or null when it does not have a readable one.
+    /// </summary>
+    /// <remarks>
+    /// Null rather than an exception, and null rather than an apology dressed as content. A card
+    /// is the author describing their own work and most repositories have one, but a repository
+    /// without one is perfectly usable and the file list is the part that matters. So a missing
+    /// card is a sentence above the files rather than an error over them.
+    ///
+    /// Capped, because a model card can be enormous and nobody reads forty thousand words in a
+    /// side panel. What is cut is said rather than trimmed silently.
+    /// </remarks>
+    public async Task<string?> CardAsync(string repository, CancellationToken ct)
+    {
+        var url = $"https://huggingface.co/{repository}/resolve/main/README.md";
+
+        try
+        {
+            using var response = await HubRetry
+                .SendAsync(token => _http.GetAsync(url, token), ct)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+            return text.Length <= CardLimit
+                ? text
+                : text[..CardLimit] + Environment.NewLine + Environment.NewLine
+                  + "The rest of this card is longer than is worth showing here. Open the page to read it.";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            HubTransport.LogFailure($"Model card could not be read: {url}", ex);
+            return null;
+        }
+    }
+
+    private static ModelRepository Describe(SearchRow row)
+        => new(row.Id!, row.Downloads, row.Likes, row.LastModified, row.Tags, row.PipelineTag);
 
     private async Task<T> ReadAsync<T>(string url, CancellationToken ct, string? repository = null)
         where T : new()
@@ -257,6 +346,18 @@ public sealed class HuggingFaceCatalogue
 
         [JsonPropertyName("private")]
         public bool Private { get; set; }
+
+        [JsonPropertyName("lastModified")]
+        public DateTimeOffset? LastModified { get; set; }
+
+        [JsonPropertyName("trendingScore")]
+        public double TrendingScore { get; set; }
+
+        [JsonPropertyName("tags")]
+        public List<string>? Tags { get; set; }
+
+        [JsonPropertyName("pipeline_tag")]
+        public string? PipelineTag { get; set; }
     }
 
     private sealed class TreeRow

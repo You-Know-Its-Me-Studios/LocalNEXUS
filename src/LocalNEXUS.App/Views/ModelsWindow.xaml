@@ -8,10 +8,10 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:ModelBrowserViewModel}"
         Title="Get a model"
-        Height="720"
-        Width="880"
-        MinHeight="480"
-        MinWidth="640"
+        Height="760"
+        Width="1180"
+        MinHeight="520"
+        MinWidth="900"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Surface.Window.Brush}"
         Foreground="{DynamicResource Text.Primary.Brush}"
@@ -23,186 +23,404 @@
         fits, because that is the decision people get wrong and the one they currently only find
         out after the download.
 
-        A window off the activity bar rather than a section in settings. It was a collapsed
-        expander inside the Models page of settings, which is three steps behind a gear, and
-        somebody who does not already own a model is exactly the person who will not go looking
-        there. It is also not a setting: nothing here is a preference, it is a task with a
-        progress bar, and it wants to stay open while the work carries on.
+        Split down the middle, results on the left and the chosen repository on the right, which is
+        the shape every application that does this settles on for the same reason: browsing is
+        scanning one column while reading another, and a list that replaces itself with a detail
+        view loses your place every time you look at something.
     -->
 
-    <Grid Margin="18">
+    <Window.Resources>
+
+        <!--
+            One model card block. There is no template selector because that needs code behind,
+            and no converter that turns a kind into a font, because that would put the decision
+            about how a heading looks inside a converter. Each shape is written out and shows
+            itself when the block is its kind, which is longer and says what it means.
+        -->
+        <DataTemplate x:Key="CardBlockTemplate">
+            <Grid Margin="0,0,0,2">
+
+                <TextBlock TextWrapping="Wrap"
+                           Margin="0,10,0,2"
+                           FontWeight="SemiBold"
+                           Text="{Binding Text}"
+                           Visibility="{Binding Kind, Converter={StaticResource EnumToVisibility}, ConverterParameter=Heading}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="{StaticResource Font.Size.Normal}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Level}" Value="1">
+                                    <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Level}" Value="2">
+                                    <Setter Property="FontSize" Value="{StaticResource Font.Size.Large}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <TextBlock TextWrapping="Wrap"
+                           Margin="0,0,0,6"
+                           Text="{Binding Text}"
+                           Visibility="{Binding Kind, Converter={StaticResource EnumToVisibility}, ConverterParameter=Paragraph}" />
+
+                <DockPanel Margin="8,0,0,3"
+                           Visibility="{Binding Kind, Converter={StaticResource EnumToVisibility}, ConverterParameter=Bullet}">
+                    <TextBlock DockPanel.Dock="Left"
+                               Margin="0,0,8,0"
+                               Foreground="{DynamicResource Text.Muted.Brush}"
+                               Text="&#x2022;" />
+                    <TextBlock TextWrapping="Wrap" Text="{Binding Text}" />
+                </DockPanel>
+
+                <Border Margin="0,4,0,8"
+                        Padding="10,8"
+                        CornerRadius="3"
+                        Background="{DynamicResource Surface.Card.Brush}"
+                        Visibility="{Binding Kind, Converter={StaticResource EnumToVisibility}, ConverterParameter=Code}">
+                    <TextBlock Style="{StaticResource MonoText}"
+                               TextWrapping="NoWrap"
+                               Foreground="{DynamicResource Text.Secondary.Brush}"
+                               Text="{Binding Text}" />
+                </Border>
+
+                <Separator Margin="0,8"
+                           Visibility="{Binding Kind, Converter={StaticResource EnumToVisibility}, ConverterParameter=Rule}" />
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            One file. The fit verdict is the loud thing on the row, because it is the only part
+            somebody cannot work out for themselves from the name and the size.
+        -->
+        <DataTemplate x:Key="ModelFileTemplate">
+            <Border Margin="0,0,0,8"
+                    Padding="10,8"
+                    CornerRadius="3"
+                    Background="{DynamicResource Surface.Card.Brush}">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="8,0,0,0"
+                                MinWidth="94"
+                                Content="{Binding ActionLabel}"
+                                IsEnabled="{Binding IsIdle}"
+                                Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+
+                        <TextBlock DockPanel.Dock="Right"
+                                   Style="{StaticResource MonoText}"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding SizeLabel}" />
+
+                        <!--
+                            The badge. Colour carries the verdict and the words repeat it, because
+                            a red rectangle on its own is a decoration to anybody who cannot tell
+                            these two greys apart.
+                        -->
+                        <Border DockPanel.Dock="Right"
+                                Margin="8,0,0,0"
+                                Padding="7,2"
+                                CornerRadius="3"
+                                VerticalAlignment="Center"
+                                ToolTip="{Binding FitText}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource Status.Success.Brush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding WillNotFit}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Status.Warning.Brush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock FontSize="{StaticResource Font.Size.Micro}"
+                                       Foreground="{DynamicResource Text.Inverse.Brush}"
+                                       Text="{Binding FitBadge}" />
+                        </Border>
+
+                        <TextBlock FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding File.Path}"
+                                   Text="{Binding Quantisation}" />
+                    </DockPanel>
+
+                    <TextBlock Style="{StaticResource MonoText}"
+                               Margin="0,3,0,0"
+                               Foreground="{DynamicResource Text.Muted.Brush}"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding File.Path}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,5,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding FitText}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,3,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding VerificationText}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,3,0,0"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Status.Warning.Brush}"
+                               Text="One part of a model split across several files. Downloading this alone does not give you a model."
+                               Visibility="{Binding IsOnePartOfSeveral, Converter={StaticResource BooleanToVisibility}}" />
+
+                    <DockPanel Margin="0,6,0,0"
+                               Visibility="{Binding IsDownloading, Converter={StaticResource BooleanToVisibility}}">
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="8,0,0,0"
+                                Content="Discard"
+                                ToolTip="Stops and deletes what has been downloaded so far."
+                                Command="{Binding DataContext.DiscardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="8,0,0,0"
+                                Content="Stop"
+                                ToolTip="Stops, and keeps what arrived so it can carry on later."
+                                Command="{Binding DataContext.StopCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding ProgressText}" />
+                    </DockPanel>
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,5,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding Note}"
+                               Visibility="{Binding HasNote, Converter={StaticResource BooleanToVisibility}}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Style="{StaticResource SectionHeader}"
-                   FontSize="{StaticResource Font.Size.Title}"
-                   Margin="0,0,0,12"
-                   Text="Get a model" />
+        <!-- ============================================================ the search bar -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Style="{StaticResource SectionHeader}"
+                           FontSize="{StaticResource Font.Size.Title}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,16,0"
+                           Text="Get a model" />
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource SmallButton}"
+                        Margin="8,0,0,0"
+                        MinWidth="80"
+                        Content="Search"
+                        IsDefault="True"
+                        Command="{Binding SearchCommand}" />
+
+                <TextBox VerticalAlignment="Center"
+                         Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                         behaviors:TextBoxHelper.Placeholder="qwen2.5-coder, llama-3.1, mistral" />
+            </DockPanel>
+
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Text="Searches Hugging Face for GGUF models. No account and no sign in. A repository that requires one is shown as gated, with a link." />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,4,0,0"
+                       TextWrapping="Wrap"
+                       Text="{Binding CardSummary}" />
+
+            <TextBlock Style="{StaticResource HintText}"
+                       Margin="0,6,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Status.Warning.Brush}"
+                       Text="{Binding Status}"
+                       Visibility="{Binding HasStatus, Converter={StaticResource BooleanToVisibility}}" />
+
+            <Button Style="{StaticResource SmallButton}"
+                    Margin="0,6,0,0"
+                    HorizontalAlignment="Left"
+                    Content="Open the page"
+                    Command="{Binding OpenLinkCommand}"
+                    Visibility="{Binding HasLink, Converter={StaticResource BooleanToVisibility}}" />
+        </StackPanel>
+
+        <!-- ============================================================ results, then detail -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360" MinWidth="260" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="380" />
+            </Grid.ColumnDefinitions>
+
+            <!-- The results. One row is a repository, and what it says is what the API reports. -->
+            <ListBox Grid.Column="0"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     HorizontalContentAlignment="Stretch"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemsSource="{Binding Results}"
+                     SelectedItem="{Binding SelectedRepository, Mode=OneWay}">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Setter Property="Padding" Value="8,6" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,2">
+                            <TextBlock TextWrapping="Wrap"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding Id}" />
+
+                            <DockPanel Margin="0,4,0,0">
+                                <TextBlock DockPanel.Dock="Right"
+                                           Style="{StaticResource HintText}"
+                                           Text="{Binding UpdatedText}" />
+
+                                <TextBlock Style="{StaticResource HintText}"
+                                           Text="{Binding CountsText}" />
+                            </DockPanel>
+
+</StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.InputBindings>
+                    <MouseBinding MouseAction="LeftClick"
+                                  Command="{Binding OpenCommand}"
+                                  CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                </ListBox.InputBindings>
+            </ListBox>
+
+            <GridSplitter Grid.Column="1"
+                          Width="6"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent" />
+
+            <!-- The chosen repository: what its author says about it, then what is in it. -->
+            <Grid Grid.Column="2">
+                <TextBlock Style="{StaticResource HintText}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Text="Choose a model on the left to see what it says about itself and what is inside it."
+                           Visibility="{Binding HasSelection, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}" />
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              Padding="12,0,10,0"
+                              Visibility="{Binding HasSelection, Converter={StaticResource BooleanToVisibility}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right"
+                                    Style="{StaticResource SmallButton}"
+                                    Margin="8,0,0,0"
+                                    Content="Open the page"
+                                    Command="{Binding OpenRepositoryPageCommand}" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding SelectedRepository.Id}" />
+                        </DockPanel>
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="0,10,0,0"
+                                   Text="Reading the model card."
+                                   Visibility="{Binding IsReadingCard, Converter={StaticResource BooleanToVisibility}}" />
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="0,10,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding CardNote}"
+                                   Visibility="{Binding HasCardNote, Converter={StaticResource BooleanToVisibility}}" />
+
+                        <!-- The model card, as its author wrote it, with the markup taken out. -->
+                        <ItemsControl Margin="0,6,0,0"
+                                      ItemsSource="{Binding Card}"
+                                      ItemTemplate="{StaticResource CardBlockTemplate}" />
+
+                        <Separator Margin="0,14,0,10" />
+
+                        <DockPanel Margin="0,0,0,10">
+                            <CheckBox DockPanel.Dock="Right"
+                                      VerticalAlignment="Center"
+                                      Content="Only what fits"
+                                      ToolTip="Hides files this machine could not run at the context named above."
+                                      IsChecked="{Binding OnlyWhatFits}" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}"
+                                       VerticalAlignment="Center"
+                                       Text="Files" />
+                        </DockPanel>
+
+                        <TextBlock Style="{StaticResource HintText}"
+                                   Margin="0,0,0,8"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Text.Muted.Brush}"
+                                   Text="{Binding FilteredAwayText}"
+                                   Visibility="{Binding IsFiltering, Converter={StaticResource BooleanToVisibility}}" />
+
+                        <ItemsControl ItemsSource="{Binding VisibleFiles}"
+                                      ItemTemplate="{StaticResource ModelFileTemplate}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!--
+            ============================================================ the download strip
+
+            Along the bottom because a download outlives the repository it came from: choosing
+            something else must not hide what is still going. The rows are the same objects the
+            file list draws, so the two cannot disagree about how far it has got.
+        -->
+        <Border Grid.Row="2"
+                Margin="0,12,0,0"
+                Padding="10,8"
+                CornerRadius="3"
+                Background="{DynamicResource Surface.Chrome.Brush}">
             <StackPanel>
+                <TextBlock Style="{StaticResource HintText}" Text="{Binding DownloadSummary}" />
 
-                <TextBlock Style="{StaticResource HintText}"
-                           TextWrapping="Wrap"
-                           Text="Searches Hugging Face for GGUF models. No account and no sign in. A repository that requires one is shown as gated, with a link." />
-
-                <DockPanel Margin="0,10,0,0">
-                    <Button DockPanel.Dock="Right"
-                            Style="{StaticResource SmallButton}"
-                            Margin="8,0,0,0"
-                            MinWidth="80"
-                            Content="Search"
-                            IsDefault="True"
-                            Command="{Binding SearchCommand}" />
-
-                    <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
-                             behaviors:TextBoxHelper.Placeholder="qwen2.5-coder, llama-3.1, mistral" />
-                </DockPanel>
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,6,0,0"
-                           TextWrapping="Wrap"
-                           Text="{Binding CardSummary}" />
-
-                <TextBlock Style="{StaticResource HintText}"
-                           Margin="0,6,0,0"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource Status.Warning.Brush}"
-                           Text="{Binding Status}"
-                           Visibility="{Binding HasStatus, Converter={StaticResource BooleanToVisibility}}" />
-
-                <Button Style="{StaticResource SmallButton}"
-                        Margin="0,6,0,0"
-                        HorizontalAlignment="Left"
-                        Content="Open the page"
-                        Command="{Binding OpenLinkCommand}"
-                        Visibility="{Binding HasLink, Converter={StaticResource BooleanToVisibility}}" />
-
-                <!-- What the search found. Selecting one lists what is inside it. -->
-                <ItemsControl ItemsSource="{Binding Results}" Margin="0,10,0,0">
+                <ItemsControl Margin="0,6,0,0" ItemsSource="{Binding Active}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <DockPanel Margin="0,2">
+                            <DockPanel Margin="0,3">
                                 <Button DockPanel.Dock="Right"
                                         Style="{StaticResource SmallButton}"
                                         Margin="8,0,0,0"
-                                        Content="Files"
-                                        Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}" />
+                                        Content="Stop"
+                                        Command="{Binding DataContext.StopCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
 
                                 <TextBlock DockPanel.Dock="Right"
                                            Style="{StaticResource HintText}"
                                            Margin="8,0,0,0"
                                            VerticalAlignment="Center"
-                                           Text="{Binding Downloads, StringFormat={}{0:N0} downloads}" />
+                                           Text="{Binding ProgressText}" />
 
                                 <TextBlock VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
-                                           Text="{Binding Id}" />
+                                           Text="{Binding File.Path}" />
                             </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-
-                <!-- The files, and what each one would mean for this machine. -->
-                <ItemsControl ItemsSource="{Binding Files}"
-                              Margin="0,12,0,0"
-                              Visibility="{Binding HasSelection, Converter={StaticResource BooleanToVisibility}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Margin="0,0,0,8"
-                                    Padding="10,8"
-                                    CornerRadius="3"
-                                    Background="{DynamicResource Surface.Card.Brush}">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <Button DockPanel.Dock="Right"
-                                                Style="{StaticResource SmallButton}"
-                                                Margin="8,0,0,0"
-                                                MinWidth="94"
-                                                Content="{Binding ActionLabel}"
-                                                IsEnabled="{Binding IsIdle}"
-                                                Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}" />
-
-                                        <TextBlock DockPanel.Dock="Right"
-                                                   Style="{StaticResource MonoText}"
-                                                   Margin="8,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   Text="{Binding SizeLabel}" />
-
-                                        <TextBlock FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Text="{Binding Quantisation}" />
-                                    </DockPanel>
-
-                                    <TextBlock Style="{StaticResource MonoText}"
-                                               Margin="0,3,0,0"
-                                               Foreground="{DynamicResource Text.Muted.Brush}"
-                                               TextTrimming="CharacterEllipsis"
-                                               Text="{Binding File.Path}" />
-
-                                    <TextBlock Margin="0,5,0,0" TextWrapping="Wrap" Text="{Binding FitText}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding WillNotFit}" Value="True">
-                                                        <Setter Property="Foreground" Value="{DynamicResource Status.Warning.Brush}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
-                                    <TextBlock Style="{StaticResource HintText}"
-                                               Margin="0,3,0,0"
-                                               TextWrapping="Wrap"
-                                               Text="{Binding VerificationText}" />
-
-                                    <TextBlock Style="{StaticResource HintText}"
-                                               Margin="0,3,0,0"
-                                               TextWrapping="Wrap"
-                                               Foreground="{DynamicResource Status.Warning.Brush}"
-                                               Text="One part of a model split across several files. Downloading this alone does not give you a model."
-                                               Visibility="{Binding IsOnePartOfSeveral, Converter={StaticResource BooleanToVisibility}}" />
-
-                                    <DockPanel Margin="0,6,0,0"
-                                               Visibility="{Binding IsDownloading, Converter={StaticResource BooleanToVisibility}}">
-                                        <Button DockPanel.Dock="Right"
-                                                Style="{StaticResource SmallButton}"
-                                                Margin="8,0,0,0"
-                                                Content="Discard"
-                                                ToolTip="Stops and deletes what has been downloaded so far."
-                                                Command="{Binding DataContext.DiscardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}" />
-
-                                        <Button DockPanel.Dock="Right"
-                                                Style="{StaticResource SmallButton}"
-                                                Margin="8,0,0,0"
-                                                Content="Stop"
-                                                ToolTip="Stops, and keeps what arrived so it can carry on later."
-                                                Command="{Binding DataContext.StopCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-
-                                        <TextBlock Style="{StaticResource HintText}"
-                                                   VerticalAlignment="Center"
-                                                   Text="{Binding ProgressText}" />
-                                    </DockPanel>
-
-                                    <TextBlock Style="{StaticResource HintText}"
-                                               Margin="0,5,0,0"
-                                               TextWrapping="Wrap"
-                                               Text="{Binding Note}"
-                                               Visibility="{Binding HasNote, Converter={StaticResource BooleanToVisibility}}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
             </StackPanel>
-        </ScrollViewer>
+        </Border>
     </Grid>
 </Window>
