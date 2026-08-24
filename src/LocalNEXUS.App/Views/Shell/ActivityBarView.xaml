@@ -48,6 +48,21 @@
                 Command="{Binding OpenHistoryCommand}" />
 
         <!--
+            Getting a model. It is here rather than in settings because somebody who has no model
+            yet is the one person guaranteed not to go looking behind a gear for one, and because
+            a download is a task that runs for minutes rather than a preference.
+        -->
+        <Button DockPanel.Dock="Bottom"
+                Style="{StaticResource IconButton}"
+                Width="48"
+                Height="46"
+                FontSize="16"
+                Content="&#xE896;"
+                ToolTip="Get a model: search Hugging Face, see what fits this machine, and download it."
+                AutomationProperties.Name="Get a model"
+                Command="{Binding OpenModelsCommand}" />
+
+        <!--
             Extensions is a window of its own, opened from here and left open while the work
             carries on. It sits above the gear because it is a place rather than a setting.
         -->

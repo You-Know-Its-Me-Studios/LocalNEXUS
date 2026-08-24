@@ -41,6 +41,7 @@ public partial class App : Application
     private ViewModels.NetworkViewModel? _network;
     private Services.Extensions.ExtensionHost? _extensionHost;
     private Services.Dialogs.ExtensionsWindowService? _extensionsWindow;
+    private Services.Dialogs.ModelsWindowService? _modelsWindow;
     private Services.Credentials.DpapiCredentialStore? _credentials;
 
     /// <summary>
@@ -305,6 +306,9 @@ public partial class App : Application
         var extensionsWindow = new ExtensionsWindowService();
         _extensionsWindow = extensionsWindow;
 
+        var modelsWindow = new ModelsWindowService();
+        _modelsWindow = modelsWindow;
+
         // Searching history by meaning. Off unless a model has been chosen, and everything
         // downstream of it is null in that case, so nothing about recording or searching changes
         // for somebody who never opts in.
@@ -359,6 +363,7 @@ public partial class App : Application
             themes,
             settingsViewModel,
             extensionsWindow,
+            modelsWindow,
             config,
             Dispatcher,
             compiler,
@@ -487,6 +492,7 @@ public partial class App : Application
         // Before the group, so each extension is asked to stop and its connection closed rather
         // than every one of them being terminated cold.
         _extensionsWindow?.Close();
+        _modelsWindow?.Close();
         _historyWindow?.Close();
         _extensionHost?.Dispose();
         _mesh?.Dispose();

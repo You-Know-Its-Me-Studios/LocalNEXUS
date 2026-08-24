@@ -50,6 +50,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Services.Extensions.ExtensionHost _extensionHost;
     private readonly Services.Extensions.ExtensionStarter? _extensionStarter;
     private readonly IExtensionsWindow _extensionsWindow;
+    private readonly IModelsWindow _modelsWindow;
 
     /// <summary>Nodes whose selection state this view model is currently following.</summary>
     private readonly HashSet<NodeBase> _observedNodes = new();
@@ -160,6 +161,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ThemeService themes,
         AppSettingsViewModel settings,
         IExtensionsWindow extensionsWindow,
+        IModelsWindow modelsWindow,
         AppConfig config,
         Dispatcher dispatcher,
         Services.Compilation.ICodeCompiler compiler,
@@ -180,6 +182,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _history = history;
         _historyWindow = historyWindow;
         _extensionsWindow = extensionsWindow;
+        _modelsWindow = modelsWindow;
         Graph = graph;
         _factory = factory;
         _serializer = serializer;
@@ -566,6 +569,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </remarks>
     [RelayCommand]
     private void OpenExtensions() => _extensionsWindow.Show(Settings.Extensions);
+
+    /// <summary>
+    /// Opens the model browser, which is a window rather than a page in settings.
+    /// </summary>
+    /// <remarks>
+    /// The same browser settings used to hold, rather than a second one, so a download started
+    /// here is the download the rest of the application knows about.
+    /// </remarks>
+    [RelayCommand]
+    private void OpenModels() => _modelsWindow.Show(Settings.Browser);
 
     /// <summary>
     /// Opens the run history, which is a window rather than a panel.

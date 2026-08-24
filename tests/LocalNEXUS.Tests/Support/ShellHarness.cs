@@ -210,6 +210,7 @@ public sealed class ShellHarness : IDisposable
             themes,
             settings,
             new SilentWindow(),
+            new SilentWindow(),
             config,
             dispatcher,
             compiler,
@@ -232,7 +233,7 @@ public sealed class ShellHarness : IDisposable
 }
 
 /// <summary>A window service that opens nothing, because a test has no screen.</summary>
-internal sealed class SilentWindow : IExtensionsWindow, IHistoryWindow
+internal sealed class SilentWindow : IExtensionsWindow, IHistoryWindow, IModelsWindow
 {
     public void Show(object viewModel)
     {
