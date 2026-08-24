@@ -46,13 +46,20 @@ public sealed class HistoryIndexer
     /// </summary>
     /// <remarks>
     /// Returns whether it worked rather than throwing, because the caller is the end of a run and
-    /// there is nothing useful it could do about a failure. What matters is that the run itself is
-    /// already recorded by the time this is called.
+    /// there is nothing useful it could do about a failure.
+    ///
+    /// It waits for the queue to drain before reading. Being called after the run was recorded is
+    /// not the same as being called after the run was written: recording enqueues, and the read
+    /// below opens its own connection and does not queue behind it. Losing that race read nothing,
+    /// indexed nothing, and said so by returning false, so the run was quietly left out of search
+    /// on the machines fast enough to lose it.
     /// </remarks>
     public async Task<bool> IndexAsync(string runId, CancellationToken ct)
     {
         try
         {
+            await _history.FlushAsync(ct).ConfigureAwait(false);
+
             var text = await _history.DescribeForEmbeddingAsync(runId, ct).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(text))

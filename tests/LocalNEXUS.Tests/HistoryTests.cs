@@ -56,6 +56,37 @@ public sealed class HistoryTests
         Assert.True(File.Exists(store.DatabasePath));
     }
 
+    /// <summary>
+    /// A read after a flush sees what was queued before it, without closing the store.
+    /// </summary>
+    /// <remarks>
+    /// Recording enqueues and returns, and a read opens its own connection rather than queueing
+    /// behind the writer, so the two are not ordered against each other. Every other test here
+    /// closes and reopens to settle that, which is the heavy way and is not available to anything
+    /// still running.
+    ///
+    /// Indexing a run for search is the caller that needs the light way: it runs the moment a run
+    /// ends and reads back the row that ending it enqueued. Losing that race read nothing and left
+    /// the run out of search, which CI caught and this machine could only reproduce with the rest
+    /// of the suite running beside it.
+    ///
+    /// Guaranteed rather than likely. The writer works through one queue in order, so the marker
+    /// a flush puts on the end of it cannot run until everything ahead of it has.
+    /// </remarks>
+    [Fact]
+    public async Task AFlushMakesQueuedWritesReadable()
+    {
+        using var project = SampleProject.Create();
+        await using var store = await Open(project);
+
+        store.BeginRun("run-1", "add a wave spawner", "graph", 1, 0);
+        store.EndRun("run-1", "Completed", 0m, 0);
+
+        await store.FlushAsync(CancellationToken.None);
+
+        Assert.NotEmpty(await store.DescribeForEmbeddingAsync("run-1", CancellationToken.None));
+    }
+
     /// <summary>With no project open there is nothing to record into, and that is said plainly.</summary>
     [Fact]
     public async Task WithNoProjectThereIsNoRecord()

@@ -357,6 +357,46 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
             ("$at", capturedAt.ToString("O"))));
     }
 
+    /// <summary>Waits until everything already queued has actually been written.</summary>
+    /// <remarks>
+    /// Reads open their own connection and are not ordered against the write queue. That is right
+    /// for almost every read, because a read is asking what is on disk. It is wrong in the one
+    /// place that reads back something it has just written, and that place is indexing a run for
+    /// search, which runs the moment a run ends and reads the row that ending it enqueued.
+    ///
+    /// The mechanism is the queue itself rather than a delay. The writer works through one queue
+    /// in order, so a marker put on the end of it cannot run until everything before it has, which
+    /// makes this a guarantee and not a guess about how fast a machine is. Nothing sleeps and
+    /// nothing polls.
+    ///
+    /// Bounded and silent on timeout, for the same reason closing is: a write wedged against a
+    /// locked database must not hold anything open. Timing out leaves the caller exactly where it
+    /// would have been without this, which is reading a row that may not have landed yet.
+    /// </remarks>
+    public async Task FlushAsync(CancellationToken ct)
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        var landed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        if (!_writes.Writer.TryWrite(_ => landed.TrySetResult()))
+        {
+            return;
+        }
+
+        try
+        {
+            await landed.Task.WaitAsync(DrainTimeout, ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // Covered by the remark above. The caller reads whatever did land.
+        }
+    }
+
     private void Enqueue(Action<SqliteConnection> write)
     {
         if (!IsOpen)
