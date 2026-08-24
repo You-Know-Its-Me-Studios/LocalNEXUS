@@ -107,12 +107,12 @@
         <TextBlock Style="{StaticResource HintText}"
                    Margin="0,8,0,0"
                    TextWrapping="Wrap"
-                   Text="Two numbers are reported each round. Each model says how far it has come, which is free because it rides on a call already being made, and drifts optimistic because models tend to agree. The other is measured from what the two positions actually name and propose, which costs nothing and is the same every time. Only the measured number decides, and the gap between them is worth watching: both models claiming ninety while a count of what they named says forty means they are being agreeable rather than agreeing." />
+                   Text="Two numbers are reported each round. Each model says how far it has come, and that drifts optimistic because models tend to agree. The other is measured from what the two positions actually name and propose. Only the measured number decides. A wide gap between the two means the models are being agreeable rather than agreeing." />
 
         <TextBlock Style="{StaticResource HintText}"
                    Margin="0,8,0,0"
                    TextWrapping="Wrap"
-                   Text="The measurement is arithmetic, not another model. Types, members and files both sides named are seventy percent of it, and the verbs of what they propose doing are the other thirty. Connectives and hedging count for nothing, which is where counting shared words goes wrong. Naming the same type and wanting opposite things done to it takes twenty off each time, up to sixty, because that is real disagreement that shared words would score as agreement. Every round writes its working to the Activity panel: what both named, what only one named, and what contradicted." />
+                   Text="The measurement is arithmetic, not another model. It counts the types, members and files both sides named, and the verbs of what they propose doing. Naming the same type and proposing opposite things counts as disagreement, which shared words alone would score as agreement. Every round writes its working to the Activity panel: what both named, what only one named, and what contradicted." />
 
         <TextBlock Style="{StaticResource FieldLabel}" Text="Stop after" />
         <TextBox Text="{Binding TimeBudget, UpdateSourceTrigger=LostFocus}"
@@ -120,7 +120,7 @@
 
         <TextBlock Style="{StaticResource HintText}"
                    TextWrapping="Wrap"
-                   Text="Minutes and seconds, for example 05:00. However the debate is going, it stops there. It also stops after six rounds whatever the clock says, because a fast pair of local models can get through twenty exchanges inside a generous budget and two that have not come together by the sixth are not going to." />
+                   Text="Minutes and seconds, for example 05:00. However the debate is going, it stops there. It also stops after six rounds whatever the clock says, because two models that have not come together by the sixth are not going to." />
 
         <TextBlock Style="{StaticResource FieldLabel}" Text="Which model writes it up and judges" />
         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">

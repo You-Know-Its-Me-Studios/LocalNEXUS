@@ -25,16 +25,16 @@
                        Source="/Assets/Brand/Mark.png" />
 
                 <StackPanel Grid.Column="1" Margin="22,0,0,0">
-                    <TextBlock Style="{StaticResource ScreenTitle}" Text="Welcome to the localNEXUS 1.6.0 Setup Wizard" />
+                    <TextBlock Style="{StaticResource ScreenTitle}" Text="Welcome to the LocalNEXUS 1.6.0 Setup Wizard" />
 
                     <TextBlock Style="{StaticResource BodyText}" Margin="0,14,0,0">
-                        This installs localNEXUS on this computer, a canvas that wires language models together and
+                        This installs LocalNEXUS on this computer, a canvas that wires language models together and
                         points them at your codebase. Models run on this machine, across several of your own, or
                         through a hosted provider, entirely your choice.
                     </TextBlock>
 
                     <TextBlock Style="{StaticResource BodyText}" Margin="0,12,0,0"
-                               Text="It is recommended that you close all other applications before continuing." />
+                               Text="Close other applications before continuing." />
 
                     <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
                         <Border Style="{StaticResource Chip}" Margin="0,0,10,0">
@@ -60,14 +60,14 @@
 
             <StackPanel Grid.Row="0">
                 <TextBlock Style="{StaticResource ScreenTitle}" Text="License Agreement" />
-                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Please read the following license agreement before continuing." />
+                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Read the license agreement before continuing." />
             </StackPanel>
 
             <Border Grid.Row="1" Style="{StaticResource Panel}" Margin="0,18,0,0" Padding="18,14">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock Style="{StaticResource MonoText}">
-                            localNEXUS. Copyright 2026 You Know Its Me Studios. Licensed under the Apache License,
+                            LocalNEXUS. Copyright 2026 You Know Its Me Studios. Licensed under the Apache License,
                             Version 2.0 (the "License"); you may not use this software except in compliance with the
                             License.
                         </TextBlock>
@@ -132,7 +132,7 @@
 
             <StackPanel Grid.Row="0">
                 <TextBlock Style="{StaticResource ScreenTitle}" Text="Select Components" />
-                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Choose which parts of localNEXUS to install." />
+                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Choose which parts of LocalNEXUS to install." />
             </StackPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,0">
@@ -313,7 +313,7 @@
 
             <StackPanel Grid.Row="0">
                 <TextBlock Style="{StaticResource ScreenTitle}" Text="Ready to Install" />
-                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Setup is now ready to install localNEXUS on this computer." />
+                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Setup is now ready to install LocalNEXUS on this computer." />
             </StackPanel>
 
             <Border Grid.Row="1" Style="{StaticResource Panel}" Margin="0,18,0,0" Padding="20,18">
@@ -331,7 +331,7 @@
                                TextWrapping="Wrap"
                                Foreground="{StaticResource Status.Warning.Brush}"
                                Visibility="{Binding NothingSelected, Converter={StaticResource BooleanToVisibility}}"
-                               Text="Nothing optional is ticked. localNEXUS will install and start, and it will not be able to run a model, because the engine that does that is one of the boxes on the previous step. You can add them later by running this installer again." />
+                               Text="Nothing optional is ticked. LocalNEXUS will install and start, but it will not be able to run a model, because no engine was selected on the previous step. Add one later by running this installer again." />
 
                     <ItemsControl ItemsSource="{Binding FetchList}" Margin="0,8,0,0">
                         <ItemsControl.ItemTemplate>
@@ -425,8 +425,8 @@
                    Source="/Assets/Brand/Mark.png" />
 
             <StackPanel Grid.Column="1" Margin="22,0,0,0">
-                <TextBlock Style="{StaticResource ScreenTitle}" Text="Completing the localNEXUS Setup Wizard" />
-                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Setup has finished installing localNEXUS on this computer." />
+                <TextBlock Style="{StaticResource ScreenTitle}" Text="Completing the LocalNEXUS Setup Wizard" />
+                <TextBlock Style="{StaticResource ScreenSubtitle}" Text="Setup has finished installing LocalNEXUS on this computer." />
 
                 <Button Style="{StaticResource QuietButton}"
                         HorizontalAlignment="Left"
@@ -435,7 +435,7 @@
                         Margin="0,20,0,0"
                         Command="{Binding ToggleLaunchCommand}"
                         AutomationProperties.AutomationId="LaunchToggle"
-                        AutomationProperties.Name="Launch localNEXUS">
+                        AutomationProperties.Name="Launch LocalNEXUS">
                     <StackPanel Orientation="Horizontal">
                         <Grid Width="17" Height="17" VerticalAlignment="Center">
                             <Border CornerRadius="4" BorderBrush="{StaticResource Surface.Border.Brush}" BorderThickness="1" />
@@ -450,7 +450,7 @@
                                            VerticalAlignment="Center" />
                             </Border>
                         </Grid>
-                        <TextBlock Text="Launch localNEXUS" Margin="10,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Launch LocalNEXUS" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </StackPanel>

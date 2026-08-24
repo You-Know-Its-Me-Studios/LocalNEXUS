@@ -161,7 +161,7 @@
                         </ItemsControl>
 
                         <TextBlock Style="{StaticResource MetaText}"
-                                   Text="localNEXUS 1.6.0"
+                                   Text="LocalNEXUS 1.6.0"
                                    VerticalAlignment="Bottom"
                                    HorizontalAlignment="Left"
                                    Margin="16,0,0,18" />

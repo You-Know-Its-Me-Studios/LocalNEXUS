@@ -120,8 +120,7 @@ public sealed partial class SemanticSearchViewModel : ObservableObject
     /// <summary>What to suggest to somebody who has no embedding model at all.</summary>
     public string Recommendation =>
         $"If you have no embedding model, {RecommendedFile} is a good small one at about 35 MB: "
-        + $"search for {RecommendedRepository} under Find a model to download, above. A model this "
-        + "small is quick and costs almost nothing to run.";
+        + $"search for {RecommendedRepository} under Find a model to download, above.";
 
     /// <summary>Picks the embedding model, which is what turns the feature on.</summary>
     [RelayCommand]

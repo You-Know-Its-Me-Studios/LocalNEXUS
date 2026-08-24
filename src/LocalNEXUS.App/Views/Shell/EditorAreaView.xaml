@@ -196,7 +196,7 @@
                                 <Button Style="{StaticResource PrimaryButton}"
                                         MinWidth="88"
                                         Content="Continue"
-                                        ToolTip="Carry on, with whatever the box now holds."
+                                        ToolTip="Carry on with whatever the box now holds."
                                         Command="{Binding ContinueCommand}" />
                             </StackPanel>
 
@@ -569,7 +569,7 @@
                                Margin="12,8,12,12"
                                TextWrapping="Wrap"
                                Visibility="{Binding NodeSearch.HasResults, Converter={StaticResource BooleanToVisibility}, ConverterParameter=Invert}"
-                               Text="Nothing matches. Every node type is offered here, so a name that finds nothing is a name no node has." />
+                               Text="Nothing matches. Every node type is listed here, so there is no node by that name." />
 
                     <!--
                         A grid of cards rather than a list of rows. There are a dozen node types

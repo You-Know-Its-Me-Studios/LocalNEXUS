@@ -161,7 +161,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,6,0,0"
                        TextWrapping="Wrap"
-                       Text="Backups are just other machines that can take over if the one handling a section drops out. No throughput info from the mesh is provided, and only the size of meshes that show up in the directory are displayed. For everything else, the value reported by the mesh is used instead of trying to guess." />
+                       Text="Backups are other machines that can take over if the one holding a section drops out. The mesh does not report throughput, and size is shown only for meshes listed in the directory. Everything else is shown exactly as the mesh reports it." />
 
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,6,0,0"
@@ -301,7 +301,7 @@
             <TextBlock Style="{StaticResource HintText}"
                        Margin="0,0,0,12"
                        TextWrapping="Wrap"
-                       Text="You're looking at a mesh that's being hosted by someone else. The details here come from the person running it, so they're not something this machine can verify. If you want to actually use the mesh, you'll need to join it first." />
+                       Text="This mesh is hosted by someone else. The details come from whoever runs it and cannot be verified from this machine. To use it, join it first." />
 
             <TextBlock Style="{StaticResource FieldLabel}" Text="Size" />
             <TextBlock TextWrapping="Wrap" Text="{Binding SizeSummary}" />

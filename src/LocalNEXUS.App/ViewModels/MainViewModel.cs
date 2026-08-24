@@ -692,8 +692,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _feed.Error(
             "Node added without a wire",
-            $"{node.Title} was offered as somewhere {from.Owner.Title}.{from.Name} could go, and then no "
-            + "pin on it would take the connection.");
+            $"{node.Title} was added, but no pin on it would take the connection from "
+            + $"{from.Owner.Title}.{from.Name}.");
     }
 
     /// <summary>

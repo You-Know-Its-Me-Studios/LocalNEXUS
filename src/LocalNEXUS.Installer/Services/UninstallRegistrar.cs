@@ -30,7 +30,7 @@ public static class UninstallRegistrar
                 return;
             }
 
-            key.SetValue("DisplayName", "localNEXUS");
+            key.SetValue("DisplayName", "LocalNEXUS");
             key.SetValue("DisplayVersion", version);
             key.SetValue("Publisher", "You Know Its Me Studios");
             key.SetValue("DisplayIcon", InstallLocations.AppExecutable);

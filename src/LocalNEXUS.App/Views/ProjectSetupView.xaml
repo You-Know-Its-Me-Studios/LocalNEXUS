@@ -38,7 +38,7 @@
                     <TextBlock Style="{StaticResource HintText}"
                                Margin="0,4,0,0"
                                TextWrapping="Wrap"
-                               Text="Asked once, so the application stops guessing. All of it can be changed later in Settings under Project." />
+                               Text="Asked once. Everything here can be changed later in Settings under Project." />
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
