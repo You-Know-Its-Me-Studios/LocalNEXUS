@@ -109,7 +109,15 @@ public sealed class TestServices : IDisposable
         var index = new ProjectIndexService();
         var compiler = new RoslynUnityCompiler(new UnityReferenceResolver());
         var python = new App.Services.Python.PythonProvisioner(children, feed, dispatcher);
-        var runtimes = new RuntimeResolver(new LlamaServerManager(children), new PythonRuntimeManager(children, python));
+        // The same three, in the same order, as App.Compose. Order is load bearing: both the
+        // distributed runtime and the Python one answer for safetensors, and the distributed one
+        // has to be asked first or it can never take a model. This list drifted out of step once
+        // already, and the test that was supposed to catch it was asserting against this line
+        // rather than against the application, so it stayed green while being wrong.
+        var runtimes = new RuntimeResolver(
+            new LlamaServerManager(children),
+            new DistributedRuntimeManager(children, python, config),
+            new PythonRuntimeManager(children, python));
 
         var services = new ExecutionServices(
             models,

@@ -1,0 +1,7 @@
+# What the distributed package's tests need, and nothing else.
+#
+# Kept out of the two runtime lockfiles on purpose. Those build the environment shipped to
+# every user, and a test runner has no business on somebody's machine because they wanted to
+# run a model. Continuous integration installs this file on top of the runtime environment;
+# nothing in the application reads it.
+pytest==8.4.2

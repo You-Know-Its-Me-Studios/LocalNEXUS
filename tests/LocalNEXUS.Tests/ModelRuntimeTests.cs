@@ -224,7 +224,7 @@ public sealed class RuntimeResolverTests
         Assert.Contains("GGUF marker", ex.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>The real build wires two runtimes, one per format.</summary>
+    /// <summary>The real build wires three runtimes and still serves both formats.</summary>
     [Fact]
     public void TheRealBuildServesBothFormats()
     {
@@ -232,8 +232,55 @@ public sealed class RuntimeResolverTests
 
         var runtimes = services.Services.Runtimes;
 
-        Assert.Equal(2, runtimes.Runtimes.Count);
+        Assert.Equal(3, runtimes.Runtimes.Count);
         Assert.NotNull(runtimes.Resolve(new ModelDescriptor("a.gguf", ModelFormat.Gguf, "a", 1)));
         Assert.NotNull(runtimes.Resolve(new ModelDescriptor("b", ModelFormat.Safetensors, "b", 1)));
+    }
+
+    /// <summary>
+    /// The distributed runtime is asked before the single machine one.
+    /// </summary>
+    /// <remarks>
+    /// Both answer for safetensors and the resolver takes the first that says yes, so this order
+    /// is the difference between the distributed path being reachable and it silently never
+    /// activating however the settings are set. Nothing else in the build would fail if these
+    /// two were swapped, which is exactly why it is asserted here.
+    /// </remarks>
+    [Fact]
+    public void TheDistributedRuntimeIsAskedBeforeTheSingleMachineOne()
+    {
+        using var services = TestServices.Create();
+
+        var order = services.Services.Runtimes.Runtimes.Select(r => r.GetType()).ToList();
+
+        var distributed = order.IndexOf(typeof(DistributedRuntimeManager));
+        var single = order.IndexOf(typeof(PythonRuntimeManager));
+
+        Assert.True(distributed >= 0, "the distributed runtime is not in the build at all");
+        Assert.True(single >= 0, "the single machine Python runtime is not in the build at all");
+        Assert.True(
+            distributed < single,
+            $"the distributed runtime is asked at position {distributed} and the single machine "
+            + $"one at {single}. Asked second it can never claim a model.");
+    }
+
+    /// <summary>
+    /// With the switch off, a safetensors model goes to the single machine runtime.
+    /// </summary>
+    /// <remarks>
+    /// The guarantee that turning nothing on changes nothing. This is what stops the newest and
+    /// least proven path from quietly taking over the one people already rely on.
+    /// </remarks>
+    [Fact]
+    public void SafetensorsGoesToThePythonRuntimeUntilDistributionIsSwitchedOn()
+    {
+        using var services = TestServices.Create();
+
+        Assert.False(services.Config.DistributedInferenceEnabled);
+
+        var chosen = services.Services.Runtimes.Resolve(
+            new ModelDescriptor("b", ModelFormat.Safetensors, "b", 1));
+
+        Assert.IsType<PythonRuntimeManager>(chosen);
     }
 }

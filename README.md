@@ -69,13 +69,13 @@ Numbers are in `docs/`, and the harness runs from the command line if you want y
 
 ## Status
 
-Pre-1.0. Interfaces still move. 317 tests, and the eval above.
+Pre-1.0. Interfaces still move. 566 tests, of which 5 need a model on disk and skip without one, plus a Python suite for the distributed package, plus the eval above.
 
 Solid: the graph engine, llama.cpp inference, the project index, the Unity rules, per file writes and staging, run history and undo, the interface.
 
 Works, less exercised: safetensors through `transformers serve`, hosted providers, elicitation, Debate and Judge.
 
-Unproven: everything distributed. It has only ever run on one machine talking to itself over loopback. Never across two physical machines, which is embarrassing to still be writing.
+Unproven: everything distributed, both kinds. It has only ever run on one machine talking to itself over loopback. Never across two physical machines, which is embarrassing to still be writing.
 
 ## Requirements
 
@@ -96,6 +96,8 @@ A 7B class coding model is the realistic floor. Below that you mostly watch the 
 A model too big for one machine can run across several. LocalNEXUS starts a [Mesh LLM](https://github.com/Mesh-LLM/mesh-llm) node, which handles discovery, splits the model into layer stages, and places them wherever there is room.
 
 The Network tab lists what the mesh can serve, how many machines cover each stage, and whether anything is standing by if one drops. You decide what to offer: a switch for the machine, a tick per model, and a memory limit that defaults to leaving a quarter of your card free. Private and LAN only unless you publish it.
+
+A safetensors model too large for one machine is a different feature with a different engine, switched on separately in the same tab. See [docs/distributed-safetensors.md](docs/distributed-safetensors.md). The mesh serves GGUF only, so safetensors models appear in the contribution list greyed out with the reason.
 
 Read the status section again before relying on any of this.
 
@@ -127,7 +129,8 @@ Trust scoring and contribution economics are deliberately not designed. They nee
 | ------------------------------------------------ | -------------------------------------------------- |
 | [docs/models.md](docs/models.md)                 | Local and hosted models, the Python runtime        |
 | [docs/unity-projects.md](docs/unity-projects.md) | The index, the Unity rules, the compile check      |
-| [docs/distributed.md](docs/distributed.md)       | Mesh setup, coverage, contributing compute         |
+| [docs/distributed-mesh.md](docs/distributed-mesh.md) | Mesh setup, coverage, contributing compute (GGUF) |
+| [docs/distributed-safetensors.md](docs/distributed-safetensors.md) | Splitting one safetensors model over your own machines |
 | [docs/interface.md](docs/interface.md)           | The window, themes, settings                       |
 | [docs/architecture.md](docs/architecture.md)     | How it fits together                               |
 | [CONTRIBUTING.md](CONTRIBUTING.md)               | Building, conventions, getting the engine binaries |

@@ -22,11 +22,11 @@ namespace LocalNEXUS.App.Services.Inference;
 /// This runtime exists for the case the other one cannot answer: a model too large for the
 /// machine in front of it. It is not a faster way to run a model that already fits, because
 /// every layer boundary it crosses is a network hop, which is why it is asked for rather than
-/// chosen automatically and why it is off unless the mesh is on.
+/// chosen automatically and why it is off until somebody switches it on in the Network tab.
 ///
-/// Only the host is started here. The machines contributing layers are started from a command
-/// line and named in the configuration, which is what the brief scoped this to; when the panel
-/// that owns them exists, where the list comes from changes and nothing else does.
+/// Only the host is started here. The machines contributing layers run the peer from a command
+/// line and are listed in the Network tab, which is where that list comes from; nothing here
+/// starts, stops or reaches a remote machine except through the pipeline itself.
 /// </remarks>
 public sealed class DistributedRuntimeManager : IModelRuntime, IDisposable
 {
@@ -68,10 +68,10 @@ public sealed class DistributedRuntimeManager : IModelRuntime, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// Two conditions, and the second one is a switch rather than a property of the model. The
-    /// resolver asks its runtimes in order and takes the first that says yes, so this one sits
-    /// ahead of the single machine Python runtime and steps aside by answering no, which is what
-    /// keeps the existing path exactly as it was whenever the mesh is off.
+    /// Three conditions, and only the first is a property of the model. The resolver asks its
+    /// runtimes in order and takes the first that says yes, so this one sits ahead of the single
+    /// machine Python runtime and steps aside by answering no, which is what keeps the existing
+    /// path exactly as it was for everybody who has not turned this on.
     /// </remarks>
     public bool CanServe(ModelDescriptor model)
         => model.Format == ModelFormat.Safetensors
@@ -185,7 +185,7 @@ public sealed class DistributedRuntimeManager : IModelRuntime, IDisposable
                 : $"Planning across this machine and {Describe(peers.Count, "other")}");
 
             var instance = StartHost(fullPath, model.DisplayName, peers, packageParent,
-                _children, _provisioner.InterpreterPath);
+                _config.DistributedSecret, _children, _provisioner.InterpreterPath);
 
             lock (_sync)
             {
@@ -326,6 +326,7 @@ public sealed class DistributedRuntimeManager : IModelRuntime, IDisposable
         string displayName,
         IReadOnlyList<string> peers,
         string packageParent,
+        string? secret,
         ChildProcessGroup children,
         string interpreter)
     {
@@ -373,6 +374,14 @@ public sealed class DistributedRuntimeManager : IModelRuntime, IDisposable
         // The package is not installed into the environment, it travels beside the lockfiles, so
         // the interpreter is told where to find it rather than being expected to know.
         startInfo.Environment["PYTHONPATH"] = packageParent;
+
+        // Through the environment rather than the command line, so it does not appear in the
+        // process list where every account on this machine can read it. The pipeline refuses to
+        // listen anywhere the network can reach without it.
+        if (!string.IsNullOrWhiteSpace(secret))
+        {
+            startInfo.Environment["LOCALNEXUS_DISTRIBUTED_SECRET"] = secret;
+        }
 
         // Unbuffered, so the log shows how far the pipeline got rather than nothing at all when
         // a machine fails to load and the buffer is never flushed.

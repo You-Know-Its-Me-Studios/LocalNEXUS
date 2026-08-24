@@ -557,7 +557,9 @@ public sealed partial class MeshManager : ObservableObject, IDisposable
 
         try
         {
-            _log?.WriteLine(e.Data);
+            // Scrubbed on the way in, so an invite token is never written to disk at all. The
+            // node prints the token it just minted, and this file is what a bug report attaches.
+            _log?.WriteLine(LogRedaction.Scrub(e.Data));
         }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException)
         {

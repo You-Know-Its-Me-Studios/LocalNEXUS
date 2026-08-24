@@ -17,6 +17,7 @@ and the constant is a few microseconds, which is nothing next to a token that cr
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -36,6 +37,21 @@ _log = logging.getLogger(__name__)
 #: answer over a pipeline does not tie up every machine for an hour.
 DEFAULT_MAX_TOKENS = 512
 
+#: The most any one request may produce, whatever it asks for. Each token is a full lap of the
+#: pipeline holding a cache on every machine, so this bounds how long one caller can occupy
+#: hardware that is not theirs. Generous enough for a long file, far short of unbounded.
+MAX_TOKENS_CEILING = 8192
+
+#: The longest prompt accepted. The prefill crosses every stage as one tensor before a single
+#: token comes back, so an enormous prompt spends other people's memory before it has produced
+#: anything. Well under the model's own context, deliberately: this is a fairness bound.
+MAX_PROMPT_TOKENS = 32768
+
+#: How many requests the host will run at once. Matched to the stage level cap so that the API
+#: refuses politely with a 429 rather than letting a stage refuse mid pipeline, which would
+#: surface to the caller as a broken request rather than a busy server.
+MAX_CONCURRENT_REQUESTS = 8
+
 
 class Api:
     """Turns chat requests into token loops and back again."""
@@ -44,6 +60,10 @@ class Api:
         self._pipeline = pipeline
         self._model_dir = model_dir
         self._model_id = model_id or _name_of(model_dir)
+
+        # Bounds how many requests are in flight here, so that overload is answered at the door
+        # with a 429 rather than part way down the pipeline.
+        self._slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
         self._tokenizer = AutoTokenizer.from_pretrained(model_dir)
         self._defaults = _generation_defaults(model_dir)
@@ -69,9 +89,54 @@ class Api:
         return settings
 
     def _max_tokens(self, body: dict[str, Any]) -> int:
+        """How many tokens this request may produce, bounded.
+
+        Every token is a full lap of the pipeline, holding a cache on every machine for the
+        whole time, so an unbounded value is not a long answer, it is an occupation of somebody
+        else's hardware. A value that is not a number is the caller's mistake and is answered as
+        one rather than as a server fault.
+        """
         asked = body.get("max_tokens") or body.get("max_completion_tokens")
 
-        return int(asked) if asked else DEFAULT_MAX_TOKENS
+        if asked is None:
+            return DEFAULT_MAX_TOKENS
+
+        try:
+            wanted = int(asked)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400,
+                detail=f"max_tokens has to be a whole number, and {asked!r} is not one",
+            ) from None
+
+        if wanted < 1:
+            raise HTTPException(
+                status_code=400, detail=f"max_tokens has to be at least 1, and {wanted} is not")
+
+        if wanted > MAX_TOKENS_CEILING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"max_tokens is capped at {MAX_TOKENS_CEILING} here and {wanted} was "
+                       "asked for. Every token crosses the whole pipeline, so a longer answer "
+                       "holds every machine in it for the duration.",
+            )
+
+        return wanted
+
+    def _check_prompt(self, tokens: list[int]) -> list[int]:
+        """Refuses a prompt too long to be worth starting.
+
+        The prefill goes through every stage as one tensor, so the cost of a very long prompt
+        lands on machines belonging to other people before anything has been generated at all.
+        """
+        if len(tokens) > MAX_PROMPT_TOKENS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"the prompt is {len(tokens)} tokens and the limit here is "
+                       f"{MAX_PROMPT_TOKENS}.",
+            )
+
+        return tokens
 
     def _prompt_for_chat(self, body: dict[str, Any]) -> list[int]:
         messages = body.get("messages")
@@ -114,6 +179,13 @@ class Api:
         shown = ""
         outcome["reason"] = "length"
 
+        if self._slots.locked():
+            raise HTTPException(
+                status_code=429,
+                detail=f"this host is already running {MAX_CONCURRENT_REQUESTS} requests, which "
+                       "is as many as it will run at once. Try again shortly.",
+            )
+
         generator = self._pipeline.generate(
             prompt_tokens=tokens,
             sampling=self._sampling(body),
@@ -121,25 +193,33 @@ class Api:
             stop_tokens=self._stop_tokens,
         )
 
-        async for token in generator:
-            produced.append(token)
+        # Held for the whole generation, and released whichever way it ends: a slot that leaks
+        # on an abandoned stream costs the host one of the few requests it will run at once, and
+        # a caller closing the connection part way through is ordinary rather than exceptional.
+        await self._slots.acquire()
 
-            if token in self._stop_tokens:
-                outcome["reason"] = "stop"
-                return
+        try:
+            async for token in generator:
+                produced.append(token)
 
-            whole = self._tokenizer.decode(produced, skip_special_tokens=True)
+                if token in self._stop_tokens:
+                    outcome["reason"] = "stop"
+                    return
 
-            # A token can land mid character. When it does the decoded text does not grow, and
-            # the right thing is to wait for the one that completes it rather than to send a
-            # replacement character somebody's terminal will render as a box.
-            if len(whole) > len(shown):
-                fresh, shown = whole[len(shown):], whole
-                yield fresh, token
+                whole = self._tokenizer.decode(produced, skip_special_tokens=True)
+
+                # A token can land mid character. When it does the decoded text does not grow,
+                # and the right thing is to wait for the one that completes it rather than to
+                # send a replacement character somebody's terminal will render as a box.
+                if len(whole) > len(shown):
+                    fresh, shown = whole[len(shown):], whole
+                    yield fresh, token
+        finally:
+            self._slots.release()
 
     async def chat(self, request: Request) -> Any:
         body = await _body_of(request)
-        tokens = self._prompt_for_chat(body)
+        tokens = self._check_prompt(self._prompt_for_chat(body))
 
         if body.get("stream"):
             return StreamingResponse(
@@ -152,7 +232,7 @@ class Api:
 
     async def completions(self, request: Request) -> Any:
         body = await _body_of(request)
-        tokens = self._prompt_for_completion(body)
+        tokens = self._check_prompt(self._prompt_for_completion(body))
 
         if body.get("stream"):
             return StreamingResponse(

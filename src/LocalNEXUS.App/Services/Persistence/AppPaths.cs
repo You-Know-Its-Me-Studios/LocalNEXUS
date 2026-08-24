@@ -312,6 +312,80 @@ public static class AppPaths
         return Path.Combine(Logs, $"{safePrefix}-{DateTime.Now:yyyyMMdd-HHmmss-fff}.log");
     }
 
+    /// <summary>The most log files kept. Every engine launch writes one, so this fills up.</summary>
+    private const int MaxLogFiles = 200;
+
+    /// <summary>The most disk the log folder may occupy before the oldest files are dropped.</summary>
+    private const long MaxLogBytes = 256L * 1024 * 1024;
+
+    /// <summary>Nothing older than this is kept, however few files there are.</summary>
+    private static readonly TimeSpan MaxLogAge = TimeSpan.FromDays(14);
+
+    /// <summary>
+    /// Drops old engine logs so the folder does not grow without limit.
+    /// </summary>
+    /// <remarks>
+    /// A new file per engine launch and nothing ever removing one meant this only went up: a
+    /// development machine reached 483 files and 204 MB, and a user's would get there more
+    /// slowly and just as surely. Three bounds rather than one, because they fail differently:
+    /// a count catches many small files, a size catches one enormous one, and an age catches a
+    /// machine that is used rarely enough that neither of the others ever trips.
+    ///
+    /// It also bounds how long anything sensitive survives. Engine output is scrubbed of
+    /// credentials on the way in now, but a log written by an older build is not, and this is
+    /// what eventually removes those.
+    ///
+    /// Runs at startup, on a background thread, and never throws: a log that will not delete is
+    /// a tidiness problem and must not be allowed to stop the application from opening.
+    /// </remarks>
+    public static void PruneOldLogs()
+    {
+        try
+        {
+            if (!Directory.Exists(Logs))
+            {
+                return;
+            }
+
+            var files = new DirectoryInfo(Logs)
+                .GetFiles("*.log")
+                .OrderByDescending(file => file.LastWriteTimeUtc)
+                .ToList();
+
+            var cutoff = DateTime.UtcNow - MaxLogAge;
+            long kept = 0;
+
+            for (var index = 0; index < files.Count; index++)
+            {
+                var file = files[index];
+                kept += file.Length;
+
+                var tooMany = index >= MaxLogFiles;
+                var tooLarge = kept > MaxLogBytes;
+                var tooOld = file.LastWriteTimeUtc < cutoff;
+
+                if (!tooMany && !tooLarge && !tooOld)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    file.Delete();
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // In use by a running engine, or not ours to delete. The next launch tries
+                    // again, and one file surviving a pass costs nothing.
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The folder could not be read. Nothing depends on this having run.
+        }
+    }
+
     /// <summary>
     /// Locates the bundled llama-server executable.
     /// </summary>

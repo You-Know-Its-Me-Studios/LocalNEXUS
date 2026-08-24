@@ -218,6 +218,21 @@ public sealed class AppConfig
     public List<string> DistributedPeers { get; set; } = new();
 
     /// <summary>
+    /// The shared secret every machine in a distributed pipeline proves it knows.
+    /// </summary>
+    /// <remarks>
+    /// Held here rather than in the credential store, which is a deliberate and arguable choice.
+    /// It is not this machine's secret: it is a value the operator has to type identically into
+    /// every machine in the pipeline and into the command line that starts each peer, so it has
+    /// to be readable back out to be shown and copied. Encrypting it here would protect it from
+    /// nobody, because it is going to be pasted into a terminal on the next machine anyway.
+    ///
+    /// Blank is legitimate and means a pipeline confined to this machine, which is the default.
+    /// A peer refuses to listen on a network reachable address without one.
+    /// </remarks>
+    public string? DistributedSecret { get; set; }
+
+    /// <summary>
     /// True when this installation answers MCP tool calls from other tools.
     /// </summary>
     /// <remarks>
@@ -267,6 +282,21 @@ public sealed class AppConfig
     /// menu, which is why this is the only thing about it that is remembered.
     /// </remarks>
     public bool WalkthroughDismissed { get; set; }
+
+    /// <summary>
+    /// What the user said about building the Python runtime: unset, yes, or no.
+    /// </summary>
+    /// <remarks>
+    /// Three states rather than a bool, and the third is the point. Null means nobody has been
+    /// asked yet, which is not the same as having said no, and the difference decides whether
+    /// the application asks or stays quiet.
+    ///
+    /// This used to happen unasked. First launch downloaded roughly three gigabytes in the
+    /// background, on a connection nobody had said anything about, for a feature the user may
+    /// never touch: GGUF models never go near it. Disclosing it in a readme is not consent, and
+    /// a metered connection makes it expensive rather than merely surprising.
+    /// </remarks>
+    public bool? PythonRuntimeConsent { get; set; }
 
     /// <summary>True once a run has finished on this machine, which is the walkthrough's last step.</summary>
     /// <remarks>

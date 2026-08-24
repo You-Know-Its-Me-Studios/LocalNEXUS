@@ -23,6 +23,7 @@ embeddings and the same cache, over the layers this stage actually holds.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -114,8 +115,22 @@ class PartialStage:
         Raises:
             LoadError: the model could not be read, or the assignment does not fit the model.
         """
+        # Checked before anything is handed to the loader. from_pretrained accepts a Hugging
+        # Face repository id wherever it accepts a path, so an unchecked value arriving over a
+        # socket is an instruction to this machine to fetch whatever a stranger names. A stage
+        # only ever serves weights that are already on its own disk.
+        folder = Path(self._model_dir)
+
+        if not folder.is_dir():
+            raise LoadError(
+                f"{self._model_dir!r} is not a folder on this machine. A stage serves a model "
+                "that is already on its own disk, and will not fetch one."
+            )
+
+        self._model_dir = str(folder.resolve())
+
         try:
-            self._config = AutoConfig.from_pretrained(self._model_dir)
+            self._config = AutoConfig.from_pretrained(self._model_dir, local_files_only=True)
         except Exception as error:  # noqa: BLE001 - anything here is the same answer to a caller
             raise LoadError(f"{self._model_dir} has no config that could be read: {error}") from error
 
@@ -135,6 +150,7 @@ class PartialStage:
                 self._model_dir,
                 dtype=self._dtype_request,
                 device_map=placement,
+                local_files_only=True,
                 **extra,
             )
         except Exception as error:  # noqa: BLE001 - the reason has to reach the coordinator

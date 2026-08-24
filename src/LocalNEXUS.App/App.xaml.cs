@@ -85,6 +85,10 @@ public partial class App : Application
     {
         AppPaths.EnsureCreated();
 
+        // Old engine logs, dropped before anything starts writing new ones. Off the dispatcher
+        // because it touches the file system and nothing waits on the result.
+        _ = Task.Run(AppPaths.PruneOldLogs);
+
         var config = AppConfig.LoadOrCreate();
 
         // The theme is applied before anything is constructed, so the window is painted in the
@@ -411,7 +415,7 @@ public partial class App : Application
         // gigabytes, and the window has to be usable while it runs: GGUF models work throughout,
         // and the feed and the model panel show how far it has got.
         _provisioning = new CancellationTokenSource();
-        _ = ProvisionPythonAsync(pythonEnvironment, _provisioning.Token);
+        _ = ProvisionPythonAsync(pythonEnvironment, config, feed, _provisioning.Token);
 
         // The project index is read when a project is opened rather than when a graph is run, so
         // that what the application knows about the project is visible before anything depends on
@@ -501,13 +505,32 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Builds the Python environment in the background on every launch. A run that finds it
-    /// already built verifies it and returns, so the cost after the first launch is one import.
+    /// Builds the Python environment in the background, once the user has agreed to it.
     /// </summary>
-    private static async Task ProvisionPythonAsync(PythonProvisioner provisioner, CancellationToken ct)
+    /// <remarks>
+    /// A run that finds it already built verifies it and returns, so the cost after the first
+    /// launch is one import. The first launch is the one that matters: it downloads roughly
+    /// three gigabytes, and it used to do that without asking. Now it asks once, remembers the
+    /// answer, and does not ask again either way.
+    ///
+    /// Declining is a real answer and not a deferral. GGUF models never touch any of this, so a
+    /// person who only ever uses those has said no to something they will not miss; safetensors
+    /// models then refuse with a reason that names the Local model panel, where it can be set
+    /// up later.
+    /// </remarks>
+    private static async Task ProvisionPythonAsync(
+        PythonProvisioner provisioner,
+        AppConfig config,
+        IActivityFeed feed,
+        CancellationToken ct)
     {
         try
         {
+            if (!await HasConsentedToPythonAsync(config, feed, ct).ConfigureAwait(false))
+            {
+                return;
+            }
+
             await provisioner.EnsureAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -518,6 +541,42 @@ public partial class App : Application
         {
             CrashLog.Write("PythonProvisioning", ex);
         }
+    }
+
+    /// <summary>
+    /// Whether the Python runtime may be built, asking once if nobody has been asked.
+    /// </summary>
+    private static async Task<bool> HasConsentedToPythonAsync(
+        AppConfig config,
+        IActivityFeed feed,
+        CancellationToken ct)
+    {
+        if (config.PythonRuntimeConsent is { } already)
+        {
+            return already;
+        }
+
+        var agreed = await feed.RequestConfirmationAsync(
+            "Set up the Python runtime?",
+            "Safetensors models are served through Python, which has to be built once. That is "
+            + "roughly 3 GB on an NVIDIA machine because it pulls a CUDA build of torch, and a "
+            + "few hundred megabytes otherwise. It runs in the background and nothing waits on "
+            + "it." + Environment.NewLine + Environment.NewLine
+            + "GGUF models never use it, so say no if those are all you run. You can set it up "
+            + "later from the Local model panel.",
+            ct).ConfigureAwait(false);
+
+        config.PythonRuntimeConsent = agreed;
+        config.Save();
+
+        feed.Info(
+            agreed ? "Python runtime" : "Python runtime declined",
+            agreed
+                ? "Building in the background. The Local model panel shows how far it has got."
+                : "Not building it. Safetensors models will refuse until it is set up from the "
+                  + "Local model panel. GGUF models are unaffected.");
+
+        return agreed;
     }
 
     /// <summary>

@@ -139,6 +139,110 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
 
     partial void OnPublishChanged(bool value) => RefreshHosted();
 
+    /// <summary>
+    /// Whether a safetensors model too large for this machine is split across several.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the mesh switch above, because they are different things that happen to sit
+    /// near each other: the mesh serves GGUF to other people, and this changes which runtime
+    /// answers for a local safetensors model. Off by default, so nothing about how models are
+    /// served changes until somebody asks for it.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DistributedSummary))]
+    private bool _distributedEnabled;
+
+    /// <summary>
+    /// The shared secret every machine in a distributed pipeline proves it knows.
+    /// </summary>
+    /// <remarks>
+    /// Required before a peer will listen on an address the network can reach, which is the
+    /// whole of what stops a stranger driving somebody's GPU. Blank is legitimate and means a
+    /// pipeline that never leaves this machine.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DistributedSummary))]
+    private string _distributedSecret = string.Empty;
+
+    /// <summary>A machine typed into the box but not yet added.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddDistributedPeer))]
+    private string _typedPeer = string.Empty;
+
+    /// <summary>The machines a distributed pipeline is planned across, besides this one.</summary>
+    public ObservableCollection<DistributedPeerViewModel> DistributedPeers { get; } = new();
+
+    /// <summary>Whether what is in the box could be added as a machine.</summary>
+    public bool CanAddDistributedPeer => DistributedPeerViewModel.IsWellFormed(TypedPeer);
+
+    /// <summary>What the current distributed settings actually mean, in one line.</summary>
+    public string DistributedSummary
+    {
+        get
+        {
+            if (!DistributedEnabled)
+            {
+                return "Off. Safetensors models are served whole on this machine.";
+            }
+
+            if (DistributedPeers.Count == 0)
+            {
+                return "On, with no other machines listed, so a model that fits here is still "
+                    + "served here. Add a machine to split one that does not fit.";
+            }
+
+            var secret = string.IsNullOrWhiteSpace(DistributedSecret)
+                ? " No secret is set, so the other machines have to be reachable on loopback."
+                : string.Empty;
+
+            return $"On, across this machine and {Count(DistributedPeers.Count, "other")}.{secret}";
+        }
+    }
+
+    private static string Count(int howMany, string noun)
+        => howMany == 1 ? $"1 {noun} machine" : $"{howMany} {noun} machines";
+
+    /// <summary>Adds the typed machine to the list.</summary>
+    [RelayCommand]
+    private void AddDistributedPeer()
+    {
+        var address = TypedPeer.Trim();
+
+        if (!DistributedPeerViewModel.IsWellFormed(address))
+        {
+            return;
+        }
+
+        if (DistributedPeers.Any(p => string.Equals(p.Address, address, StringComparison.OrdinalIgnoreCase)))
+        {
+            _feed.Info("Already listed", $"{address} is already one of the machines.");
+            TypedPeer = string.Empty;
+            return;
+        }
+
+        DistributedPeers.Add(new DistributedPeerViewModel(address));
+        TypedPeer = string.Empty;
+        OnPropertyChanged(nameof(DistributedSummary));
+        SaveSettings();
+    }
+
+    /// <summary>Takes a machine off the list. Nothing is stopped: peers are started by hand.</summary>
+    [RelayCommand]
+    private void RemoveDistributedPeer(DistributedPeerViewModel? peer)
+    {
+        if (peer is null || !DistributedPeers.Remove(peer))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(DistributedSummary));
+        SaveSettings();
+    }
+
+    partial void OnDistributedEnabledChanged(bool value) => SaveSettings();
+
+    partial void OnDistributedSecretChanged(string value) => SaveSettings();
+
     private readonly MeshDirectory? _directory;
 
     public NetworkViewModel(
@@ -164,6 +268,17 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             Joined.Add(new JoinedMesh(record.Name, record.Token, record.JoinedAt));
         }
         _apiPort = config.MeshApiPort.ToString(CultureInfo.InvariantCulture);
+
+        _distributedEnabled = config.DistributedInferenceEnabled;
+        _distributedSecret = config.DistributedSecret ?? string.Empty;
+
+        foreach (var address in config.DistributedPeers)
+        {
+            if (!string.IsNullOrWhiteSpace(address))
+            {
+                DistributedPeers.Add(new DistributedPeerViewModel(address));
+            }
+        }
         _offerAllMemory = config.MeshOfferAllMemory;
 
         // A machine that has never been configured starts at the safe ceiling rather than at zero,
@@ -1366,10 +1481,18 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
         _config.MeshJoined = Joined
             .Select(m => new JoinedMeshRecord { Name = m.Name, Token = m.Token, JoinedAt = m.JoinedAt })
             .ToList();
-        _config.MeshOfferedModelPaths = OfferedModels.Where(m => m.IsOffered).Select(m => m.Path).ToList();
+        _config.MeshOfferedModelPaths = OfferedModels
+            .Where(m => m.IsOffered && m.IsOfferable)
+            .Select(m => m.Path)
+            .ToList();
         _config.MeshOfferAllMemory = OfferAllMemory;
         _config.MeshMaxVramGb = MemoryShareGb;
         _config.MeshApiPort = ParsePort(ApiPort, _config.MeshApiPort);
+
+        _config.DistributedInferenceEnabled = DistributedEnabled;
+        _config.DistributedSecret = DistributedSecret.Trim();
+        _config.DistributedPeers = DistributedPeers.Select(p => p.Address).ToList();
+
         _config.Save();
     }
 

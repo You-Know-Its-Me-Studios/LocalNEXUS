@@ -25,6 +25,7 @@ a stage that can still answer while it is busy.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 import traceback
@@ -46,6 +47,22 @@ _log = logging.getLogger(__name__)
 #: died, and waiting is time spent on an answer that is not coming.
 _REQUEST_CONNECT_ATTEMPTS = 3
 _REQUEST_CONNECT_PAUSE = 0.5
+
+#: How many sockets one stage will hold open at once. A pipeline needs two: the stage before it
+#: and, on the last stage, the host. Sixteen leaves room for a coordinator probing, a stage
+#: reconnecting before the old socket has been reaped, and a person looking at it, while still
+#: being a number a stranger cannot turn into a file descriptor exhaustion.
+MAX_CONNECTIONS = 16
+
+#: How many requests one stage will have in flight at once. Each one holds a KV cache on every
+#: machine in the pipeline for as long as it lives, so this is a memory bound rather than a
+#: throughput one. Compute is serialised anyway, so a higher number buys queueing, not speed.
+MAX_IN_FLIGHT_REQUESTS = 8
+
+#: The shortest gap between two accepted assignments. Loading a stage reads tens of gigabytes,
+#: so a second LOAD arriving immediately after the first is either a mistake or someone trying
+#: to make this machine read its disk forever.
+MIN_SECONDS_BETWEEN_LOADS = 30.0
 
 
 @runtime_checkable
@@ -96,6 +113,7 @@ class StageServer:
         runner: StageRunner | None = None,
         next_stage: StageAssignment | None = None,
         return_to: StageAssignment | None = None,
+        secret: str | None = None,
     ) -> None:
         """
         Args:
@@ -105,7 +123,10 @@ class StageServer:
             next_stage: where output goes, or nothing if this is the last stage.
             return_to: where a sampled token goes. Only the last stage uses it, and it is the
                 host, which is stage 0.
+            secret: what every connection has to prove it knows. None is only permitted when
+                this stage is bound to loopback, which the entry point enforces before here.
         """
+        self._secret = secret
         self._node = node
         self._assignment = assignment
         self._runner = runner
@@ -138,6 +159,15 @@ class StageServer:
         self._link_opened_at: dict[str, str] = {}
         self._forwards_seen = 0
 
+        # Caps. Every one of these bounds something a machine on the network can otherwise ask
+        # for without limit: sockets, memory held by caches, and disk reads.
+        self._in_flight: set[str] = set()
+        self._last_load_at = 0.0
+
+        # When this stage last did anything a host asked of it. A contributing machine uses this
+        # to notice it has been abandoned, because a host that crashed does not send a goodbye.
+        self._last_activity = time.monotonic()
+
         # The model is one object and the cache for a request is appended to in order, so two
         # forwards must not overlap inside it. This is the whole of the concurrency story.
         self._compute_lock = asyncio.Lock()
@@ -156,6 +186,16 @@ class StageServer:
     @property
     def assignment(self) -> StageAssignment | None:
         return self._assignment
+
+    @property
+    def seconds_idle(self) -> float:
+        """How long since anything was asked of this stage."""
+        return time.monotonic() - self._last_activity
+
+    @property
+    def connection_count(self) -> int:
+        """How many machines currently hold a connection to this one."""
+        return len(self._accepted)
 
     @property
     def is_assigned(self) -> bool:
@@ -191,6 +231,20 @@ class StageServer:
         self._return_to = return_to
 
         _log.info("%s holds %s", self._label, runner.describe())
+
+    def detach(self) -> StageRunner | None:
+        """Gives up the layers this stage holds, and returns what was held.
+
+        The listener stays up. A machine that has finished with one assignment is still a machine
+        offering itself, and making it exit would mean somebody has to go and start it again.
+        """
+        released, self._runner = self._runner, None
+        self._assignment = None
+        self._next = None
+        self._return_to = None
+        self._in_flight.clear()
+
+        return released
 
     async def start(self) -> None:
         """Begins listening. Does not load anything: a runner is attached separately."""
@@ -234,12 +288,32 @@ class StageServer:
 
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         peer = writer.get_extra_info("peername")
+
+        # Counted before the handshake, because holding sockets open through a handshake that is
+        # never completed is the cheapest way to exhaust this process, and the cap has to apply
+        # to exactly the thing being exhausted.
+        if len(self._accepted) >= MAX_CONNECTIONS:
+            _log.warning("%s refused %s: already holding %d connections",
+                         self._label, peer, len(self._accepted))
+            writer.close()
+            return
+
         self._accepted.add(writer)
 
         try:
+            # Nothing this connection sends is looked at until it has proved who it is. A
+            # stranger reaching this port gets exactly one thing: a challenge it cannot answer.
+            await protocol.accept_handshake(reader, writer, self._secret)
+
             while True:
                 frame = await protocol.read(reader, device="cpu")
+                self._last_activity = time.monotonic()
                 await self._dispatch(frame, writer)
+        except protocol.NotAuthorised as error:
+            _log.warning("%s refused %s: %s", self._label, peer, error)
+
+            with contextlib.suppress(Exception):
+                await protocol.write(writer, protocol.error_frame(str(error)))
         except protocol.Disconnected:
             _log.debug("%s: %s went away", self._label, peer)
         except protocol.ProtocolError as error:
@@ -271,6 +345,18 @@ class StageServer:
                 f"{self._label} does not take assignments"
             ))
             return
+
+        since = time.monotonic() - self._last_load_at
+
+        if self._last_load_at > 0.0 and since < MIN_SECONDS_BETWEEN_LOADS:
+            await protocol.write(writer, protocol.error_frame(
+                f"{self._label} was assigned layers {since:.0f} seconds ago and will not take "
+                f"another for {MIN_SECONDS_BETWEEN_LOADS - since:.0f} seconds. Loading a stage "
+                "reads the whole of its share off disk."
+            ))
+            return
+
+        self._last_load_at = time.monotonic()
 
         try:
             await self._on_load(frame.body)
@@ -305,6 +391,15 @@ class StageServer:
             ))
             return
 
+        if request_id not in self._in_flight and len(self._in_flight) >= MAX_IN_FLIGHT_REQUESTS:
+            await protocol.write(writer, protocol.error_frame(
+                f"{self._label} is already holding {MAX_IN_FLIGHT_REQUESTS} requests, which is "
+                "as many caches as it will keep at once. Release one or wait.",
+                request_id=request_id,
+            ))
+            return
+
+        self._in_flight.add(request_id)
         self._forwards_seen += 1
 
         try:
@@ -380,6 +475,10 @@ class StageServer:
             await self._send_onward(Frame(protocol.RELEASE, {"request_id": request_id}))
 
     def _safely_release(self, request_id: str) -> None:
+        # Out of the in flight count whether or not the runner has anything to drop, because the
+        # count is what bounds how many requests a caller can start and it must not leak.
+        self._in_flight.discard(request_id)
+
         if self._runner is None:
             return
 
@@ -433,6 +532,7 @@ class StageServer:
                     target.port,
                     attempts=_REQUEST_CONNECT_ATTEMPTS,
                     pause=_REQUEST_CONNECT_PAUSE,
+                    secret=self._secret,
                 )
                 self._links[target.address] = (reader, writer)
                 self._link_opened[target.address] = time.monotonic()
@@ -497,6 +597,26 @@ class StageServer:
 
             self._links.pop(target.address, None)
 
+            # Before telling anyone the pipeline is down, find out whether it is. A link ending
+            # is evidence that a socket ended, which is not the same claim: this has fired once
+            # with the machine on the other side demonstrably alive and serving requests either
+            # side of it. Asking costs one connection attempt and turns a guess into an answer.
+            still_there = await self._is_reachable(target)
+
+            if still_there:
+                _log.warning(
+                    "%s lost its connection to %s after %.1fs (%s: %s), and %s is still "
+                    "answering. Treating this as a dropped socket rather than a dead machine; "
+                    "the next request reconnects. No request has been failed.",
+                    self._label,
+                    target.address,
+                    time.monotonic() - self._link_opened.get(target.address, time.monotonic()),
+                    type(error).__name__,
+                    error,
+                    target.node_id,
+                )
+                return
+
             # This has fired once with the machine on the other side demonstrably alive and every
             # request around it succeeding, which does not match what this code does. Until that
             # is understood, the log carries everything needed to tell a real disconnection from
@@ -531,10 +651,40 @@ class StageServer:
 
             await self._pass_back(protocol.error_frame(
                 f"{self._label} lost the machine after it, {target.node_id} at "
-                f"{target.address}. The pipeline has stopped.",
+                f"{target.address}, and it is no longer answering. The pipeline has stopped.",
                 stage=self._assignment.stage_index if self._assignment else -1,
                 lost=target.node_id,
+                # The one flag that says this belongs to every request rather than to one. It is
+                # set only after the machine has been asked again and did not answer, so a
+                # request is never failed on the strength of a socket having ended.
+                pipeline_down=True,
             ))
+
+    async def _is_reachable(self, target: StageAssignment) -> bool:
+        """Whether the machine is still there, asked rather than assumed.
+
+        A fresh connection and a handshake, nothing more. Deliberately short: this runs on the
+        path where something has already gone wrong, and a request is waiting on the answer.
+        """
+        try:
+            reader, writer = await protocol.connect(
+                target.host,
+                target.port,
+                attempts=2,
+                pause=0.5,
+                secret=self._secret,
+            )
+        except (protocol.ProtocolError, ConnectionError, OSError, asyncio.TimeoutError):
+            return False
+
+        # Kept, so the reconnection this just proved possible is not thrown away and paid for
+        # again by the next request.
+        self._links[target.address] = (reader, writer)
+        self._link_opened[target.address] = time.monotonic()
+        self._link_opened_at[target.address] = datetime.now().isoformat(timespec="seconds")
+        self._watch(reader, target)
+
+        return True
 
     async def _pass_back(self, frame: Frame) -> None:
         """Sends something toward the host, or hands it over if this is the host.

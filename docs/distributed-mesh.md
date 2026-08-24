@@ -1,4 +1,12 @@
-# Distributed inference
+# The mesh: sharing GGUF models between machines
+
+> **This is one of two ways to use more than one machine, and they are unrelated.**
+>
+> This page is the mesh: GGUF models, served whole, shared with other people, discovery
+> included. If instead you have a **safetensors** model too large for one machine and you want
+> to spread its layers over machines of your own, that is a different feature entirely and it is
+> in [distributed-safetensors.md](distributed-safetensors.md). The mesh cannot serve safetensors
+> and the safetensors pipeline cannot serve GGUF.
 
 
 One model can run across several machines over [Mesh LLM](https://github.com/Mesh-LLM/mesh-llm),

@@ -74,7 +74,7 @@ public sealed class EndToEndTests
     /// against, so a client that returned the text and nothing else would look fine here and be
     /// wrong everywhere it mattered.
     /// </remarks>
-    [Fact]
+    [RequiresLocalModelFact]
     public async Task ALocalModelAnswers()
     {
         var model = RequireModel();
@@ -126,7 +126,7 @@ public sealed class EndToEndTests
     /// progress bar. Asserted as "more than one chunk", which is the only claim that holds for
     /// every model and every reply length.
     /// </remarks>
-    [Fact]
+    [RequiresLocalModelFact]
     public async Task TheReplyIsStreamed()
     {
         var model = RequireModel();
@@ -168,7 +168,7 @@ public sealed class EndToEndTests
     /// far end is code a compiler accepts. If it could not be made to compile within the retry
     /// limit, the run says so and does not emit, which is also correct and is asserted as such.
     /// </remarks>
-    [Fact]
+    [RequiresLocalModelFact]
     public async Task CodeThatReachesTheWriterCompiles()
     {
         var model = RequireModel();
@@ -243,7 +243,7 @@ public sealed class EndToEndTests
     /// that a real model, asked for code, produces one of those shapes and the setting is actually
     /// applied on the path a run takes.
     /// </remarks>
-    [Fact]
+    [RequiresLocalModelFact]
     public async Task AFencedReplyReachesTheWireUnfenced()
     {
         var model = RequireModel();
@@ -296,7 +296,7 @@ public sealed class EndToEndTests
     /// A graph with three model nodes on one local model is the ordinary case, and three copies of
     /// a seven gigabyte model would not fit on most machines that can run one.
     /// </remarks>
-    [Fact]
+    [RequiresLocalModelFact]
     public async Task TheSameModelIsServedOnce()
     {
         var model = RequireModel();

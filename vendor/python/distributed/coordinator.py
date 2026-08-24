@@ -46,6 +46,16 @@ _log = logging.getLogger(__name__)
 #: where a person would have given up rather than where a model would.
 TOKEN_TIMEOUT_SECONDS = 300.0
 
+#: How long a contributing machine keeps a stage loaded with nobody connected and nothing being
+#: asked of it, before handing the memory back. Twenty minutes is long enough to survive a host
+#: being restarted or a person thinking, and short enough that a crashed host does not cost
+#: somebody their card for the rest of the day. Reloading costs minutes; holding costs the whole
+#: card, so the asymmetry points this way.
+DEFAULT_IDLE_TIMEOUT_SECONDS = 20 * 60.0
+
+#: How often the check above runs. Cheap, so it is frequent enough to be responsive.
+IDLE_CHECK_SECONDS = 30.0
+
 
 class PipelineError(Exception):
     """The pipeline could not be assembled, or a request through it did not finish."""
@@ -59,10 +69,18 @@ class Peer:
     anything about the model.
     """
 
-    def __init__(self, node: NodeInfo) -> None:
+    def __init__(
+        self,
+        node: NodeInfo,
+        secret: str | None = None,
+        idle_timeout_seconds: float = DEFAULT_IDLE_TIMEOUT_SECONDS,
+    ) -> None:
         self._node = node
-        self._server = StageServer(node=node)
+        self._secret = secret
+        self._idle_timeout = idle_timeout_seconds
+        self._server = StageServer(node=node, secret=secret)
         self._stage: PartialStage | None = None
+        self._watchdog: asyncio.Task[None] | None = None
 
         self._server.on_load(self._take_assignment)
 
@@ -73,8 +91,68 @@ class Peer:
     async def start(self) -> None:
         await self._server.start()
 
+        self._watchdog = asyncio.create_task(self._watch_for_abandonment())
+
     async def stop(self) -> None:
+        if self._watchdog is not None:
+            self._watchdog.cancel()
+            self._watchdog = None
+
         await self._server.stop()
+        await self._release_stage("this machine is shutting down")
+
+    async def _watch_for_abandonment(self) -> None:
+        """Gives the card back when the host stops asking for it.
+
+        A host that crashes does not say goodbye, and without this the contributing machine holds
+        however many gigabytes it was given until somebody notices and kills it by hand. That is
+        the worst possible failure for the thing this is trying to be, because the person whose
+        card it is did not do anything wrong and has no way to tell that anything happened.
+
+        Two conditions, and both have to hold. Nobody is connected, so no host is mid request,
+        and nothing has been asked for a while, so this is not simply a quiet moment between
+        tokens. A stage in the middle of a long generation is neither.
+        """
+        while True:
+            try:
+                await asyncio.sleep(IDLE_CHECK_SECONDS)
+
+                if self._stage is None:
+                    continue
+
+                if self._server.connection_count > 0:
+                    continue
+
+                idle = self._server.seconds_idle
+
+                if idle >= self._idle_timeout:
+                    await self._release_stage(
+                        f"nothing has been asked of this machine for {idle / 60:.0f} minutes "
+                        "and no host is connected"
+                    )
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - a watchdog that dies stops protecting anything
+                _log.exception("the idle watchdog failed and will carry on")
+
+    async def _release_stage(self, why: str) -> None:
+        """Drops the loaded stage and hands its memory back to the card.
+
+        The detach comes first so that nothing can route a request into a model that is being
+        torn down, and the cache is emptied afterwards because torch holds freed blocks in its
+        own allocator: without it the memory is available to this process and to nothing else,
+        which is no help to the person who wanted their card back.
+        """
+        if self._stage is None:
+            self._server.detach()
+            return
+
+        _log.info("releasing %s: %s", self._stage.describe(), why)
+
+        self._server.detach()
+        self._stage = None
+
+        await asyncio.to_thread(_free_accelerator_memory)
 
     async def _take_assignment(self, body: dict[str, Any]) -> None:
         """Loads the layers the host has assigned to this machine.
@@ -85,6 +163,13 @@ class Peer:
         """
         plan = StagePlan.from_dict(body["plan"])
         assignment = plan.for_node(self._node.node_id)
+
+        # Whatever was held before goes first. Building the new stage while the old one is still
+        # resident asks this machine for both at once, and a card that comfortably holds one
+        # share of a model does not hold two: a re-plan on a machine that was working would fail
+        # with an out of memory error naming the new load, which is the one thing that was not
+        # wrong with it.
+        await self._release_stage("a new assignment arrived")
 
         stage = PartialStage(plan.model_dir, assignment,
                              quantization=plan.quantization)
@@ -100,6 +185,16 @@ class Peer:
         )
 
 
+def _free_accelerator_memory() -> None:
+    """Hands freed blocks back to the driver rather than keeping them in torch's own pool.
+
+    Called off the event loop because it synchronises with the device, which can take a moment
+    on a card that was busy.
+    """
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
 class Pipeline:
     """The host: plans the split, brings every machine up, and runs requests through them."""
 
@@ -111,13 +206,15 @@ class Pipeline:
         port: int = 8749,
         margin_bytes: int = DEFAULT_MARGIN_BYTES,
         quantization: str = QUANTIZATION_NONE,
+        secret: str | None = None,
     ) -> None:
         self._model_dir = model_dir
         self._margin = margin_bytes
         self._quantization = quantization
+        self._secret = secret
         self._me = local_node_info(node_id, host, port, label="this machine")
 
-        self._server = StageServer(node=self._me)
+        self._server = StageServer(node=self._me, secret=secret)
         self._server.on_token(self._token_arrived)
 
         self._stage: PartialStage | None = None
@@ -202,7 +299,14 @@ class Pipeline:
         for peer in peers:
             try:
                 reader, writer = await protocol.connect(peer.host, peer.port,
-                                                        attempts=3, pause=1.0)
+                                                        attempts=3, pause=1.0,
+                                                        secret=self._secret)
+            except protocol.NotAuthorised as error:
+                # Named separately from silence, because a machine that answered and refused is
+                # a secret that does not match rather than a machine that is not there, and the
+                # two have completely different fixes.
+                _log.warning("%s refused this host and is left out: %s", peer.address, error)
+                continue
             except protocol.Disconnected as error:
                 _log.warning("%s did not answer and is left out: %s", peer.address, error)
                 continue
@@ -282,7 +386,10 @@ class Pipeline:
     async def _assign(self, stage: StageAssignment) -> str | None:
         """Sends one machine its share and waits for it to say whether it took it."""
         try:
-            reader, writer = await protocol.connect(stage.host, stage.port, attempts=5)
+            reader, writer = await protocol.connect(stage.host, stage.port, attempts=5,
+                                                    secret=self._secret)
+        except protocol.NotAuthorised as error:
+            return f"{stage.node_id} refused this host: {error}"
         except protocol.Disconnected as error:
             return f"{stage.node_id} could not be reached: {error}"
 
@@ -315,8 +422,12 @@ class Pipeline:
     def _token_arrived(self, frame: Frame) -> None:
         """Whatever came back from the end of the pipeline, handed to the request waiting on it.
 
-        A failure with no request named belongs to every request in flight, because that is what
-        a broken pipeline is: nothing that is running can finish.
+        A failure naming a request belongs to that request. A failure belonging to every request
+        has to say so, and only a stage that has re-checked the machine after it and found it
+        gone will say it. That distinction used to not exist: any error without a request id
+        failed everything in flight, so one dropped socket took down every unrelated request
+        that happened to be running, and a socket dropping is not the same event as a machine
+        dying.
         """
         request_id = str(frame.body.get("request_id", ""))
         waiting = self._waiting.get(request_id)
@@ -325,13 +436,23 @@ class Pipeline:
             waiting.put_nowait(frame)
             return
 
-        if frame.kind == protocol.ERROR:
-            for queue in self._waiting.values():
-                queue.put_nowait(frame)
-
+        if frame.kind != protocol.ERROR:
+            _log.warning("a token came back for %s, which nothing is waiting for", request_id)
             return
 
-        _log.warning("a token came back for %s, which nothing is waiting for", request_id)
+        if not bool(frame.body.get("pipeline_down", False)):
+            # Nothing to attribute it to and no claim that the pipeline is down. Recording it is
+            # the whole response: failing live requests on this would be inventing a connection
+            # between them that the sender did not make.
+            _log.warning("an unattributed failure arrived and was not charged to any request: %s",
+                         frame.body.get("reason", frame.body))
+            return
+
+        _log.error("the pipeline is down, failing %d request(s) in flight: %s",
+                   len(self._waiting), frame.body.get("reason", ""))
+
+        for queue in self._waiting.values():
+            queue.put_nowait(frame)
 
     async def generate(
         self,

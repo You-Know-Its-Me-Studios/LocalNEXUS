@@ -79,6 +79,30 @@ port, so it is not reachable from the network. It runs with permissive CORS and 
 which is only safe because of that binding. The mesh node listens on a configurable port,
 9337 by default, LAN scoped unless you publish.
 
+**The distributed inference pipeline is the one part meant to be reachable from another
+machine**, so it is the part with authentication. It is a Python package the app starts as a
+child process, and it is off by default.
+
+- A *host* is started by the app and binds `127.0.0.1`. It answers the same OpenAI-compatible
+  API as every other local engine.
+- A *peer*, on a machine contributing layers, is started from a command line and binds
+  `127.0.0.1` unless told otherwise. Port 8749 by default.
+- **Binding an address the network can reach requires a shared secret.** The peer refuses to
+  start otherwise, and that is not configurable.
+- Every connection, in both directions, completes a challenge-response handshake before a
+  single frame is dispatched. The secret is never sent; what crosses the wire is an HMAC over a
+  nonce the accepting end chose, so a captured handshake cannot be replayed. The secret is read
+  from `LOCALNEXUS_DISTRIBUTED_SECRET` in preference to a command line argument, because an
+  argument is visible in the process list to every account on the machine.
+- A model directory named by a remote host is checked to be an existing local folder before
+  anything is loaded, and loading is pinned to local files. A peer will not fetch a model.
+- Caps bound what a caller can ask for: connections and in-flight requests per stage, a minimum
+  interval between assignments, and prompt, generation and concurrency limits on the host.
+
+What this does **not** do: the secret is a single shared value, not per-peer credentials, and
+there is no transport encryption. Activations cross the network in the clear. Treat a
+distributed pipeline as something to run on a network you control, not across the internet.
+
 **Engine processes are owned through Windows job objects**, so the OS kills them when the
 app's handle closes. The app never terminates a process it did not start.
 
