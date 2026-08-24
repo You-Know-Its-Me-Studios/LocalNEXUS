@@ -161,7 +161,8 @@
                         </ItemsControl>
 
                         <TextBlock Style="{StaticResource MetaText}"
-                                   Text="LocalNEXUS 1.6.0"
+                                   Text="{Binding Source={x:Static vm:SetupViewModel.Version},
+                                                 StringFormat='LocalNEXUS {0}'}"
                                    VerticalAlignment="Bottom"
                                    HorizontalAlignment="Left"
                                    Margin="16,0,0,18" />

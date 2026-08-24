@@ -25,7 +25,9 @@
                        Source="/Assets/Brand/Mark.png" />
 
                 <StackPanel Grid.Column="1" Margin="22,0,0,0">
-                    <TextBlock Style="{StaticResource ScreenTitle}" Text="Welcome to the LocalNEXUS 1.6.0 Setup Wizard" />
+                    <TextBlock Style="{StaticResource ScreenTitle}"
+                               Text="{Binding Source={x:Static vm:SetupViewModel.Version},
+                                              StringFormat='Welcome to the LocalNEXUS {0} Setup Wizard'}" />
 
                     <TextBlock Style="{StaticResource BodyText}" Margin="0,14,0,0">
                         This installs LocalNEXUS on this computer, a canvas that wires language models together and

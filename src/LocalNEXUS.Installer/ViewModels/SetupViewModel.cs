@@ -21,6 +21,10 @@ namespace LocalNEXUS.Installer.ViewModels;
 public sealed partial class SetupViewModel : ObservableObject
 {
     /// <summary>The version this installer carries, shown in the rail corner and recorded on install.</summary>
+    /// <remarks>
+    /// The one place the number is written. The welcome title and the rail corner reach it through
+    /// x:Static rather than repeating it, so a version bump is this line and nothing else.
+    /// </remarks>
     public const string Version = "1.6.0";
 
     private readonly GpuDetector _detector = new();
