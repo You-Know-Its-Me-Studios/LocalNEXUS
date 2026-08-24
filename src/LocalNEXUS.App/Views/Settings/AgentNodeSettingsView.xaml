@@ -72,6 +72,18 @@
                    TextWrapping="Wrap"
                    Text="The budget for the whole task, not per file. If it runs out, anything already written stays written and the run reports where it stopped." />
 
+        <!--
+            Beside the turn count, because the turn count is what drives it. A loop resends the
+            conversation every turn, so the figure grows faster than the number of turns does,
+            which is the thing worth seeing before setting this to something large.
+        -->
+        <TextBlock Style="{StaticResource HintText}"
+                   Margin="0,6,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource Status.Warning.Brush}"
+                   Text="{Binding CostCeilingText}"
+                   Visibility="{Binding HasCostCeiling, Converter={StaticResource BooleanToVisibility}}" />
+
         <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Prompt" />
 
         <TextBlock Style="{StaticResource FieldLabel}" Text="System prompt" />

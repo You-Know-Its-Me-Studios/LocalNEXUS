@@ -66,10 +66,15 @@ public sealed partial class AgentNode : NodeBase
     /// stops within a couple of minutes rather than overnight.
     /// </remarks>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CostCeiling))]
+    [NotifyPropertyChangedFor(nameof(CostCeilingText))]
+    [NotifyPropertyChangedFor(nameof(HasCostCeiling))]
     private int _maxTurns = 25;
 
     /// <summary>What the agent is told it is.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CostCeiling))]
+    [NotifyPropertyChangedFor(nameof(CostCeilingText))]
     private string _systemPrompt = DefaultSystemPrompt;
 
     public AgentNode()
@@ -87,6 +92,7 @@ public sealed partial class AgentNode : NodeBase
             {
                 WatchModel();
                 RaiseToolWarning();
+                RaiseCost();
             }
         };
     }
@@ -115,6 +121,21 @@ public sealed partial class AgentNode : NodeBase
         {
             RaiseToolWarning();
         }
+
+        if (e.PropertyName is nameof(ModelNode.MaxTokens)
+            or nameof(ModelNode.ToolTokenEstimate)
+            or nameof(ModelNode.Provider)
+            or nameof(ModelNode.ModelDisplayName))
+        {
+            RaiseCost();
+        }
+    }
+
+    private void RaiseCost()
+    {
+        OnPropertyChanged(nameof(CostCeiling));
+        OnPropertyChanged(nameof(CostCeilingText));
+        OnPropertyChanged(nameof(HasCostCeiling));
     }
 
     private void RaiseToolWarning()
@@ -122,6 +143,164 @@ public sealed partial class AgentNode : NodeBase
         OnPropertyChanged(nameof(ToolWarning));
         OnPropertyChanged(nameof(HasToolWarning));
         OnPropertyChanged(nameof(IsToolWarningSevere));
+    }
+
+    /// <summary>
+    /// The provider this loop would actually be billed by, or null when nothing is billed.
+    /// </summary>
+    /// <remarks>
+    /// Asks the same question the Model node asks when it resolves an endpoint, rather than
+    /// asking whether a provider happens to be named. Choosing a hosted provider and then
+    /// switching the node back to Local leaves the earlier choice sitting there, so a node with a
+    /// provider set is not the same as a node that will spend money, and a ceiling that could not
+    /// tell them apart would put a price on a local run.
+    /// </remarks>
+    private CloudProvider? BillingProvider
+    {
+        get
+        {
+            if (Model.SourcePin?.Owner is not ModelNode model)
+            {
+                return null;
+            }
+
+            if (model.Provider is not (ModelProvider.OpenRouter or ModelProvider.Cloud))
+            {
+                return null;
+            }
+
+            return RunCost.HasRates(model.CloudProvider) ? model.CloudProvider : null;
+        }
+    }
+
+    /// <summary>
+    /// The most this agent could spend, or null when nothing here costs money.
+    /// </summary>
+    /// <remarks>
+    /// A loop is priced differently from a single call, and the difference is the whole reason
+    /// this exists. Every turn resends the conversation so far, and every turn's output becomes
+    /// the next turn's input, so the input side grows with each turn rather than staying still.
+    /// Twenty five turns is therefore not twenty five times one call.
+    ///
+    /// Worst case throughout: every turn runs, and every turn writes to its limit.
+    /// </remarks>
+    public decimal? CostCeiling
+    {
+        get
+        {
+            if (Model.SourcePin?.Owner is not ModelNode model || BillingProvider is not { } provider)
+            {
+                return null;
+            }
+
+            return CeilingFor(provider, model, EstimatedBaseCharacters);
+        }
+    }
+
+    /// <summary>What the panel says about the ceiling, including what it cannot account for.</summary>
+    public string CostCeilingText
+    {
+        get
+        {
+            if (Model.SourcePin?.Owner is not ModelNode model)
+            {
+                return string.Empty;
+            }
+
+            if (BillingProvider is not { } provider)
+            {
+                return "This model is local, so the loop costs time rather than money.";
+            }
+
+            var ceiling = CeilingFor(provider, model, EstimatedBaseCharacters);
+
+            return $"Up to about {RunCost.Format(ceiling)} at the listed rate for {provider.DisplayName}: "
+                + $"{MaxTurns} turns, each allowed {model.MaxTokens} tokens, with every turn resending "
+                + "the conversation so far. Most runs stop well short of the turn limit and cost a "
+                + "fraction of this. It cannot price what the tools return, so a turn that reads a "
+                + "large file costs more than this allows for.";
+        }
+    }
+
+    /// <summary>True when there is a money figure worth showing.</summary>
+    public bool HasCostCeiling => CostCeilingText.Length > 0;
+
+    /// <summary>Roughly how much text starts the conversation, before anything is generated.</summary>
+    private int EstimatedBaseCharacters =>
+        SystemPrompt.Length
+        + (Model.SourcePin?.Owner is ModelNode model ? model.ToolTokenEstimate * 4 : 0);
+
+    /// <summary>
+    /// The worst this loop could cost at a provider's rates.
+    /// </summary>
+    /// <remarks>
+    /// The output side is simple: every turn writes to its limit. The input side compounds,
+    /// because a turn is sent the whole conversation, so turn N carries everything the turns
+    /// before it produced. Summing that gives the triangular term below, which is what makes a
+    /// long loop expensive out of proportion to its turn count.
+    ///
+    /// What it does not cover is what the tools hand back. A file read is unbounded and lands in
+    /// the conversation like anything else, so this is a ceiling on the parts that can be counted
+    /// rather than on the whole, and it says so wherever it is shown.
+    /// </remarks>
+    private decimal CeilingFor(CloudProvider provider, ModelNode model, int baseCharacters)
+    {
+        var turns = Math.Max(1, MaxTurns);
+        var perTurnOutput = Math.Max(0, model.MaxTokens);
+        var baseTokens = Math.Max(0, baseCharacters) / 4;
+
+        var totalOutput = (long)turns * perTurnOutput;
+
+        // Each turn resends everything before it, so the earlier turns' output is paid for again
+        // on every turn that follows: the triangular number of the turn count.
+        var carried = (long)perTurnOutput * turns * (turns - 1) / 2;
+        var totalInput = ((long)turns * baseTokens) + carried;
+
+        return RunCost.Actual(provider, Clamp(totalInput), Clamp(totalOutput));
+    }
+
+    private static int Clamp(long tokens) => tokens > int.MaxValue ? int.MaxValue : (int)tokens;
+
+    /// <summary>
+    /// Asks before running a loop that could cost more than the threshold allows.
+    /// </summary>
+    /// <remarks>
+    /// The same threshold the Model node honours, so one setting governs both and somebody who
+    /// raised it is not asked twice for the same reason.
+    /// </remarks>
+    private async Task WarnIfExpensiveAsync(NodeExecutionContext ctx, string request, CancellationToken ct)
+    {
+        var threshold = ctx.Services.CostWarningThreshold;
+
+        if (threshold <= 0m
+            || Model.SourcePin?.Owner is not ModelNode model
+            || BillingProvider is not { } provider)
+        {
+            return;
+        }
+
+        var ceiling = CeilingFor(provider, model, EstimatedBaseCharacters + request.Length);
+
+        if (ceiling < threshold)
+        {
+            return;
+        }
+
+        var approved = await ctx.Feed
+            .RequestConfirmationAsync(
+                $"{Title} could cost up to {RunCost.Format(ceiling)}",
+                $"That is a ceiling, not a quote. It assumes all {MaxTurns} turns run and each one "
+                + $"writes its full {model.MaxTokens} tokens, and it prices every turn resending the "
+                + "conversation before it at the provider's listed rate. Most runs stop much sooner. "
+                + "It cannot price what the tools return, so a turn that reads a large file costs "
+                + "more than this allows for. Run it?",
+                ct)
+            .ConfigureAwait(false);
+
+        if (!approved)
+        {
+            throw new OperationCanceledException($"{Title} was not run, because of what it might have cost.");
+        }
     }
 
     /// <summary>
@@ -221,6 +400,8 @@ public sealed partial class AgentNode : NodeBase
         {
             throw new InvalidOperationException($"{Title} cannot run: {reason}");
         }
+
+        await WarnIfExpensiveAsync(ctx, request, ct).ConfigureAwait(false);
 
         var toolbox = new AgentToolbox(ctx, Id);
         var tools = await AllToolsAsync(model, ctx, ct).ConfigureAwait(false);
