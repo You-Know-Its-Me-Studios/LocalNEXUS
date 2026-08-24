@@ -57,15 +57,24 @@ Files that pass are written as they pass. One that will not compile is kept with
 
 ## How well does it actually work
 
-There is an eval harness in the repo that runs twenty tasks against a real model, ten times each, and scores what landed on disk. Against `qwen2.5-coder-7b-instruct` at Q4, the last few runs came in around 175 to 179 out of 200.
+There is an eval harness in the repo that runs real tasks against a real model and scores what landed on disk. Two task sets, because they measure opposite things: the Unity set scores whether the right rule refused the right edit, and the plain C# set scores that none of those rules fired at all.
 
-Fourteen of the twenty tasks pass every single time. Zero duplicate types have reached disk in the last four hundred runs, which is the one failure this whole thing exists to prevent.
+Both of the runs below are `qwen2.5-coder-7b-instruct-q4_k_m.gguf` at q4_k_m, 8192 context, temperature 0.2, on one RTX 4080 Laptop. Same model, same day, same build.
 
-One task fails every time, and I am not going to pretend otherwise. Asked to move a class into a different namespace, the 7B returns the file byte-identical in twenty-nine attempts out of thirty. It simply does not do it. The plan is correct, the instruction reaches the coder intact, and the model ignores it. That is a model limitation and no amount of app work fixes it.
+| Task set | Shape | Met the bar | Passed every time | Failed every time |
+| --- | --- | --- | --- | --- |
+| `v3`, Unity | 20 tasks, 10 runs each | **184 of 200 (92%)** | 15 of 20 | 1 of 20 |
+| `vplain-1`, plain C# | 10 tasks, 10 runs each | **74 of 100 (74%)** | 5 of 10 | 1 of 10 |
 
-The rest of the movement between runs is sampling. No seed is set, so a task can swing three or four points either way and mean nothing.
+The plain set is the weaker number and it is published here because leaving it out would be the kind of thing worth catching. It is not a like for like comparison: it has half as many tasks, so one bad task costs ten points instead of five, and three tasks carry almost all of the loss. `plain-duplicate-refused` never passes, `plain-new-file-references-existing` passes 3 times in 10, and `plain-multi-file-ordered` 4 in 10. The other seven are 8 or better, five of them perfect.
 
-Numbers are in `docs/`, and the harness runs from the command line if you want your own.
+Zero duplicate types reached disk in either set. That is the one failure this whole thing exists to prevent, and it is the number I would look at first.
+
+One Unity task fails every time, and I am not going to pretend otherwise. Asked to move a class into a different namespace, the 7B returns the file byte-identical in every attempt. It simply does not do it. The plan is correct, the instruction reaches the coder intact, and the model ignores it. That is a model limitation and no amount of app work fixes it.
+
+The rest of the movement between runs is sampling. No seed is set, so a task can swing three or four points either way and mean nothing. A 7B is the floor for this work; both numbers should be read as what the floor looks like rather than what the ceiling does.
+
+Every run writes a full report. They are in `evals/`, and the harness runs from the command line if you want your own.
 
 ## Status
 
