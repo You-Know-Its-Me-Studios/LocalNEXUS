@@ -81,6 +81,11 @@ public sealed class CrashReporter
     /// </remarks>
     public void AskAboutAnyCrash()
     {
+        if (!_config.ReportCrashes)
+        {
+            return;
+        }
+
         if (Unreported() is not { } report)
         {
             return;

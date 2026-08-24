@@ -535,7 +535,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            CrashLog.Write("ProjectIndex", ex);
+            CrashLog.WriteFault("ProjectIndex", ex);
             feed.Info("Project index unavailable", ex.Message);
         }
     }
@@ -576,7 +576,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            CrashLog.Write("PythonProvisioning", ex);
+            CrashLog.WriteFault("PythonProvisioning", ex);
         }
     }
 
@@ -759,7 +759,7 @@ public partial class App : Application
     /// </summary>
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
-        CrashLog.Write("UnobservedTask", e.Exception);
+        CrashLog.WriteFault("UnobservedTask", e.Exception);
         e.SetObserved();
     }
 
@@ -768,7 +768,9 @@ public partial class App : Application
 
     private static void Report(string context, Exception exception)
     {
-        var logPath = CrashLog.Write(context, exception);
+        // Recovered: the handler marks it handled and the application carries on, so this is
+        // a fault rather than a crash and the next launch does not ask about it.
+        var logPath = CrashLog.WriteFault(context, exception);
 
         var message = logPath is null
             ? exception.ToString()

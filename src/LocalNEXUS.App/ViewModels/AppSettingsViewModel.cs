@@ -165,6 +165,43 @@ public sealed partial class AppSettingsViewModel : ObservableObject
         set => SetConfig(Math.Clamp(value, 1, 3650), v => _config.SnapshotAgeDays = v);
     }
 
+    /// <summary>
+    /// Whether a launch says that the previous one ended badly.
+    /// </summary>
+    /// <remarks>
+    /// A setting rather than only an answer to a dialog, so it can be turned off once and stay
+    /// off, and turned back on by somebody who wants to help rather than only by deleting a file.
+    /// </remarks>
+    public bool ReportCrashes
+    {
+        get => _config.ReportCrashes;
+        set => SetConfig(value, v => _config.ReportCrashes = v);
+    }
+
+    /// <summary>
+    /// Whether the Python runtime may be built, which is what safetensors models are served
+    /// through.
+    /// </summary>
+    /// <remarks>
+    /// Asked once at startup and answered here afterwards. It used to be answerable only in that
+    /// dialog, so somebody who said no had no way back to it and somebody who said yes had no way
+    /// to see what they had agreed to. Turning it on starts the build rather than waiting for the
+    /// next launch, because somebody who just ticked it is asking for it now.
+    /// </remarks>
+    public bool BuildPythonRuntime
+    {
+        get => _config.PythonRuntimeConsent ?? false;
+        set
+        {
+            SetConfig(value, v => _config.PythonRuntimeConsent = v);
+
+            if (value && Python.RepairCommand.CanExecute(null))
+            {
+                Python.RepairCommand.Execute(null);
+            }
+        }
+    }
+
     /// <summary>Reads what the record is costing.</summary>
     [RelayCommand]
     private async Task RefreshHistoryUsageAsync()

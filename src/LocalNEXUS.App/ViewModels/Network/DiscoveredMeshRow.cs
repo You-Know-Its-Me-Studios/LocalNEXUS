@@ -94,12 +94,26 @@ public sealed partial class DiscoveredMeshRow : ObservableObject, INetworkRow
     public object InspectorTarget => Mesh;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The type of a key belongs to the column, not to the row. This used to fall through to the
+    /// name for the three columns a discovered mesh has no answer for, which returned a string
+    /// where a model row returned a number, and sorting a list holding both compared an int to a
+    /// string and threw. Nothing said so at the point of the mistake: the list was sorted by name
+    /// almost always, and the fault only appeared when a mesh was discovered while the table
+    /// happened to be sorted by coverage or context.
+    ///
+    /// Minus one rather than zero for a column with no value, so a mesh that reports nothing
+    /// sorts below a model that reports zero, which is a different fact.
+    /// </remarks>
     public IComparable? SortKey(ModelColumn column) => column switch
     {
         ModelColumn.Name => Name,
+        ModelColumn.Coverage => -1,
         ModelColumn.Sources => SourceCount,
         ModelColumn.Spare => SpareCount,
         ModelColumn.Status => StatusText,
+        ModelColumn.Context => -1,
+        ModelColumn.Contents => Mesh.ServingText,
         _ => Name
     };
 

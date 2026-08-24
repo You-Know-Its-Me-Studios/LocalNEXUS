@@ -1451,8 +1451,8 @@ public sealed partial class NetworkViewModel : ObservableObject, IDisposable
             && (text.Length == 0 || row.Name.Contains(text, StringComparison.OrdinalIgnoreCase)));
 
         var ordered = SortDescending
-            ? kept.OrderByDescending(r => r.SortKey(SortColumn))
-            : kept.OrderBy(r => r.SortKey(SortColumn));
+            ? kept.OrderByDescending(r => r.SortKey(SortColumn), RowKeyComparer.Instance)
+            : kept.OrderBy(r => r.SortKey(SortColumn), RowKeyComparer.Instance);
 
         VisibleRows.Clear();
 

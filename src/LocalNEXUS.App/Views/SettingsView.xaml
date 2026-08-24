@@ -770,6 +770,20 @@
 
                     <TextBlock Style="{StaticResource SectionHeader}" Margin="0,14,0,0" Text="Python environment" />
 
+                    <!--
+                        The answer to the question asked at first launch, kept where it can be
+                        changed. It was only ever answerable in that dialog, so saying no was a
+                        decision with no way back to it.
+                    -->
+                    <CheckBox Margin="0,10,0,0"
+                              Content="Build the Python runtime for safetensors models"
+                              IsChecked="{Binding BuildPythonRuntime}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="Roughly 3 GB on an NVIDIA machine because it pulls a CUDA build of torch, and a few hundred megabytes otherwise. It builds in the background and nothing waits on it. GGUF models never use it." />
+
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Ellipse Style="{StaticResource StateDot}"
                                  Margin="0,0,8,0"
@@ -995,6 +1009,17 @@
 
                 <StackPanel Visibility="{Binding Section, Converter={StaticResource EnumToVisibility}, ConverterParameter=Behaviour}">
                     <TextBlock Style="{StaticResource SectionHeader}" FontSize="{StaticResource Font.Size.Title}" Text="Behaviour" />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Margin="0,20,0,0" Text="Crash reporting" />
+
+                    <CheckBox Margin="0,10,0,0"
+                              Content="Say when the previous run ended badly"
+                              IsChecked="{Binding ReportCrashes}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Text="Asked once per crash, and nothing is ever sent. The most it does is open your browser at an issue with the text already in it, which you can read, change or close. A fault the application recovered from is written to the log and does not ask." />
                     <TextBlock Style="{StaticResource HintText}"
                                TextWrapping="Wrap"
                                Text="Starting values for nodes you add from here on. Every one of them can be changed on the node itself, and a graph you have already saved keeps whatever was set on it, so nothing here reaches backwards." />

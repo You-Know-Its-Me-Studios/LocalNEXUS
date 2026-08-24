@@ -310,6 +310,16 @@ public sealed class AppConfig
     public string? LastReportedCrash { get; set; }
 
     /// <summary>
+    /// Whether to say, on the next launch, that the last one ended badly.
+    /// </summary>
+    /// <remarks>
+    /// On by default, because a crash nobody is told about is a crash nobody reports. It is here
+    /// so that somebody who does not want to be asked can say so once, in settings, rather than
+    /// by dismissing the same dialog on every launch.
+    /// </remarks>
+    public bool ReportCrashes { get; set; } = true;
+
+    /// <summary>
     /// The embedding model that lets run history be searched by meaning, or null for keyword only.
     /// </summary>
     /// <remarks>
