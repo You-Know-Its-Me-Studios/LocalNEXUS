@@ -61,6 +61,32 @@ public sealed class WindowsDialogService : IDialogService
         => MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
 
     /// <inheritdoc />
+    public void OpenUrl(string url)
+    {
+        // Only ever http, so a crafted string cannot turn opening a link into launching a
+        // program. Nothing here builds one from anything a stranger supplied, and that is the
+        // sort of thing that stops being true later.
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var address)
+            || (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps))
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = address.AbsoluteUri,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // No browser, or it refused. Not worth a second dialog about the first one.
+        }
+    }
+
+    /// <inheritdoc />
     public bool Confirm(string title, string message)
         => MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
             == MessageBoxResult.Yes;

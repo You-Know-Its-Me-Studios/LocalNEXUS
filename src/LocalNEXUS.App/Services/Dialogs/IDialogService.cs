@@ -33,6 +33,16 @@ public interface IDialogService
     /// </remarks>
     bool Confirm(string title, string message);
 
+    /// <summary>
+    /// Opens a web address in whatever the person uses for the web.
+    /// </summary>
+    /// <remarks>
+    /// Handing a link to the browser rather than fetching anything. Nothing this application does
+    /// posts to the web on somebody's behalf, so the most a feature can offer is a page already
+    /// filled in, which they then read and decide about.
+    /// </remarks>
+    void OpenUrl(string url);
+
     /// <summary>Opens a folder in Explorer. Does nothing when the folder is missing.</summary>
     void OpenFolderInExplorer(string folder);
 

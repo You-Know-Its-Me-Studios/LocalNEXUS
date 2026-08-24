@@ -165,6 +165,12 @@ internal sealed class SilentDialogService : IDialogService
     /// <summary>A test never waits on a person, so nothing is confirmed.</summary>
     public bool Confirm(string title, string message) => false;
 
+    /// <summary>A test opens no browsers.</summary>
+    public void OpenUrl(string url) => LastUrl = url;
+
+    /// <summary>The last link offered, so a test can read it.</summary>
+    public string? LastUrl { get; private set; }
+
     public void OpenFolderInExplorer(string folder)
     {
     }

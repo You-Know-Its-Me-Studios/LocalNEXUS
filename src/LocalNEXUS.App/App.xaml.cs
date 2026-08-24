@@ -7,6 +7,7 @@ using LocalNEXUS.App.Models;
 using LocalNEXUS.App.Nodes;
 using LocalNEXUS.App.Services.Compilation;
 using LocalNEXUS.App.Services.Credentials;
+using LocalNEXUS.App.Services.Diagnostics;
 using LocalNEXUS.App.Services.Dialogs;
 using LocalNEXUS.App.Services.Distributed;
 using LocalNEXUS.App.Services.Extensions;
@@ -414,6 +415,13 @@ public partial class App : Application
         // Deliberately not awaited. Building the Python environment is a download measured in
         // gigabytes, and the window has to be usable while it runs: GGUF models work throughout,
         // and the feed and the model panel show how far it has got.
+        // After the window exists, so the question has something to sit over, and after the log
+        // prune so a crash older than the retention window is not asked about from a file that is
+        // no longer there.
+        _ = Dispatcher.BeginInvoke(
+            new Action(() => new CrashReporter(config, dialogs).AskAboutAnyCrash()),
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
         _provisioning = new CancellationTokenSource();
         _ = ProvisionPythonAsync(pythonEnvironment, config, feed, dialogs, _provisioning.Token);
 

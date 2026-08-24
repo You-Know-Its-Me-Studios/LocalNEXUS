@@ -298,6 +298,17 @@ public sealed class AppConfig
     /// </remarks>
     public bool? PythonRuntimeConsent { get; set; }
 
+    /// <summary>
+    /// The crash log somebody was last asked about, so they are not asked again.
+    /// </summary>
+    /// <remarks>
+    /// The file name rather than a flag, because a second crash is a different question and
+    /// should be asked. Written whether the answer was yes or no: declining has to stick, or the
+    /// question becomes something to dismiss on every launch, which is how a useful prompt turns
+    /// into one nobody reads.
+    /// </remarks>
+    public string? LastReportedCrash { get; set; }
+
     /// <summary>True once a run has finished on this machine, which is the walkthrough's last step.</summary>
     /// <remarks>
     /// The one step nothing else can see. A run that completed leaves nothing behind that is still
