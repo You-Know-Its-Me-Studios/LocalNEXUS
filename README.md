@@ -95,11 +95,15 @@ Every run writes a full report. They are in `evals/`, and the harness runs from 
 
 ## Status
 
-Pre-1.0. Interfaces still move. 589 C# tests, of which 5 need a model on disk and skip without one, and 46 Python tests over the distributed package. Both suites run on every push, along with the eval above.
+0.2.0, and pre-1.0. Interfaces still move, and a graph saved now is not guaranteed to load later. 650 C# tests, of which 5 need a model on disk and skip without one, and 46 Python tests over the distributed package, of which 9 need a safetensors model and skip without one. Both suites run on every push, along with the eval above.
 
-Solid: the graph engine, llama.cpp inference, the project index, the Unity rules, per file writes and staging, run history and undo, the interface.
+Not tested end to end. This has never been installed and run through on a machine other than the one it was built on, and a green build is not the same thing.
 
-Works, less exercised: safetensors through `transformers serve`, hosted providers, elicitation, Debate and Judge.
+Solid: the graph engine, llama.cpp inference, the project index, the Unity rules, per file writes and staging, run history and undo.
+
+Works, less exercised: safetensors through `transformers serve`, hosted providers, elicitation, Debate and Judge, the Agent node, the model downloader, semantic search over history.
+
+Recently reworked: the interface. Every string it shows was gone over in one pass, and the parts built when there were six node types rather than twelve were audited, both of them in the last few days. Expect wording and layout to be uneven in places.
 
 Unproven: everything distributed, both kinds. It has only ever run on one machine talking to itself over loopback. Never across two physical machines, which is embarrassing to still be writing.
 
