@@ -220,6 +220,79 @@ public sealed class HistoryTests
         Assert.Equal("run-1", hits[0].RunId);
     }
 
+    /// <summary>
+    /// Closing writes what is queued rather than throwing it away.
+    /// </summary>
+    /// <remarks>
+    /// Recording is asynchronous so that a run never waits on the disk, which means there is
+    /// almost always a backlog at the moment of closing, and it is the most recent events: the
+    /// ones somebody would go looking for. Closing used to cancel the writer instead of draining
+    /// it, so those were dropped.
+    ///
+    /// It survived because it is a race, and on a fast machine the queue usually happened to be
+    /// empty. CI on a slower one recorded six runs, read three back, and got one. The count here
+    /// is large enough that no plausible scheduling drains it in time by accident, so this fails
+    /// on the old behaviour wherever it runs rather than only where the timing is unkind.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingWritesWhatIsStillQueued()
+    {
+        using var project = SampleProject.Create();
+        var store = new RunHistoryStore();
+        await store.OpenProjectAsync(project.Root, CancellationToken.None);
+
+        const int runs = 200;
+
+        for (var i = 0; i < runs; i++)
+        {
+            var runId = $"queued-{i}";
+            store.BeginRun(runId, "a queued run", "graph", 1, 0);
+            store.RecordEvent(runId, Guid.NewGuid(), DateTimeOffset.UtcNow, "Info", null, "queued", "queued");
+            store.EndRun(runId, "Completed", 0m, 0);
+        }
+
+        // Immediately, with no pause: the point is that the queue is still full.
+        await store.CloseAsync();
+        await store.OpenProjectAsync(project.Root, CancellationToken.None);
+
+        await using (store)
+        {
+            var listed = await store.ListRunsAsync(runs + 10, CancellationToken.None);
+
+            Assert.Equal(runs, listed.Count);
+        }
+    }
+
+    /// <summary>Recording still works after a project has been closed and another opened.</summary>
+    /// <remarks>
+    /// The queue is completed on close so the writer drains, and a completed one refuses
+    /// everything after it. So it is rebuilt per open, and this is what says so.
+    /// </remarks>
+    [Fact]
+    public async Task RecordingSurvivesAProjectSwitch()
+    {
+        using var first = SampleProject.Create();
+        using var second = SampleProject.Create();
+
+        await using var store = new RunHistoryStore();
+        await store.OpenProjectAsync(first.Root, CancellationToken.None);
+
+        store.BeginRun("in-first", "the first project", "graph", 1, 0);
+        store.EndRun("in-first", "Completed", 0m, 0);
+
+        await store.OpenProjectAsync(second.Root, CancellationToken.None);
+
+        store.BeginRun("in-second", "the second project", "graph", 1, 0);
+        store.EndRun("in-second", "Completed", 0m, 0);
+
+        await Reopen(store, second);
+
+        var listed = await store.ListRunsAsync(10, CancellationToken.None);
+
+        Assert.Single(listed);
+        Assert.Equal("in-second", listed[0].RunId);
+    }
+
     /// <summary>The limit is a limit on runs returned, not on events considered.</summary>
     [Fact]
     public async Task TheLimitCountsRuns()

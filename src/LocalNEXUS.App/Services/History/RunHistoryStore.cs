@@ -41,8 +41,24 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
     /// </remarks>
     private const int MaximumSnapshotBytes = 4 * 1024 * 1024;
 
-    private readonly Channel<Action<SqliteConnection>> _writes =
-        Channel.CreateUnbounded<Action<SqliteConnection>>(new UnboundedChannelOptions
+    /// <summary>
+    /// How long closing waits for queued writes to land before giving up on them.
+    /// </summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Queued writes for the open database, replaced each time one is opened.
+    /// </summary>
+    /// <remarks>
+    /// One per open rather than one for the life of the store, because closing completes it so
+    /// that the writer drains and stops. A completed channel refuses everything afterwards, so a
+    /// single shared one would mean the first project switch silenced recording for the rest of
+    /// the session.
+    /// </remarks>
+    private Channel<Action<SqliteConnection>> _writes = NewQueue();
+
+    private static Channel<Action<SqliteConnection>> NewQueue()
+        => Channel.CreateUnbounded<Action<SqliteConnection>>(new UnboundedChannelOptions
         {
             SingleReader = true
         });
@@ -130,6 +146,7 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
     {
         var writer = _writer;
         var stop = _writerStop;
+        var queue = _writes;
 
         _writer = null;
         _writerStop = null;
@@ -146,18 +163,36 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
             return;
         }
 
-        stop?.Cancel();
+        // What is already queued gets written before anything is cancelled. Cancelling first
+        // discarded it, and the reasoning for that was wrong twice over: recording is deliberately
+        // asynchronous so a run never waits on it, which means at the moment of closing there is
+        // routinely a backlog of the most recent events, exactly the ones somebody would look for.
+        // And closing is not only shutdown. It happens on every project switch, so a run that had
+        // just finished could disappear from its own history.
+        //
+        // Found by CI rather than by reading: a test that recorded six runs and read three back
+        // got one, because the machine was slower than the one where it was written and the queue
+        // had not drained. That is the same race, in the open.
+        queue.Writer.TryComplete();
 
         try
         {
-            await writer.ConfigureAwait(false);
+            // Bounded, because a write wedged against a locked database must not hold the
+            // application open. The queue is small and local, so this is generous.
+            await writer.WaitAsync(DrainTimeout).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            // Asked for. Anything still queued is lost, which is the correct trade at shutdown:
-            // a run that is over has already been recorded.
+            // The loop observed cancellation on the way out. Anything it had already taken off
+            // the queue is written.
+        }
+        catch (TimeoutException)
+        {
+            // Draining took longer than any healthy queue should. Stop waiting and cancel below,
+            // which is the old behaviour and is now the exception rather than the rule.
         }
 
+        stop?.Cancel();
         stop?.Dispose();
     }
 
@@ -339,14 +374,22 @@ public sealed partial class RunHistoryStore : ObservableObject, IAsyncDisposable
         var stop = new CancellationTokenSource();
         _writerStop = stop;
 
+        // A fresh queue for this database. The previous one was completed when its database was
+        // closed and will not take anything else.
+        var queue = NewQueue();
+        _writes = queue;
+
         _writer = Task.Run(async () =>
         {
             await using var connection = Connect(path);
             await connection.OpenAsync(stop.Token).ConfigureAwait(false);
 
-            while (await _writes.Reader.WaitToReadAsync(stop.Token).ConfigureAwait(false))
+            // Ends when the queue is completed and empty, which is how closing drains rather
+            // than discards. Cancellation is the other way out, and is now only reached when
+            // draining has already taken longer than it ever should.
+            while (await queue.Reader.WaitToReadAsync(stop.Token).ConfigureAwait(false))
             {
-                while (_writes.Reader.TryRead(out var write))
+                while (queue.Reader.TryRead(out var write))
                 {
                     try
                     {
