@@ -48,6 +48,25 @@ public sealed class RecordingNode : NodeBase
     /// <summary>What this node saw on its input the last time it ran.</summary>
     public string? Received { get; private set; }
 
+    /// <summary>
+    /// Everything it has ever seen, in order.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Received"/> keeps only the last, which is enough for a node that runs once and
+    /// no use at all for one downstream of a Loop, where the whole question is what arrived on
+    /// each pass and in what order.
+    /// </remarks>
+    public List<string?> Seen { get; } = new();
+
+    /// <summary>
+    /// A list to emit instead of passing its input on, or null to behave as before.
+    /// </summary>
+    /// <remarks>
+    /// For feeding a Loop, which needs something that is genuinely several items rather than one
+    /// string that happens to have commas in it.
+    /// </remarks>
+    public List<string>? Produce { get; set; }
+
     /// <summary>How many times it has run.</summary>
     public int Runs { get; private set; }
 
@@ -55,6 +74,7 @@ public sealed class RecordingNode : NodeBase
     {
         Runs++;
         Received = ctx.GetText(In);
+        Seen.Add(Received);
         _log.Add(Title);
 
         if (FailWith is { } message)
@@ -62,7 +82,9 @@ public sealed class RecordingNode : NodeBase
             throw new InvalidOperationException(message);
         }
 
-        return Task.FromResult(NodeResult.FromPin(Out, Received + Append));
+        return Task.FromResult(Produce is null
+            ? NodeResult.FromPin(Out, Received + Append)
+            : NodeResult.FromPin(Out, Produce));
     }
 
     public override JsonObject SaveSettings() => new() { ["append"] = Append };
