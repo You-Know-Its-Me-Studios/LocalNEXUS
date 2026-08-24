@@ -57,6 +57,7 @@ public sealed partial class AppSettingsViewModel : ObservableObject
 
         Themes = themes;
         Catalog = catalogCommands;
+        Browser = new ModelBrowserViewModel(new System.Net.Http.HttpClient(), catalogCommands, dialogs);
         Python = python;
         Network = network;
 
@@ -72,6 +73,16 @@ public sealed partial class AppSettingsViewModel : ObservableObject
 
     /// <summary>Catalogue commands, shared with the model node panel.</summary>
     public ModelCatalogViewModel Catalog { get; }
+
+    /// <summary>
+    /// Finding a model to download, beside the ways of pointing at one already here.
+    /// </summary>
+    /// <remarks>
+    /// In the Models section rather than a window of its own, because getting a model and telling
+    /// the application where models are is one task from the point of view of somebody who has
+    /// just installed this and has none.
+    /// </remarks>
+    public ModelBrowserViewModel Browser { get; }
 
     /// <summary>The Python runtime, with its provisioning, healthy and broken states.</summary>
     public PythonEnvironmentViewModel Python { get; }
