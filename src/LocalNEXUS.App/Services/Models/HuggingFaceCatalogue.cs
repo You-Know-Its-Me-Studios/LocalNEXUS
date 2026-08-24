@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -114,6 +115,21 @@ public sealed class HuggingFaceCatalogue
     /// <summary>How many repositories one search returns.</summary>
     private const int SearchLimit = 25;
 
+    /// <summary>
+    /// What is said when every attempt was interrupted.
+    /// </summary>
+    /// <remarks>
+    /// Three facts, deliberately. That it already tried more than once, so trying again by hand is
+    /// not the obvious next move. That the interruption is on the way to Hugging Face rather than
+    /// in here, because the first version of this sentence said check the connection and sent
+    /// people to look at a connection that was working. And that there is a log, because the
+    /// detail exists now and is worth nothing if nobody knows where it is.
+    /// </remarks>
+    private const string Unreachable =
+        "Hugging Face could not be reached after 3 attempts. The connection was interrupted, "
+        + "which is usually the network between this machine and Hugging Face rather than "
+        + "anything here. The detail is in hub.log, beside the other logs.";
+
     private readonly HttpClient _http;
 
     public HuggingFaceCatalogue(HttpClient http)
@@ -177,16 +193,21 @@ public sealed class HuggingFaceCatalogue
 
         try
         {
-            response = await _http.GetAsync(url, ct).ConfigureAwait(false);
+            response = await HubRetry
+                .SendAsync(token => _http.GetAsync(url, token), ct)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
-            throw new CatalogueUnavailableException(
-                "Hugging Face could not be reached. Check the connection and try again.", ex);
+            // The detail goes to the log rather than to the person, who cannot act on a socket
+            // error. It used to go nowhere at all, which is why diagnosing this needed curl.
+            HubTransport.LogFailure($"Catalogue request failed after {HubRetry.Attempts} attempts: {url}", ex);
+
+            throw new CatalogueUnavailableException(Unreachable, ex);
         }
 
         using (response)

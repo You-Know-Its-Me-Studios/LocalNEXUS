@@ -3,6 +3,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalNEXUS.App.Services.Dialogs;
+using LocalNEXUS.App.Services.Models;
 using LocalNEXUS.App.Services.Persistence;
 using LocalNEXUS.App.Services.ProjectIndex;
 using LocalNEXUS.App.Services.Theming;
@@ -57,7 +58,7 @@ public sealed partial class AppSettingsViewModel : ObservableObject
 
         Themes = themes;
         Catalog = catalogCommands;
-        Browser = new ModelBrowserViewModel(new System.Net.Http.HttpClient(), catalogCommands, dialogs);
+        Browser = new ModelBrowserViewModel(HubTransport.CreateClient(), catalogCommands, dialogs);
         Python = python;
         Network = network;
 

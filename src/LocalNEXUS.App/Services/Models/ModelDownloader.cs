@@ -126,12 +126,8 @@ public sealed class ModelDownloader
         return await FinishAsync(file, part, destination, ct).ConfigureAwait(false);
     }
 
-    private async Task FetchAsync(
-        ModelFileOption file,
-        string part,
-        long from,
-        IProgress<DownloadProgress>? progress,
-        CancellationToken ct)
+    /// <summary>One attempt at the bytes from a given offset.</summary>
+    private Task<HttpResponseMessage> Send(ModelFileOption file, long from, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, file.DownloadUrl);
 
@@ -140,23 +136,43 @@ public sealed class ModelDownloader
             request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, null);
         }
 
+        return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    private async Task FetchAsync(
+        ModelFileOption file,
+        string part,
+        long from,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken ct)
+    {
         HttpResponseMessage response;
 
         try
         {
-            response = await _http
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+            // A request message cannot be sent twice, so each attempt builds its own. The range
+            // header is what makes a retry a resume: the second attempt asks for what is left
+            // rather than starting again.
+            response = await HubRetry
+                .SendAsync(token => Send(file, from, token), ct)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
+            HubTransport.LogFailure(
+                $"Download of {file.Path} from byte {from} failed after {HubRetry.Attempts} attempts",
+                ex);
+
             throw new DownloadFailedException(
-                "The download could not be started. Check the connection and try again; anything "
-                + "already fetched is kept.", ex);
+                $"The download was interrupted {HubRetry.Attempts} times. That is usually the "
+                + "network between this machine and Hugging Face rather than anything here. "
+                + "Everything already fetched is kept, so starting it again carries on from "
+                + "where it stopped. The detail is in hub.log.",
+                ex);
         }
 
         using (response)
