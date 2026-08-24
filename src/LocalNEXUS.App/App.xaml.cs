@@ -593,6 +593,18 @@ public partial class App : Application
             return already;
         }
 
+        // Nothing to agree to when it is already here. The question is about spending three
+        // gigabytes; an environment that is already built has spent nothing, and asking anyway is
+        // how somebody is trained to dismiss a dialog without reading it. The answer is recorded
+        // so this is decided once rather than rediscovered every launch.
+        if (PythonProvisioner.IsAlreadyBuilt())
+        {
+            config.PythonRuntimeConsent = true;
+            config.Save();
+
+            return true;
+        }
+
         // A dialog rather than the activity feed. The feed only renders inside the Workspace and
         // only once a project is open, and this is asked at startup when neither is true, so a
         // confirmation put there waited on an answer nobody could see how to give. That did not

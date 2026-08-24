@@ -22,10 +22,29 @@ public static class AppPaths
     /// <summary>Name of the bundled uv executable, which builds the Python runtime environment.</summary>
     public const string UvExecutableName = "uv.exe";
 
-    /// <summary>Root of the per user data folder.</summary>
-    public static string Root { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "LocalNEXUS");
+    /// <summary>
+    /// Root of the per user data folder.
+    /// </summary>
+    /// <remarks>
+    /// Redirectable through LOCALNEXUS_HOME, and that exists for one reason: so that something
+    /// which is not this application running normally cannot write to somebody's real settings.
+    ///
+    /// It was not redirectable, and the test suite constructed configuration objects and saved
+    /// them, which wrote defaults straight over the config.json of whoever ran the tests. It was
+    /// found by comparing that file before and after one run: 31 keys became 30, and the key it
+    /// removed was the record of which crash had already been reported, so the next launch asked
+    /// about a crash from two days earlier. Every run of the suite silently undid an answer the
+    /// person running it had given.
+    ///
+    /// Read once into a static, so nothing can move underneath a running application by changing
+    /// an environment variable halfway through.
+    /// </remarks>
+    public static string Root { get; } = Environment.GetEnvironmentVariable("LOCALNEXUS_HOME")
+        is { Length: > 0 } redirected
+            ? redirected
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalNEXUS");
 
     /// <summary>Default folder scanned for GGUF model files.</summary>
     public static string Models { get; } = Path.Combine(Root, "models");

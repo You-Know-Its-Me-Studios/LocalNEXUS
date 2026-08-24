@@ -355,6 +355,22 @@ public sealed class AppConfig
     public static string? LoadProblem { get; private set; }
 
     /// <summary>
+    /// Whether this instance is the configuration the application is running on.
+    /// </summary>
+    /// <remarks>
+    /// Only an instance that came from the loader may write to the file, because only that one
+    /// was read from it. Anything else holding an AppConfig is holding a set of defaults, and a
+    /// default written over a real file removes every answer the person using it has given.
+    ///
+    /// This is not a theoretical hazard. The test suite built configuration objects for view
+    /// models, those view models saved on every setting they touched, and one run of the suite
+    /// deleted the record of which crash had been reported from the config.json of whoever ran
+    /// it. Redirecting the data folder keeps the tests away from it, and this makes a stray save
+    /// harmless wherever it comes from.
+    /// </remarks>
+    private bool _isTheApplicationConfiguration;
+
+    /// <summary>
     /// Reads the configuration from disk. A missing or unreadable file yields defaults rather
     /// than an error, because losing this state is never worth blocking startup over.
     /// </summary>
@@ -372,6 +388,7 @@ public sealed class AppConfig
             var json = File.ReadAllText(AppPaths.ConfigFile);
             var config = JsonSerializer.Deserialize<AppConfig>(json, SerializerOptions) ?? new AppConfig();
 
+            config._isTheApplicationConfiguration = true;
             config.Migrate();
             return config;
         }
@@ -451,6 +468,9 @@ public sealed class AppConfig
         var existed = File.Exists(AppPaths.ConfigFile);
         var config = Load();
 
+        // A first run has no file to have been read from, and writing one is the whole point.
+        config._isTheApplicationConfiguration = true;
+
         if (!existed)
         {
             config.Save();
@@ -474,6 +494,13 @@ public sealed class AppConfig
     /// </remarks>
     public void Save()
     {
+        if (!_isTheApplicationConfiguration)
+        {
+            // Not the configuration this application loaded, so it has nothing to say about what
+            // is on disk. Saving it would replace a file it never read with a set of defaults.
+            return;
+        }
+
         AppPaths.EnsureCreated();
 
         var json = JsonSerializer.Serialize(this, SerializerOptions);

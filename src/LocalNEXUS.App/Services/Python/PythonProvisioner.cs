@@ -377,6 +377,24 @@ public sealed partial class PythonProvisioner : ObservableObject
                && string.Equals(record.LockfileHash, lockfileHash, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// True when a finished environment is already on this machine.
+    /// </summary>
+    /// <remarks>
+    /// Cheap on purpose: a recorded completion and an interpreter where it should be. It is not a
+    /// verification, because verification runs the interpreter and imports the packages, and this
+    /// is answered before a window is drawn.
+    ///
+    /// It exists so that nobody is asked for permission to build something that is already built.
+    /// The consent question is about spending three gigabytes and somebody's bandwidth; when the
+    /// environment is sitting on the disk there is nothing to spend and nothing to agree to, and
+    /// asking anyway is how a question becomes noise.
+    /// </remarks>
+    public static bool IsAlreadyBuilt()
+        => File.Exists(AppPaths.PythonExecutable)
+            && ReadRecord() is { } record
+            && record.CompletedUtc != default;
+
     private static PythonEnvironmentRecord? ReadRecord()
     {
         try
