@@ -23,8 +23,9 @@ between nodes, so it never interrupts a model mid stream.
 ```
 src/LocalNEXUS.App/
   Models/          NodeBase, Pin, Connection, GraphModel, pin typing and validation
-  Nodes/           PromptNode, TriageNode, ModelNode, DebateNode, JudgeNode, ReshapeNode,
-                   OutputNode, NodeFactory
+  Nodes/           PromptNode, AgentNode, TriageNode, ModelNode, DebateNode, JudgeNode,
+                   LoopNode, ReshapeNode, CompilerCheckNode, TextOutputNode, OutputNode,
+                   ExtensionNode, NodeFactory
   Services/
     Execution/     GraphExecutor, RunContext, RunState, topological sort
     Inference/     IModelClient, OpenAiCompatibleClient, and the local runtimes behind

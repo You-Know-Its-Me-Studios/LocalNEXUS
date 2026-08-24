@@ -37,7 +37,8 @@ Nodes light up in turn, the reply streams into the feed, the last line names the
 
 | Node           | Does                                                                                   |
 | -------------- | -------------------------------------------------------------------------------------- |
-| Prompt         | Holds what you typed. Feeds Triage or Model                                            |
+| Prompt         | Holds what you typed. Feeds Triage, Model or Agent                                     |
+| Agent          | Does the work itself, deciding each step: reads, writes, compiles, calls tools          |
 | Triage         | Reads the project index, ranks existing files, decides edit or create, orders the work |
 | Model          | Calls an LLM. Local, mesh, or hosted                                                   |
 | Debate         | Two models argue an approach over several rounds, and send on what they settled        |
@@ -45,7 +46,9 @@ Nodes light up in turn, the reply streams into the feed, the last line names the
 | Loop           | Runs everything wired to it once per item in a list, and can stop between items        |
 | Reshape        | Reshapes the text going by. Inject standing text, extract what matters, replace, trim  |
 | Compiler check | Compiles against the project's real references, hands failures back for repair         |
-| Output         | Writes files, subject to the Unity binding rules                                       |
+| Output         | Writes files, subject to the Unity binding rules                                        |
+| Text output    | Shows a reply so you can read and copy it. Writes nothing to disk                       |
+| Extension      | Whatever an installed extension provides. None are built in                             |
 
 ## Agent or pipeline
 
@@ -92,7 +95,7 @@ Every run writes a full report. They are in `evals/`, and the harness runs from 
 
 ## Status
 
-Pre-1.0. Interfaces still move. 566 tests, of which 5 need a model on disk and skip without one, plus a Python suite for the distributed package, plus the eval above.
+Pre-1.0. Interfaces still move. 589 C# tests, of which 5 need a model on disk and skip without one, and 46 Python tests over the distributed package. Both suites run on every push, along with the eval above.
 
 Solid: the graph engine, llama.cpp inference, the project index, the Unity rules, per file writes and staging, run history and undo, the interface.
 
