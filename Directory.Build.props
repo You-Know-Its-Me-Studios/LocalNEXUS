@@ -13,6 +13,17 @@
       into the assembly, so it resolves identically from the IDE and from the published single
       file exe, the same reason the bundled font is a Resource.
   -->
+  <!--
+      The version, declared once for every project in the solution.
+
+      The status bar, the installer and the MCP server read it back off their own assembly rather
+      than writing the number down a second time, and release.ps1 reads this file, so cutting a
+      release is this line and nothing else.
+  -->
+  <PropertyGroup>
+    <Version>0.2.0</Version>
+  </PropertyGroup>
+
   <PropertyGroup>
     <BrandConcept>concept-1-letterform</BrandConcept>
     <BrandDirectory>$(MSBuildThisFileDirectory)assets\brand\$(BrandConcept)\</BrandDirectory>

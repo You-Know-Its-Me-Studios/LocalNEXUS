@@ -14,9 +14,19 @@ $release = Join-Path $dist 'release'
 $installerProject = Join-Path $root 'src\LocalNEXUS.Installer\LocalNEXUS.Installer.csproj'
 $payloadDir = Join-Path $root 'src\LocalNEXUS.Installer\Payload'
 
-# The version the installer reports and records. Kept beside the one in SetupViewModel; if they
-# ever disagree the installer is right, because it is the one doing the installing.
-$version = '1.6.0'
+# The version, read from the one place it is declared. Nothing here writes it down, so the number
+# on the artefact names is the number the binaries inside them report.
+$propsPath = Join-Path $root 'Directory.Build.props'
+$versionNode = ([xml](Get-Content $propsPath -Raw)).SelectSingleNode('/Project/PropertyGroup/Version')
+
+if (-not $versionNode) {
+    Write-Error "No Version element in $propsPath. That is where the version is declared."
+    exit 1
+}
+
+$version = $versionNode.InnerText.Trim()
+
+Write-Host "Version $version"
 
 Write-Host "Publishing the application"
 & (Join-Path $root 'publish.ps1')

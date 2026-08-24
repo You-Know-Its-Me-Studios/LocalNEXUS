@@ -22,10 +22,12 @@ public sealed partial class SetupViewModel : ObservableObject
 {
     /// <summary>The version this installer carries, shown in the rail corner and recorded on install.</summary>
     /// <remarks>
-    /// The one place the number is written. The welcome title and the rail corner reach it through
-    /// x:Static rather than repeating it, so a version bump is this line and nothing else.
+    /// Read off the assembly, which carries the number declared in Directory.Build.props. Nothing
+    /// here writes it down, so the welcome title, the rail corner and the record this installer
+    /// leaves in the uninstall key cannot disagree with the build they came out of.
     /// </remarks>
-    public const string Version = "1.6.0";
+    public static string Version { get; } =
+        typeof(SetupViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     private readonly GpuDetector _detector = new();
     private readonly AssetDownloader _downloader = new();

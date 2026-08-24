@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LocalNEXUS.App.ViewModels"
+             xmlns:diagnostics="clr-namespace:LocalNEXUS.App.Services.Diagnostics"
              d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -102,13 +103,30 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- What the section currently showing amounts to. -->
-        <TextBlock HorizontalAlignment="Right"
-                   VerticalAlignment="Center"
-                   Margin="0,0,12,0"
-                   Style="{StaticResource MonoText}"
-                   FontSize="{StaticResource Font.Size.Micro}"
-                   Foreground="{DynamicResource Text.Secondary.Brush}"
-                   Text="{Binding StatusSummary}" />
+        <!--
+            What the section currently showing amounts to, and which build this is.
+
+            The version is last because it is the one thing here that never changes while the
+            window is open, so it is the one thing that can sit in the corner and be ignored until
+            somebody is asked which version they are running. Read off the assembly through
+            x:Static rather than carried on a view model, because it is a fact about the build
+            rather than a piece of state, and a reference that does not resolve fails the build
+            instead of quietly drawing an empty label.
+        -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,12,0">
+            <TextBlock Style="{StaticResource MonoText}"
+                       FontSize="{StaticResource Font.Size.Micro}"
+                       Foreground="{DynamicResource Text.Secondary.Brush}"
+                       Text="{Binding StatusSummary}" />
+
+            <TextBlock Margin="16,0,0,0"
+                       FontSize="{StaticResource Font.Size.Micro}"
+                       Foreground="{DynamicResource Text.Secondary.Brush}"
+                       ToolTip="The version of LocalNEXUS this is."
+                       Text="{x:Static diagnostics:AppVersion.Display}" />
+        </StackPanel>
     </Grid>
 </UserControl>
