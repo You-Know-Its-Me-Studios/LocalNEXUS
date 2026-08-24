@@ -32,6 +32,7 @@ public partial class App : Application
     private ChildProcessGroup? _children;
     private LlamaServerManager? _llamaServers;
     private PythonRuntimeManager? _pythonRuntime;
+    private DistributedRuntimeManager? _distributedRuntime;
     private ModelClientRouter? _modelClient;
     private MeshManager? _mesh;
     private CancellationTokenSource? _provisioning;
@@ -186,9 +187,15 @@ public partial class App : Application
 
         _pythonRuntime = new PythonRuntimeManager(children, pythonEnvironment);
 
-        // Order is the order runtimes are asked, and each answers for exactly one format, so
-        // adding a third changes this line and nothing else.
-        var runtimes = new RuntimeResolver(_llamaServers, _pythonRuntime);
+        // Splitting a safetensors model across machines, for the case one machine cannot hold it.
+        _distributedRuntime = new DistributedRuntimeManager(children, pythonEnvironment, config);
+
+        // Order is the order runtimes are asked, and the first one to say yes serves. That
+        // matters here for the first time: the distributed runtime and the Python one both answer
+        // for safetensors, and the distributed one is ahead so that it can take the format when
+        // it is switched on and stand aside when it is not. Reverse these two and the switch
+        // stops doing anything.
+        var runtimes = new RuntimeResolver(_llamaServers, _distributedRuntime, _pythonRuntime);
 
         // Roslyn against the open project's own Unity references. The reference set is cached
         // behind this and rebuilt only when the project's compiled assemblies change.
@@ -451,6 +458,7 @@ public partial class App : Application
         _mesh?.Dispose();
         _llamaServers?.Dispose();
         _pythonRuntime?.Dispose();
+        _distributedRuntime?.Dispose();
         _modelClient?.Dispose();
         _children?.Dispose();
     }

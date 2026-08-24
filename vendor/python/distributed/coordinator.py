@@ -29,6 +29,7 @@ from . import planner, protocol
 from .activation_server import StageServer, local_node_info
 from .config import (
     DEFAULT_MARGIN_BYTES,
+    QUANTIZATION_NONE,
     NodeInfo,
     PlanError,
     StageAssignment,
@@ -85,7 +86,8 @@ class Peer:
         plan = StagePlan.from_dict(body["plan"])
         assignment = plan.for_node(self._node.node_id)
 
-        stage = PartialStage(plan.model_dir, assignment)
+        stage = PartialStage(plan.model_dir, assignment,
+                             quantization=plan.quantization)
 
         await asyncio.to_thread(stage.load)
 
@@ -108,9 +110,11 @@ class Pipeline:
         host: str = "127.0.0.1",
         port: int = 8749,
         margin_bytes: int = DEFAULT_MARGIN_BYTES,
+        quantization: str = QUANTIZATION_NONE,
     ) -> None:
         self._model_dir = model_dir
         self._margin = margin_bytes
+        self._quantization = quantization
         self._me = local_node_info(node_id, host, port, label="this machine")
 
         self._server = StageServer(node=self._me)
@@ -129,6 +133,16 @@ class Pipeline:
             raise PipelineError("Nothing has been planned yet.")
 
         return self._plan
+
+    @property
+    def quantization(self) -> str:
+        """What this machine's own stage actually loaded with.
+
+        Asked of the stage rather than of the plan, because the plan says what was intended and
+        the stage says what happened. They differ exactly when quantizing was asked for and was
+        not possible, which is the case worth being able to see from outside.
+        """
+        return self._stage.quantization if self._stage is not None else QUANTIZATION_NONE
 
     @property
     def config(self) -> Any:
@@ -156,7 +170,9 @@ class Pipeline:
 
         try:
             layer_map = build_layer_map(self._model_dir)
-            self._plan = planner.plan(layer_map, offered, margin_bytes=self._margin)
+            self._plan = planner.plan(layer_map, offered,
+                                      margin_bytes=self._margin,
+                                      quantization=self._quantization)
         except (PlanError, OSError) as error:
             await self._server.stop()
             raise PipelineError(str(error)) from error
@@ -235,7 +251,8 @@ class Pipeline:
         # added together for no reason.
         sending = [asyncio.create_task(self._assign(stage)) for stage in others]
 
-        self._stage = PartialStage(plan.model_dir, mine)
+        self._stage = PartialStage(plan.model_dir, mine,
+                                   quantization=plan.quantization)
 
         try:
             await asyncio.to_thread(self._stage.load)

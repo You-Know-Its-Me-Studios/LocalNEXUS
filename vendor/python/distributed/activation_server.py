@@ -26,6 +26,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+import traceback
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 import torch
@@ -127,6 +130,13 @@ class StageServer:
         # stage waiting politely for that waits for the machine it is trying to shut down before.
         self._accepted: set[asyncio.StreamWriter] = set()
         self._closing = False
+
+        # Only ever read by the diagnostic on a lost link. A link that has been up for
+        # milliseconds died during a handshake; one that has been up for minutes died some other
+        # way, and the two are not the same fault.
+        self._link_opened: dict[str, float] = {}
+        self._link_opened_at: dict[str, str] = {}
+        self._forwards_seen = 0
 
         # The model is one object and the cache for a request is appended to in order, so two
         # forwards must not overlap inside it. This is the whole of the concurrency story.
@@ -295,6 +305,8 @@ class StageServer:
             ))
             return
 
+        self._forwards_seen += 1
+
         try:
             produced = await self.run_step(
                 request_id=request_id,
@@ -423,6 +435,8 @@ class StageServer:
                     pause=_REQUEST_CONNECT_PAUSE,
                 )
                 self._links[target.address] = (reader, writer)
+                self._link_opened[target.address] = time.monotonic()
+                self._link_opened_at[target.address] = datetime.now().isoformat(timespec="seconds")
 
                 self._watch(reader, target)
 
@@ -483,7 +497,37 @@ class StageServer:
 
             self._links.pop(target.address, None)
 
-            _log.warning("%s lost %s: %s", self._label, target.address, error)
+            # This has fired once with the machine on the other side demonstrably alive and every
+            # request around it succeeding, which does not match what this code does. Until that
+            # is understood, the log carries everything needed to tell a real disconnection from
+            # whatever that was: which exception it actually is rather than only its text, the
+            # cause underneath it, how long the link had been up, whether the socket agrees that
+            # it is gone, and the stack that got here. Nothing is corrected on the strength of a
+            # guess, so the behaviour below is exactly what it was.
+            _log.warning(
+                "%s lost %s: %s\n"
+                "  exception     %s\n"
+                "  cause         %s\n"
+                "  link age      %.1fs, opened at %s\n"
+                "  reader eof    %s\n"
+                "  transport     %s\n"
+                "  assigned      %s\n"
+                "  requests seen %d\n"
+                "  stack:\n%s",
+                self._label,
+                target.address,
+                error,
+                type(error).__name__,
+                f"{type(error.__cause__).__name__}: {error.__cause__}"
+                if error.__cause__ is not None else "none reported",
+                time.monotonic() - self._link_opened.get(target.address, time.monotonic()),
+                self._link_opened_at.get(target.address, "not recorded"),
+                _describe_eof(reader),
+                _describe_transport(reader),
+                self.is_assigned,
+                self._forwards_seen,
+                "".join(traceback.format_stack()).rstrip(),
+            )
 
             await self._pass_back(protocol.error_frame(
                 f"{self._label} lost the machine after it, {target.node_id} at "
@@ -517,6 +561,38 @@ class StageServer:
             "assigned": self.is_assigned,
             "holding": self._runner.describe() if self._runner is not None else "",
         }
+
+def _describe_eof(reader: asyncio.StreamReader) -> str:
+    """Whether the stream itself agrees that the other end is gone.
+
+    Worth asking separately from the exception. A reader reporting end of file is a connection
+    that really closed; one that does not, on a link that just reported itself lost, is the case
+    that has been seen once and not explained.
+    """
+    try:
+        return str(reader.at_eof())
+    except Exception as error:  # noqa: BLE001 - a diagnostic must never raise
+        return f"could not be asked: {error}"
+
+
+def _describe_transport(reader: asyncio.StreamReader) -> str:
+    """What the socket underneath says about itself, if it is still reachable at all."""
+    try:
+        transport = reader._transport  # noqa: SLF001 - diagnostics only, and it is the only way
+
+        if transport is None:
+            return "already detached"
+
+        socket = transport.get_extra_info("socket")
+
+        return (
+            f"closing={transport.is_closing()}, "
+            f"peer={transport.get_extra_info('peername')}, "
+            f"socket={'closed' if socket is None else socket.fileno()}"
+        )
+    except Exception as error:  # noqa: BLE001 - a diagnostic must never raise
+        return f"could not be read: {error}"
+
 
 def local_node_info(node_id: str, host: str, port: int, label: str = "") -> NodeInfo:
     """What this machine has to offer, as it would report it to a coordinator.

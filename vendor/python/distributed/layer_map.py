@@ -136,6 +136,34 @@ class LayerMap:
 
         return self.tail_bytes + tied
 
+    def held_layer_bytes(self, index: int, scale: float) -> int:
+        """What one layer occupies once loaded, which is not its size times a constant.
+
+        Quantization applies to some tensors and not others, so a fraction of the whole is the
+        wrong arithmetic. See :func:`is_quantizable` for which is which and why it matters more
+        for this architecture than for most.
+        """
+        return sum(_held(ref, scale) for ref in self.layers[index])
+
+    def held_embed_bytes(self, scale: float) -> int:
+        """The embedding as loaded. An embedding is a lookup table, so it never quantizes."""
+        return _held(self.embed, scale) if self.embed else 0
+
+    def held_last_stage_extra(self, scale: float) -> int:
+        """The norm, the head, and a tied embedding if there is one, as loaded."""
+        norm = _held(self.norm, scale) if self.norm else 0
+        head = _held(self.head, scale) if self.head else 0
+        tied = self.held_embed_bytes(scale) if self.tied_embeddings and self.head is None else 0
+
+        return norm + head + tied
+
+    def held_total_bytes(self, scale: float) -> int:
+        """The whole model as loaded, which is what has to fit across the machines."""
+        return (sum(self.held_layer_bytes(index, scale) for index in self.layers)
+                + self.held_embed_bytes(scale)
+                + self.held_last_stage_extra(scale)
+                + sum(_held(ref, scale) for ref in self.unplaced))
+
     @property
     def total_bytes(self) -> int:
         """The whole model, which is what has to fit somewhere between the machines."""
@@ -162,6 +190,57 @@ class LayerMap:
 
 def _gb(nbytes: int) -> str:
     return f"{nbytes / (1024 ** 3):.2f} GB"
+
+
+def _held(ref: TensorRef, scale: float) -> int:
+    """What one tensor occupies once loaded, at the given quantization scale."""
+    return int(ref.nbytes * scale) if is_quantizable(ref) else ref.nbytes
+
+
+def is_quantizable(ref: TensorRef) -> bool:
+    """Whether this tensor will actually be quantized, rather than merely asked to be.
+
+    This exists because assuming otherwise produced a plan off by a factor of three, and it is
+    worth writing down exactly why. Quantization in transformers is a module swap: it walks the
+    model and replaces things that are ``nn.Linear`` with a four bit equivalent. A weight that
+    does not live in an ``nn.Linear`` is never seen by that walk and stays exactly as it loaded,
+    however loudly four bit weights were asked for.
+
+    For most models that distinction is a rounding error, because nearly all the weight is in
+    linear projections. For a mixture of experts model it is almost the whole model: transformers
+    stacks the experts of a layer into one three dimensional parameter, which is a plain
+    ``nn.Parameter`` and not a linear layer at all. On the model this was built for that is a
+    hundred and fifty two megabytes of every hundred and sixty one, so quantizing saves about two
+    per cent rather than seventy.
+
+    The rule is therefore about which tensors become linear weights, read off names because that
+    is all a checkpoint offers:
+
+    * a name carrying ``.experts.`` is an expert, which gets stacked into a parameter
+    * ``embed_tokens`` is a lookup table and ``lm_head`` is left alone by default
+    * a router gate and every norm are parameters rather than projections
+    * anything else two dimensional and ending in ``.weight`` is a projection
+
+    Being wrong in the cautious direction costs a machine. Being wrong the other way is an out of
+    memory error part way through a load, so anything unrecognised is treated as not quantized.
+    """
+    name = ref.name
+
+    if not name.endswith(".weight") or len(ref.shape) != 2:
+        return False
+
+    if ".experts." in name:
+        return False
+
+    if name in (EMBED, HEAD) or name.endswith("embed_tokens.weight"):
+        return False
+
+    # The mixture of experts router. Named gate rather than gate_proj, which is the projection
+    # that does quantize, so the two are told apart on the whole component and not a prefix.
+    if name.endswith(".mlp.gate.weight"):
+        return False
+
+    return True
 
 
 def build(model_dir: str | Path) -> LayerMap:

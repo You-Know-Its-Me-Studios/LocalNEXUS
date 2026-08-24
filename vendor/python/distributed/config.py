@@ -26,6 +26,52 @@ DEFAULT_STAGE_PORT = 8749
 #: The port the host answers OpenAI requests on when nobody says otherwise.
 DEFAULT_API_PORT = 8750
 
+#: Weights as they are stored, which is what the checkpoint's own bytes already describe.
+QUANTIZATION_NONE = "none"
+
+#: Four bit weights through bitsandbytes. The reason this exists is that a consumer machine
+#: cannot hold a model of this size at full precision even split several ways.
+QUANTIZATION_4BIT = "4bit"
+
+QUANTIZATIONS = (QUANTIZATION_NONE, QUANTIZATION_4BIT)
+
+#: What a quantizable tensor weighs once loaded, as a fraction of its size on disk.
+#:
+#: Per tensor, not per layer, and the difference is not pedantic. Quantization only reaches
+#: weights that become linear layers, so applying this to a whole layer assumes every tensor in
+#: it shrinks. On a mixture of experts model that assumption is wrong about ninety seven per cent
+#: of the weight and produced a plan off by a factor of three. Which tensors it applies to is
+#: ``layer_map.is_quantizable``, and the arithmetic is in ``layer_map.held_layer_bytes``.
+#:
+#: The figure itself is an estimate and is treated as one. Four bit weights through bitsandbytes
+#: are not four bits per parameter: the NF4 format carries a scale for every block of sixty four
+#: values, and double quantization compresses those scales rather than removing them, which lands
+#: near four and a half bits in practice. Measured against a real load it comes out around 0.24,
+#: so this is rounded up: a plan that underestimates runs out of memory part way through a load,
+#: while one that overestimates costs at worst an extra machine.
+_WEIGHT_SCALES = {
+    QUANTIZATION_NONE: 1.0,
+    QUANTIZATION_4BIT: 0.30,
+}
+
+
+def weight_scale(quantization: str | None) -> float:
+    """How much of its stored size a weight actually occupies once loaded.
+
+    Raises:
+        PlanError: a quantization nobody here implements, rather than silently planning for
+            weights of a size that will not be what arrives.
+    """
+    name = (quantization or QUANTIZATION_NONE).lower()
+
+    if name not in _WEIGHT_SCALES:
+        raise PlanError(
+            f"{quantization!r} is not a quantization this understands. "
+            f"It is one of: {', '.join(QUANTIZATIONS)}."
+        )
+
+    return _WEIGHT_SCALES[name]
+
 
 class PlanError(Exception):
     """A plan could not be made, or a plan that was made does not hold together."""
@@ -182,6 +228,12 @@ class StagePlan:
     stages: list[StageAssignment] = field(default_factory=list)
     margin_bytes: int = DEFAULT_MARGIN_BYTES
 
+    #: How every stage loads its weights. It is on the plan rather than told to each machine
+    #: separately because it has to be the same everywhere: the plan's memory arithmetic assumes
+    #: one answer, and a pipeline with one stage quantized and the next not is a pipeline whose
+    #: sizes were worked out for a model that does not exist.
+    quantization: str = QUANTIZATION_NONE
+
     #: Nodes that were offered and hold nothing, with why. A node too small for a single layer
     #: is not an error and is not silently dropped either, because somebody expecting their
     #: machine to be in the pipeline deserves to be told it is not.
@@ -274,9 +326,12 @@ class StagePlan:
 
     def describe(self) -> str:
         """The plan as something a person can check, which is the point of showing it at all."""
+        weights = ("weights as stored" if self.quantization == QUANTIZATION_NONE
+                   else f"weights at {self.quantization}")
+
         lines = [
             f"{self.stage_count} stage(s) over {self.layer_count} layers, "
-            f"{self.margin_bytes / 1024 ** 3:.1f} GB held back per node"
+            f"{self.margin_bytes / 1024 ** 3:.1f} GB held back per node, {weights}"
         ]
 
         lines.extend(f"  {stage.describe()}, {stage.weight_bytes / 1024 ** 3:.2f} GB"
@@ -290,6 +345,7 @@ class StagePlan:
             "model_dir": self.model_dir,
             "layer_count": self.layer_count,
             "margin_bytes": self.margin_bytes,
+            "quantization": self.quantization,
             "stages": [stage.to_dict() for stage in self.stages],
             "unused": list(self.unused),
         }
@@ -302,6 +358,7 @@ class StagePlan:
                 layer_count=int(document["layer_count"]),
                 stages=[StageAssignment.from_dict(entry) for entry in document["stages"]],
                 margin_bytes=int(document.get("margin_bytes", DEFAULT_MARGIN_BYTES)),
+                quantization=str(document.get("quantization", QUANTIZATION_NONE)),
                 unused=[str(note) for note in document.get("unused", [])],
             )
         except (KeyError, TypeError, ValueError) as error:

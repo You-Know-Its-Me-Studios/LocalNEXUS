@@ -25,7 +25,14 @@ import uvicorn
 
 from .activation_server import local_node_info
 from .api import create_app
-from .config import DEFAULT_API_PORT, DEFAULT_MARGIN_BYTES, DEFAULT_STAGE_PORT, NodeInfo
+from .config import (
+    DEFAULT_API_PORT,
+    DEFAULT_MARGIN_BYTES,
+    DEFAULT_STAGE_PORT,
+    QUANTIZATION_NONE,
+    QUANTIZATIONS,
+    NodeInfo,
+)
 from .coordinator import Peer, Pipeline, PipelineError
 
 
@@ -52,6 +59,9 @@ def _arguments() -> argparse.Namespace:
     host.add_argument("--margin-gb", type=float, default=DEFAULT_MARGIN_BYTES / 1024 ** 3,
                       help="memory held back on every machine for the cache and the run")
     host.add_argument("--node-id", default="host")
+    host.add_argument("--quantize", default=QUANTIZATION_NONE, choices=list(QUANTIZATIONS),
+                      help="how every machine loads its weights. 4bit needs bitsandbytes, and "
+                           "falls back to full precision with a warning if it is not installed.")
 
     parser.add_argument("--log-level", default="info")
 
@@ -105,6 +115,7 @@ async def _run_host(options: argparse.Namespace) -> int:
         host=options.host,
         port=options.port,
         margin_bytes=int(options.margin_gb * 1024 ** 3),
+        quantization=options.quantize,
     )
 
     try:

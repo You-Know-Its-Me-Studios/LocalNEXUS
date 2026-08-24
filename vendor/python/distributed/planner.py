@@ -17,7 +17,15 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from .config import DEFAULT_MARGIN_BYTES, NodeInfo, PlanError, StageAssignment, StagePlan
+from .config import (
+    DEFAULT_MARGIN_BYTES,
+    QUANTIZATION_NONE,
+    NodeInfo,
+    PlanError,
+    StageAssignment,
+    StagePlan,
+    weight_scale,
+)
 from .layer_map import LayerMap
 
 
@@ -25,6 +33,7 @@ def plan(
     layer_map: LayerMap,
     nodes: Sequence[NodeInfo],
     margin_bytes: int = DEFAULT_MARGIN_BYTES,
+    quantization: str = QUANTIZATION_NONE,
 ) -> StagePlan:
     """Works out which node holds which layers, in the order the nodes were offered.
 
@@ -45,6 +54,13 @@ def plan(
     if margin_bytes < 0:
         raise PlanError(f"The safety margin cannot be negative, and it is {margin_bytes}.")
 
+    # The plan is made against what will actually be held rather than against what is on disk.
+    # That is asked of the layer map per tensor rather than worked out as a fraction of the
+    # whole, because quantization only reaches tensors that become linear layers: on a mixture
+    # of experts model the experts are not among them, and treating the model as uniformly
+    # shrinkable put an earlier version of this out by a factor of three.
+    scale = weight_scale(quantization)
+
     last_layer = layer_map.layer_count - 1
     next_layer = 0
 
@@ -62,7 +78,8 @@ def plan(
         # The embedding is charged to whichever node becomes stage 0, which is the first one able
         # to hold a layer at all rather than simply the first one offered.
         takes_embed = not stages
-        budget = node.vram_bytes - margin_bytes - (layer_map.embed_bytes if takes_embed else 0)
+        budget = (node.vram_bytes - margin_bytes
+                  - (layer_map.held_embed_bytes(scale) if takes_embed else 0))
 
         start = next_layer
         held = 0
@@ -71,10 +88,10 @@ def plan(
             # Whoever takes the final layer takes the norm and the head with it, so the fit is
             # tested against both together. A node that can hold the last layer but not the head
             # cannot be the last stage, and this is where that is found rather than at load time.
-            needed = layer_map.layer_bytes(next_layer)
+            needed = layer_map.held_layer_bytes(next_layer, scale)
 
             if next_layer == last_layer:
-                needed += layer_map.last_stage_extra
+                needed += layer_map.held_last_stage_extra(scale)
 
             if needed > budget:
                 break
@@ -84,7 +101,8 @@ def plan(
             next_layer += 1
 
         if next_layer == start:
-            unused.append(_why_nothing_fits(node, layer_map, margin_bytes, start, takes_embed))
+            unused.append(
+                _why_nothing_fits(node, layer_map, margin_bytes, start, takes_embed, scale))
             continue
 
         stages.append(
@@ -97,18 +115,20 @@ def plan(
                 end_layer=next_layer - 1,
                 includes_embed=takes_embed,
                 includes_head=next_layer - 1 == last_layer,
-                weight_bytes=held + (layer_map.embed_bytes if takes_embed else 0),
+                weight_bytes=held + (layer_map.held_embed_bytes(scale) if takes_embed else 0),
             )
         )
 
     if next_layer <= last_layer:
-        raise PlanError(_why_it_does_not_fit(layer_map, nodes, margin_bytes, next_layer))
+        raise PlanError(
+            _why_it_does_not_fit(layer_map, nodes, margin_bytes, next_layer, scale))
 
     built = StagePlan(
         model_dir=str(layer_map.model_dir),
         layer_count=layer_map.layer_count,
         stages=stages,
         margin_bytes=margin_bytes,
+        quantization=quantization,
         unused=unused,
     )
 
@@ -125,13 +145,15 @@ def _why_nothing_fits(
     margin_bytes: int,
     layer: int,
     takes_embed: bool,
+    scale: float,
 ) -> str:
     """Why one node ended up holding no layers, in the terms the person offering it would use."""
-    budget = node.vram_bytes - margin_bytes - (layer_map.embed_bytes if takes_embed else 0)
-    needed = layer_map.layer_bytes(layer)
+    budget = (node.vram_bytes - margin_bytes
+              - (layer_map.held_embed_bytes(scale) if takes_embed else 0))
+    needed = layer_map.held_layer_bytes(layer, scale)
 
     if layer == layer_map.layer_count - 1:
-        needed += layer_map.last_stage_extra
+        needed += layer_map.held_last_stage_extra(scale)
 
     if budget <= 0:
         return (
@@ -150,6 +172,7 @@ def _why_it_does_not_fit(
     nodes: Iterable[NodeInfo],
     margin_bytes: int,
     first_unplaced: int,
+    scale: float,
 ) -> str:
     """The refusal, with the number somebody would need in order to fix it.
 
@@ -158,8 +181,9 @@ def _why_it_does_not_fit(
     adding the right machine.
     """
     remaining = sum(
-        layer_map.layer_bytes(index) for index in range(first_unplaced, layer_map.layer_count)
-    ) + layer_map.last_stage_extra
+        layer_map.held_layer_bytes(index, scale)
+        for index in range(first_unplaced, layer_map.layer_count)
+    ) + layer_map.held_last_stage_extra(scale)
 
     offered = sum(node.vram_bytes for node in nodes)
     usable = offered - margin_bytes * sum(1 for _ in nodes)
@@ -168,7 +192,8 @@ def _why_it_does_not_fit(
         f"These machines cannot hold {layer_map.model_dir.name}. "
         f"Layers {first_unplaced} to {layer_map.layer_count - 1} and the head are unplaced, "
         f"which is {_gb(remaining)} with nowhere to go. "
-        f"The model needs {_gb(layer_map.total_bytes)}, the machines offer {_gb(offered)}, and "
+        f"The model needs {_gb(layer_map.held_total_bytes(scale))}, "
+        f"the machines offer {_gb(offered)}, and "
         f"{_gb(usable)} of that is usable once {_gb(margin_bytes)} per machine is held back."
     )
 

@@ -271,6 +271,8 @@ def create_app(pipeline: Pipeline, model_dir: str, model_id: str = "") -> FastAP
         return {
             "status": "ok",
             "model": api._model_id,
+            "quantization_planned": plan.quantization,
+            "quantization_applied": pipeline.quantization,
             "stages": [
                 {
                     "stage": stage.stage_index,

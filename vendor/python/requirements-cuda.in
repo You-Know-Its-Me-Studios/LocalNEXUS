@@ -1,0 +1,13 @@
+# What the safetensors runtime needs on a machine with a CUDA card, which is everything the
+# base file lists plus the one thing that only means anything on a GPU.
+#
+# It is a separate input rather than an entry in requirements.in because that file compiles
+# both lockfiles, and bitsandbytes on a machine with no CUDA is thirty six megabytes of
+# binaries for cards it does not have. Four bit weights are refused outright there instead,
+# which is the honest answer and the one the loader now gives.
+-r requirements.in
+
+# Four bit weights, which is what makes a model too large for a machine fit on it. Pinned to
+# the first release carrying libbitsandbytes_cuda132.dll, matching the torch cu132 build this
+# lockfile installs; 0.49.2 and earlier stop at CUDA 13.0 and have no binary for this one.
+bitsandbytes==0.50.1

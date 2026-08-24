@@ -29,7 +29,7 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM, DynamicCache
 from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
 
-from .config import StageAssignment
+from .config import QUANTIZATION_4BIT, QUANTIZATION_NONE, StageAssignment
 
 _log = logging.getLogger(__name__)
 
@@ -51,11 +51,19 @@ class PartialStage:
         assignment: StageAssignment,
         device: str | None = None,
         dtype: torch.dtype | str = "auto",
+        quantization: str = QUANTIZATION_NONE,
     ) -> None:
         self._model_dir = model_dir
         self._assignment = assignment
         self._device = device or _best_device()
         self._dtype_request = dtype
+        self._quantization = (quantization or QUANTIZATION_NONE).lower()
+
+        # What was actually done, which is not always what was asked for. Quantizing needs a
+        # package that may not be installed, and a stage that quietly loads at full precision
+        # after being told to quantize is a stage that runs out of memory for reasons nobody can
+        # see. This is reported rather than inferred.
+        self._quantization_applied = QUANTIZATION_NONE
 
         self._config: Any = None
         self._model: Any = None
@@ -88,6 +96,11 @@ class PartialStage:
         return int(self._config.hidden_size)
 
     @property
+    def quantization(self) -> str:
+        """What this stage actually loaded with, which may not be what it was asked for."""
+        return self._quantization_applied
+
+    @property
     def config(self) -> Any:
         """The model's own config, which the API reads for its stop tokens and context length."""
         if self._config is None:
@@ -115,12 +128,14 @@ class PartialStage:
             )
 
         placement = self._device_map(layers)
+        extra = self._quantization_arguments()
 
         try:
             self._model = AutoModelForCausalLM.from_pretrained(
                 self._model_dir,
                 dtype=self._dtype_request,
                 device_map=placement,
+                **extra,
             )
         except Exception as error:  # noqa: BLE001 - the reason has to reach the coordinator
             raise LoadError(f"This stage's layers could not be loaded: {error}") from error
@@ -137,6 +152,56 @@ class PartialStage:
 
         _log.info("stage %d loaded %s on %s",
                   self._assignment.stage_index, self.describe(), self._device)
+
+    def _quantization_arguments(self) -> dict[str, Any]:
+        """The quantization to load with, or a refusal saying why it cannot be done.
+
+        This used to fall back to full precision with a warning, and that was wrong. The plan
+        that placed this stage was worked out on the quantized size, so a stage that quietly
+        loads at three times that figure is not a degraded pipeline, it is a pipeline whose
+        arithmetic no longer describes it: every stage after this one was sized on the same
+        assumption, and the machine that was going to hold forty layers now cannot hold twelve.
+        Failing here costs a clear message. Continuing costs an out of memory error somewhere
+        else, attributed to the wrong machine.
+
+        Raises:
+            LoadError: four bit weights were asked for and cannot be produced.
+        """
+        if self._quantization == QUANTIZATION_NONE:
+            self._quantization_applied = QUANTIZATION_NONE
+            return {}
+
+        if self._quantization != QUANTIZATION_4BIT:
+            raise LoadError(
+                f"{self._quantization!r} is not a quantization this build knows. "
+                f"It is one of: {QUANTIZATION_NONE}, {QUANTIZATION_4BIT}."
+            )
+
+        unusable = _why_no_bitsandbytes()
+
+        if unusable is not None:
+            raise LoadError(
+                "Four bit weights were asked for and cannot be produced on this machine, so "
+                "the pipeline is refused rather than loaded at a size nothing planned for. "
+                f"{unusable}"
+            )
+
+        from transformers import BitsAndBytesConfig
+
+        self._quantization_applied = QUANTIZATION_4BIT
+
+        return {
+            "quantization_config": BitsAndBytesConfig(
+                load_in_4bit=True,
+                # NF4 with double quantization, which is the arrangement the plan's size estimate
+                # assumes. Computing in bfloat16 keeps the arithmetic at the dtype the rest of the
+                # pipeline moves activations in, so a hidden state does not change type at a
+                # stage boundary purely because that stage happened to be quantized.
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+            )
+        }
 
     def _device_map(self, layer_count: int) -> dict[str, Any]:
         """Names every module and says where it goes, which is how only a slice gets read.
@@ -323,7 +388,54 @@ class PartialStage:
         if held.includes_head:
             parts.append("the norm and head")
 
+        if self._quantization_applied != QUANTIZATION_NONE:
+            parts.append(f"quantized to {self._quantization_applied}")
+
         return ", ".join(parts)
+
+
+def _why_no_bitsandbytes() -> str | None:
+    """Nothing if four bit weights can really be produced here, or the reason they cannot.
+
+    Three separate questions, because passing the first two and failing the third is exactly the
+    state that wasted a round of this work. ``BitsAndBytesConfig`` lives in transformers and
+    imports whether or not bitsandbytes is installed at all, so an import proving nothing is not
+    a hypothetical. Then bitsandbytes itself is a compiled package that installs cleanly and
+    falls back to a CPU only build when it cannot find a CUDA runtime it was built against, so
+    importing it does not prove there is a GPU backend either. The only answer that settles it is
+    the backend the extension actually loaded.
+    """
+    try:
+        import bitsandbytes
+    except ImportError:
+        return (
+            "bitsandbytes is not installed in this runtime's environment. Repair the Python "
+            "runtime from the Local model panel, which installs it from the committed lockfile."
+        )
+    except Exception as error:  # noqa: BLE001 - a compiled package can fail in its own ways
+        return f"bitsandbytes is installed and could not be loaded: {type(error).__name__}: {error}"
+
+    if not torch.cuda.is_available():
+        return (
+            "there is no CUDA device here, and four bit weights are produced on the card. "
+            "This machine can hold a stage at full precision instead."
+        )
+
+    try:
+        from bitsandbytes.cextension import BNB_BACKEND
+    except Exception:  # noqa: BLE001 - an older layout is not a reason to refuse outright
+        # The name moved between releases. Not finding it says nothing about the backend, so
+        # this falls through to letting the load itself answer rather than guessing.
+        return None
+
+    if str(BNB_BACKEND).upper() != "CUDA":
+        return (
+            f"bitsandbytes loaded its {BNB_BACKEND} backend rather than CUDA, so it cannot "
+            "quantize on this card. That usually means the installed build does not match the "
+            f"CUDA version torch was built for, which here is {torch.version.cuda}."
+        )
+
+    return None
 
 
 def _best_device() -> str:

@@ -190,6 +190,34 @@ public sealed class AppConfig
     public int MeshConsolePort { get; set; } = 3131;
 
     /// <summary>
+    /// True when a safetensors model too large for this machine may be split across several.
+    /// </summary>
+    /// <remarks>
+    /// Its own switch rather than the mesh one, and off by default, because the two are different
+    /// decisions that happen to sit near each other. The mesh switch starts a node that serves
+    /// GGUF to other people; this one changes which runtime answers for a local safetensors
+    /// model. Reading the mesh switch for this meant that turning the mesh on quietly moved every
+    /// safetensors model onto a pipeline, including the ones already being served perfectly well
+    /// on one machine, which is a change nobody asked for made on the strength of an unrelated
+    /// tick box. There is no panel for it yet, so it is written here by hand, exactly as
+    /// <see cref="DistributedPeers"/> is.
+    /// </remarks>
+    public bool DistributedInferenceEnabled { get; set; }
+
+    /// <summary>
+    /// Machines to split a safetensors model across, as <c>host:port</c>, each already running
+    /// the distributed peer from a command line.
+    /// </summary>
+    /// <remarks>
+    /// There is no setting for this yet because the panel that will own it does not exist, so it
+    /// is written here by hand and read at launch. It is deliberately not discovery: a peer is an
+    /// address somebody typed, exactly as the engine's own documentation describes starting one,
+    /// and the list is what gets handed to the host to plan across. Empty means plan across this
+    /// machine alone, which is a valid pipeline of one stage and not an error.
+    /// </remarks>
+    public List<string> DistributedPeers { get; set; } = new();
+
+    /// <summary>
     /// True when this installation answers MCP tool calls from other tools.
     /// </summary>
     /// <remarks>
