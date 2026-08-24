@@ -5,3 +5,12 @@
 # run a model. Continuous integration installs this file on top of the runtime environment;
 # nothing in the application reads it.
 pytest==8.4.2
+
+# numpy is not a test dependency. It is what protocol._to_bytes uses to get a tensor's raw
+# bytes, and both runtime lockfiles already carry it because transformers does, so the shipped
+# environment has always had it. It is named here because continuous integration installs
+# torch on its own, and without numpy every tensor frame fails to encode. Declaring it stops
+# that from looking like a fault in the wire format, which is what it looked like the first
+# time. There is no numpy-free way to do this that is not thousands of times slower; the
+# reasoning is written out at the function.
+numpy

@@ -61,6 +61,17 @@ class TestTensors:
 
         assert back.shape == original.shape
 
+    def test_a_zero_dimensional_tensor_survives(self):
+        """A scalar cannot be reinterpreted as a narrower type until it has a dimension.
+
+        Torch refuses ``view(torch.uint8)`` on a zero dimensional tensor outright, so encoding
+        one used to raise rather than produce a frame. Flattening first is what fixes it.
+        """
+        back = _round_trip(Frame(protocol.FORWARD, {}, torch.tensor(3.5))).tensor
+
+        assert back is not None
+        assert back.reshape(-1).item() == pytest.approx(3.5)
+
     def test_a_frame_with_no_tensor_stays_that_way(self):
         back = _round_trip(Frame(protocol.TOKEN, {"request_id": "r", "token_id": 7}))
 
