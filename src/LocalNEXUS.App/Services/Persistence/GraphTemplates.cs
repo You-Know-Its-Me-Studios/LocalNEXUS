@@ -58,9 +58,13 @@ public sealed class GraphTemplates
     /// <summary>The built in shapes, in the order they are worth learning.</summary>
     private static readonly IReadOnlyList<(string Id, string Name, string Description, Action<Builder> Build)> BuiltIn = new[]
     {
-        ("minimal", "One model, one file",
-            "The smallest graph that writes a file. Type a request, a model answers, the answer is written.",
+        ("minimal", "Pipeline: one model, one file",
+            "The steps are fixed and you can see each one. Type a request, a model answers, the answer is written. Start here when the same work runs the same way every time.",
             new Action<Builder>(Minimal)),
+
+        ("agent", "Agent: just do what I asked",
+            "No fixed steps. One model decides what to do next and does it, reading and writing files and compiling as it goes. Start here when the work is not the same shape twice. Needs a model that can call tools.",
+            new Action<Builder>(Agent)),
 
         ("ask", "Ask a question",
             "Type a question, a model answers, and the answer is shown so you can read and copy it. Nothing is written to disk.",
@@ -190,6 +194,42 @@ public sealed class GraphTemplates
     /// <summary>
     /// The three node graph from the readme: type something, a model answers, it is written.
     /// </summary>
+    /// <summary>
+    /// The other half of the application: one model, its tools, and a loop.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart to Minimal, and the pair is the point. Minimal is a pipeline whose steps
+    /// are drawn on the canvas and happen in that order every time; this is one node that decides
+    /// each move as it comes. Somebody opening the template list is choosing between those two
+    /// ideas rather than between five graphs, which is why these two lead and say so.
+    ///
+    /// Three nodes, and the Model wire is the one worth noticing. The Agent has no model of its
+    /// own: it borrows the one on its Model pin, along with that node's selected tools. That is
+    /// also why this template cannot be run by a model that does not emit tool calls, and the node
+    /// says so before a run rather than reporting success having written nothing.
+    /// </remarks>
+    private static void Agent(Builder b)
+    {
+        var prompt = b.Add("Prompt", 40, 140);
+        var model = b.Add("Model", 300, 260);
+        var agent = b.Add("Agent", 300, 40);
+        var answer = b.Add("TextOutput", 600, 40);
+
+        // The same correction the Ask template makes, for the same reason. A Model node is
+        // configured to write files: raw code, no commentary. The Agent talks to its model in
+        // prose, decides what to do and calls tools, so a model told to answer only in code is
+        // being asked to work with one hand tied.
+        if (model is Nodes.ModelNode coder)
+        {
+            coder.SystemPrompt = Nodes.TextOutputNode.AskingPrompt;
+            coder.StripCodeFences = false;
+        }
+
+        b.Wire(prompt, "Text", agent, "Text");
+        b.Wire(model, "Model", agent, "Model");
+        b.Wire(agent, "Text", answer, "Text");
+    }
+
     private static void Minimal(Builder b)
     {
         var prompt = b.Add("Prompt", 40, 140);

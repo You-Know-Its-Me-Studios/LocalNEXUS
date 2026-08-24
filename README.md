@@ -24,7 +24,7 @@ Five minutes to a generated file, assuming a `.gguf` on disk:
    project or an ordinary C# one, and reports how many C# files it indexed. Unity is detected,
    never asked for, and a Unity project is the only kind the Unity write rules apply to.
 2. `File > Settings`, Models section. Drop a `.gguf` into the `models\gguf` folder it names, or point it at a folder of your own. Format is detected by reading the file, not the name.
-3. `File > Start from > One model, one file`, or click it on the empty canvas. That is the Prompt, Model and Output graph already wired. To build it yourself instead, double click the canvas to search for a node, or drag a wire out and let go over empty space to be offered only what could connect.
+3. `File > Start from > Pipeline: one model, one file`, or click it on the empty canvas. That is the Prompt, Model and Output graph already wired. To build it yourself instead, double click the canvas to search for a node, or drag a wire out and let go over empty space to be offered only what could connect.
 4. Click the Model node, choose Local, pick your model.
 5. Click the Output node, set folder and filename. `Assets/Scripts`, `Spinner.cs`.
 6. Type into the box under the canvas and press Ctrl+Enter:
@@ -46,6 +46,20 @@ Nodes light up in turn, the reply streams into the feed, the last line names the
 | Reshape        | Reshapes the text going by. Inject standing text, extract what matters, replace, trim  |
 | Compiler check | Compiles against the project's real references, hands failures back for repair         |
 | Output         | Writes files, subject to the Unity binding rules                                       |
+
+## Agent or pipeline
+
+There are two ways to get work done here and it is worth knowing which you are choosing, because they fail differently.
+
+**The pipeline** is the graph: Prompt, Triage, Model, Compiler check, Output, wired in that order. The steps are fixed, they are drawn on the canvas, and they happen the same way every time. You can see each one light up, stop between them, and read what passed between them. Use it when the work has a shape you already know, when you want the same thing done the same way, or when you want to inspect the middle.
+
+**The Agent** is one node with a model and a set of tools. There are no fixed steps: it decides what to do next, does it, looks at the result, and goes again until the job is done or it runs out of turns. Use it when the request is not the shape the pipeline describes, when the steps depend on what it finds, or when you just want the thing done.
+
+The honest summary is that the pipeline is for repeatable, inspectable work, and the Agent is for "just do what I asked".
+
+Two things to know before reaching for the Agent. It needs a model that can actually call tools, and plenty cannot: the Model node has a Check support button, and the Agent refuses to pretend otherwise, because a model that cannot call tools will describe the work in prose and the run will report success having written nothing. And a loop is priced differently from a call, since every turn resends the conversation so far, so on a hosted model the node shows a ceiling before it starts.
+
+`File > Start from` opens with one of each: **Pipeline: one model, one file** and **Agent: just do what I asked**. Both run as they are once a model is chosen.
 
 ## Why not just use a chat window
 
