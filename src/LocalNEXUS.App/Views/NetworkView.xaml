@@ -85,6 +85,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!--
@@ -592,74 +593,6 @@
                             <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
                             <TextBox Text="{Binding ApiPort, UpdateSourceTrigger=LostFocus}" MaxWidth="120" HorizontalAlignment="Left" />
 
-                            <!--
-                                Splitting one safetensors model across machines. A different
-                                thing from the mesh above, which serves whole GGUF models to
-                                other people, and switched separately for that reason.
-                            -->
-                            <Rectangle Height="1" Margin="0,16,0,0" Fill="{DynamicResource Surface.Border.Brush}" />
-
-                            <TextBlock Style="{StaticResource FieldLabel}"
-                                       Margin="0,14,0,0"
-                                       Text="Distributed inference" />
-
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Margin="0,0,0,6"
-                                       TextWrapping="Wrap"
-                                       Text="For a safetensors model too large for this machine. Its layers are split across the machines listed below, each running the distributed peer from a command line." />
-
-                            <CheckBox Content="Split large safetensors models across machines"
-                                      IsChecked="{Binding DistributedEnabled}" />
-
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Margin="0,6,0,0"
-                                       TextWrapping="Wrap"
-                                       Text="{Binding DistributedSummary}" />
-
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Shared secret" />
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Margin="0,0,0,4"
-                                       TextWrapping="Wrap"
-                                       Text="The same value on every machine. A peer refuses to listen on an address the network can reach without one. Leave blank only when every machine is this one." />
-                            <TextBox Style="{StaticResource MonoTextBox}"
-                                     Text="{Binding DistributedSecret, UpdateSourceTrigger=LostFocus}" />
-
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Machines" />
-
-                            <ItemsControl ItemsSource="{Binding DistributedPeers}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <DockPanel Margin="0,2">
-                                            <Button DockPanel.Dock="Right"
-                                                    Style="{StaticResource SmallButton}"
-                                                    Margin="6,0,0,0"
-                                                    Content="Remove"
-                                                    ToolTip="Takes it off the list. Nothing on that machine is stopped."
-                                                    Command="{Binding DataContext.RemoveDistributedPeerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}" />
-
-                                            <TextBlock Style="{StaticResource MonoText}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Text="{Binding Address}" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <DockPanel Margin="0,6,0,0">
-                                <Button DockPanel.Dock="Right"
-                                        Style="{StaticResource SmallButton}"
-                                        Margin="6,0,0,0"
-                                        Content="Add"
-                                        IsEnabled="{Binding CanAddDistributedPeer}"
-                                        Command="{Binding AddDistributedPeerCommand}" />
-
-                                <TextBox Style="{StaticResource MonoTextBox}"
-                                         Text="{Binding TypedPeer, UpdateSourceTrigger=PropertyChanged}"
-                                         behaviors:TextBoxHelper.Placeholder="192.168.1.20:8749" />
-                            </DockPanel>
-
                             <TextBlock Style="{StaticResource FieldLabel}" Text="Invite" />
                             <TextBox Style="{StaticResource MonoTextBox}"
                                      Text="{Binding InviteToken, Mode=OneWay}"
@@ -699,5 +632,86 @@
                 </DockPanel>
             </Border>
         </Grid>
+        <!--
+            Distributed inference: splitting one safetensors model across machines of your own.
+            Its own row rather than a corner of the host settings, because it is not part of the
+            mesh and does not care whether the node is on. It was in that slide over first, where
+            it was invisible unless somebody opened a panel about a different feature.
+        -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource Surface.Panel.Brush}"
+                BorderBrush="{DynamicResource Surface.Border.Brush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <Expander IsExpanded="{Binding DistributedEnabled, Mode=OneWay}">
+                <Expander.Header>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Style="{StaticResource HintText}"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="{Binding DistributedSummary}" />
+
+                        <TextBlock Text="Distributed inference" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Expander.Header>
+
+                <StackPanel Margin="0,10,0,0" MaxWidth="620" HorizontalAlignment="Left">
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,0,0,6"
+                               TextWrapping="Wrap"
+                               Text="For a safetensors model too large for this machine. Its layers are split across the machines listed below, each running the distributed peer from a command line." />
+
+                    <CheckBox Content="Split large safetensors models across machines"
+                              IsChecked="{Binding DistributedEnabled}" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Shared secret" />
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,0,0,4"
+                               TextWrapping="Wrap"
+                               Text="The same value on every machine. A peer refuses to listen on an address the network can reach without one. Leave blank only when every machine is this one." />
+                    <TextBox Style="{StaticResource MonoTextBox}"
+                             Text="{Binding DistributedSecret, UpdateSourceTrigger=LostFocus}" />
+
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Machines" />
+
+                    <ItemsControl ItemsSource="{Binding DistributedPeers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,2">
+                                    <Button DockPanel.Dock="Right"
+                                            Style="{StaticResource SmallButton}"
+                                            Margin="6,0,0,0"
+                                            Content="Remove"
+                                            ToolTip="Takes it off the list. Nothing on that machine is stopped."
+                                            Command="{Binding DataContext.RemoveDistributedPeerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+
+                                    <TextBlock Style="{StaticResource MonoText}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="{Binding Address}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <DockPanel Margin="0,6,0,0">
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource SmallButton}"
+                                Margin="6,0,0,0"
+                                Content="Add"
+                                IsEnabled="{Binding CanAddDistributedPeer}"
+                                Command="{Binding AddDistributedPeerCommand}" />
+
+                        <TextBox Style="{StaticResource MonoTextBox}"
+                                 Text="{Binding TypedPeer, UpdateSourceTrigger=PropertyChanged}"
+                                 behaviors:TextBoxHelper.Placeholder="192.168.1.20:8749" />
+                    </DockPanel>
+                </StackPanel>
+            </Expander>
+        </Border>
+
     </Grid>
 </UserControl>

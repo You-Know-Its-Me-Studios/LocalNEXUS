@@ -61,6 +61,11 @@ public sealed class WindowsDialogService : IDialogService
         => MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
 
     /// <inheritdoc />
+    public bool Confirm(string title, string message)
+        => MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
+            == MessageBoxResult.Yes;
+
+    /// <inheritdoc />
     public void OpenFolderInExplorer(string folder)
     {
         if (!Directory.Exists(folder))

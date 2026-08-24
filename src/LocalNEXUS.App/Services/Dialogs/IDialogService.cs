@@ -21,6 +21,18 @@ public interface IDialogService
     /// <summary>Reports a problem the user needs to see even if they are not watching the feed.</summary>
     void ShowError(string title, string message);
 
+    /// <summary>
+    /// Asks a yes or no question the user has to see, whatever they are looking at.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the activity feed's confirmation, which is the right place for a question
+    /// arising from a run: it appears in the transcript beside the work that raised it. This is
+    /// for a question asked when there may be no run, no project and no feed on screen at all.
+    /// The feed only renders inside the Workspace, so a question asked at startup went into a
+    /// panel nobody could see and waited for an answer nobody could give.
+    /// </remarks>
+    bool Confirm(string title, string message);
+
     /// <summary>Opens a folder in Explorer. Does nothing when the folder is missing.</summary>
     void OpenFolderInExplorer(string folder);
 

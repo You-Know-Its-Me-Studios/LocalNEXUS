@@ -162,6 +162,9 @@ internal sealed class SilentDialogService : IDialogService
     {
     }
 
+    /// <summary>A test never waits on a person, so nothing is confirmed.</summary>
+    public bool Confirm(string title, string message) => false;
+
     public void OpenFolderInExplorer(string folder)
     {
     }

@@ -415,7 +415,7 @@ public partial class App : Application
         // gigabytes, and the window has to be usable while it runs: GGUF models work throughout,
         // and the feed and the model panel show how far it has got.
         _provisioning = new CancellationTokenSource();
-        _ = ProvisionPythonAsync(pythonEnvironment, config, feed, _provisioning.Token);
+        _ = ProvisionPythonAsync(pythonEnvironment, config, feed, dialogs, _provisioning.Token);
 
         // The project index is read when a project is opened rather than when a graph is run, so
         // that what the application knows about the project is visible before anything depends on
@@ -522,11 +522,12 @@ public partial class App : Application
         PythonProvisioner provisioner,
         AppConfig config,
         IActivityFeed feed,
+        IDialogService dialogs,
         CancellationToken ct)
     {
         try
         {
-            if (!await HasConsentedToPythonAsync(config, feed, ct).ConfigureAwait(false))
+            if (!await HasConsentedToPythonAsync(config, feed, dialogs).ConfigureAwait(false))
             {
                 return;
             }
@@ -549,22 +550,25 @@ public partial class App : Application
     private static async Task<bool> HasConsentedToPythonAsync(
         AppConfig config,
         IActivityFeed feed,
-        CancellationToken ct)
+        IDialogService dialogs)
     {
         if (config.PythonRuntimeConsent is { } already)
         {
             return already;
         }
 
-        var agreed = await feed.RequestConfirmationAsync(
+        // A dialog rather than the activity feed. The feed only renders inside the Workspace and
+        // only once a project is open, and this is asked at startup when neither is true, so a
+        // confirmation put there waited on an answer nobody could see how to give. That did not
+        // delay the download, it stopped it happening at all.
+        var agreed = await Current.Dispatcher.InvokeAsync(() => dialogs.Confirm(
             "Set up the Python runtime?",
             "Safetensors models are served through Python, which has to be built once. That is "
             + "roughly 3 GB on an NVIDIA machine because it pulls a CUDA build of torch, and a "
             + "few hundred megabytes otherwise. It runs in the background and nothing waits on "
             + "it." + Environment.NewLine + Environment.NewLine
-            + "GGUF models never use it, so say no if those are all you run. You can set it up "
-            + "later from the Local model panel.",
-            ct).ConfigureAwait(false);
+            + "GGUF models never use it, so choose No if those are all you run. You can set it "
+            + "up later from the Local model panel."));
 
         config.PythonRuntimeConsent = agreed;
         config.Save();
