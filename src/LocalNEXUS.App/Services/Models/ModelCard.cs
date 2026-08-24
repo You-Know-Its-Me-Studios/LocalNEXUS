@@ -55,7 +55,19 @@ public static class ModelCard
 
     private static readonly Regex Link = new(@"\[(?<text>[^\]]*)\]\([^)]*\)", RegexOptions.Compiled);
     private static readonly Regex Image = new(@"!\[(?<alt>[^\]]*)\]\([^)]*\)", RegexOptions.Compiled);
-    private static readonly Regex Html = new(@"<[^>\n]{1,200}>", RegexOptions.Compiled);
+    /// <summary>
+    /// Any tag, of any length, across any number of lines.
+    /// </summary>
+    /// <remarks>
+    /// Length bounded at two hundred characters first, which looked reasonable and was wrong: a
+    /// real card carried an img tag with a signed URL in it, well past that, and the whole tag
+    /// was rendered as prose. Found by looking at what a live card produced rather than by reading
+    /// this back. There is nothing to bound here: a tag is a run of characters that are not angle
+    /// brackets, and matching one is linear whatever its length.
+    /// </remarks>
+    private static readonly Regex Html = new(
+        @"<[^<>]*>",
+        RegexOptions.Compiled | RegexOptions.Singleline);
     private static readonly Regex Emphasis = new(@"(\*\*|__|\*|_|`)", RegexOptions.Compiled);
 
     /// <summary>

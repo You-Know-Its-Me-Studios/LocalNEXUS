@@ -578,7 +578,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// here is the download the rest of the application knows about.
     /// </remarks>
     [RelayCommand]
-    private void OpenModels() => _modelsWindow.Show(Settings.Browser);
+    private void OpenModels()
+    {
+        _modelsWindow.Show(Settings.Browser);
+
+        // Trending is fetched when the window is opened rather than at startup, because a request
+        // to Hugging Face on every launch is one nobody asked for. It does nothing on the second
+        // opening, and the window is already on screen while it runs.
+        Settings.Browser.LoadTrendingCommand.Execute(null);
+    }
 
     /// <summary>
     /// Opens the run history, which is a window rather than a panel.

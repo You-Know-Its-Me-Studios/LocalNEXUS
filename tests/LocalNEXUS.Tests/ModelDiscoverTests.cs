@@ -86,6 +86,14 @@ public sealed class ModelDiscoverTests
         Assert.Equal("click here", ModelCard.Inline("[click here](https://example.com/tracking)"));
         Assert.Equal("a diagram", ModelCard.Inline("![a diagram](https://example.com/pixel.png)"));
         Assert.Equal("alert(1)", ModelCard.Inline("<script>alert(1)</script>"));
+
+        // A real card from Hugging Face carried a signed URL inside an img tag. The pattern
+        // used to be length bounded, so the whole tag was rendered as prose.
+        Assert.Equal(
+            string.Empty,
+            ModelCard.Inline(
+                "<img width=\"600\" alt=\"qwen unsloth desktop\" src=\"https://example.com/"
+                + new string('a', 400) + "\">"));
         Assert.Equal("bold and italic", ModelCard.Inline("**bold** and _italic_"));
     }
 
@@ -163,10 +171,15 @@ public sealed class ModelDiscoverTests
         /// <summary>The range each request asked for, in order.</summary>
         public List<long> AskedFrom { get; } = new();
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken ct)
         {
+            // Yield before touching the request, the way a real handler does. Reading it
+            // synchronously hid a bug where the caller disposed the request while the send was
+            // still in flight: every real download threw and every test passed.
+            await Task.Yield();
+
             Requests++;
 
             var from = request.Headers.Range?.Ranges.FirstOrDefault()?.From ?? 0;
@@ -187,7 +200,7 @@ public sealed class ModelDiscoverTests
 
             response.Content.Headers.ContentLength = remaining.Length;
 
-            return Task.FromResult(response);
+            return response;
         }
     }
 

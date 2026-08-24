@@ -29,6 +29,15 @@ public sealed record ModelRepository(
         ? Id[(Id.IndexOf('/', StringComparison.Ordinal) + 1)..]
         : Id;
 
+    /// <summary>
+    /// One line saying what this is for, or empty when its labels do not say.
+    /// </summary>
+    /// <remarks>
+    /// Derived from the repository's own pipeline tag and tags, never written here. A repository
+    /// that says nothing usable gets no line rather than an invented one.
+    /// </remarks>
+    public string UseCase => ModelUseCase.Describe(PipelineTag, Tags);
+
     /// <summary>Downloads and likes, as one line, because they are read together.</summary>
     public string CountsText => $"{Downloads:N0} downloads, {Likes:N0} likes";
 
@@ -198,6 +207,34 @@ public sealed class HuggingFaceCatalogue
         var url = "https://huggingface.co/api/models"
             + $"?search={Uri.EscapeDataString(query.Trim())}"
             + $"&filter=gguf&limit={SearchLimit}&sort=downloads&direction=-1&full=true";
+
+        var found = await ReadAsync<List<SearchRow>>(url, ct).ConfigureAwait(false);
+
+        return found
+            .Where(row => !string.IsNullOrWhiteSpace(row.Id) && !row.Private)
+            .Select(Describe)
+            .ToList();
+    }
+
+    /// <summary>
+    /// What is trending on Hugging Face right now, among models published as GGUF.
+    /// </summary>
+    /// <remarks>
+    /// Hugging Face's own ranking, asked for by name. The API exposes trendingScore as a sort key
+    /// and returns it on each row, which is the same number the website orders its Trending tab
+    /// by, so nothing here decides what is popular. Downloads and likes are the obvious
+    /// alternatives and both are wrong for this: they are totals, so they rank what was popular
+    /// over the whole life of the repository rather than what people are picking up now.
+    ///
+    /// This is what somebody who has never downloaded a model sees, which is why it exists. The
+    /// alternative was an empty pane and a search box, which asks people to already know the name
+    /// of the thing they came here to find.
+    /// </remarks>
+    /// <exception cref="CatalogueUnavailableException">Hugging Face could not be reached.</exception>
+    public async Task<IReadOnlyList<ModelRepository>> TrendingAsync(int count, CancellationToken ct)
+    {
+        var url = "https://huggingface.co/api/models"
+            + $"?filter=gguf&sort=trendingScore&direction=-1&limit={count}&full=true";
 
         var found = await ReadAsync<List<SearchRow>>(url, ct).ConfigureAwait(false);
 

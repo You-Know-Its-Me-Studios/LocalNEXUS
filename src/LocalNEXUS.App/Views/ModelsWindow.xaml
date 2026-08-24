@@ -267,8 +267,29 @@
                 <ColumnDefinition Width="*" MinWidth="380" />
             </Grid.ColumnDefinitions>
 
-            <!-- The results. One row is a repository, and what it says is what the API reports. -->
-            <ListBox Grid.Column="0"
+            <!--
+                The results. One row is a repository, and everything on it is what the API
+                reported: the counts, the date, and the use case line, which is read off the
+                repository's own pipeline tag and tags rather than written here.
+            -->
+            <DockPanel Grid.Column="0">
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="{Binding ResultsHeading}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               Text="Loading what is trending."
+                               Visibility="{Binding IsLoadingTrending, Converter={StaticResource BooleanToVisibility}}" />
+
+                    <TextBlock Style="{StaticResource HintText}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Status.Warning.Brush}"
+                               Text="{Binding TrendingNote}"
+                               Visibility="{Binding HasTrendingNote, Converter={StaticResource BooleanToVisibility}}" />
+                </StackPanel>
+
+                <ListBox
                      BorderThickness="0"
                      Background="Transparent"
                      HorizontalContentAlignment="Stretch"
@@ -296,7 +317,20 @@
                                            Text="{Binding CountsText}" />
                             </DockPanel>
 
-</StackPanel>
+
+                            <!--
+                                What it is for, when its own labels say. A repository whose labels
+                                say nothing usable gets no line rather than an invented one, which
+                                is why this hides on an empty string rather than showing a
+                                placeholder.
+                            -->
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Margin="0,3,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Text.Muted.Brush}"
+                                       Text="{Binding UseCase}"
+                                       Visibility="{Binding UseCase, Converter={StaticResource StringToVisibility}}" />
+                        </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
                 <ListBox.InputBindings>
@@ -304,7 +338,8 @@
                                   Command="{Binding OpenCommand}"
                                   CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListBox}}" />
                 </ListBox.InputBindings>
-            </ListBox>
+                </ListBox>
+            </DockPanel>
 
             <GridSplitter Grid.Column="1"
                           Width="6"

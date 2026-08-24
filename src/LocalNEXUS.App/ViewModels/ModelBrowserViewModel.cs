@@ -187,6 +187,20 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
         _dialogs = dialogs;
     }
 
+    /// <summary>True while trending is being fetched.</summary>
+    [ObservableProperty]
+    private bool _isLoadingTrending;
+
+    /// <summary>True while the list is trending rather than search results.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResultsHeading))]
+    private bool _isShowingTrending;
+
+    /// <summary>Said when trending could not be loaded. Search is unaffected.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTrendingNote))]
+    private string _trendingNote = string.Empty;
+
     /// <summary>Show only files this machine could actually run.</summary>
     /// <remarks>
     /// Off by default. A repository with fifteen quantizations is showing its work, and hiding
@@ -228,6 +242,14 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
     /// <summary>True when a repository is selected and its files are worth showing.</summary>
     public bool HasSelection => SelectedRepository is not null;
 
+    /// <summary>True when trending could not be loaded.</summary>
+    public bool HasTrendingNote => TrendingNote.Length > 0;
+
+    /// <summary>What the left column is showing right now.</summary>
+    public string ResultsHeading => IsShowingTrending
+        ? "Trending on Hugging Face"
+        : "Results";
+
     /// <summary>True when there is something to say instead of a card.</summary>
     public bool HasCardNote => CardNote.Length > 0;
 
@@ -267,13 +289,73 @@ public sealed partial class ModelBrowserViewModel : ObservableObject
     /// </remarks>
     public static int ContextTokens => LlamaLaunchOptions.DefaultContextSize;
 
+    /// <summary>How many trending models are worth showing before somebody searches.</summary>
+    private const int TrendingCount = 10;
+
     private bool CanSearch => !IsSearching && !string.IsNullOrWhiteSpace(Query);
+
+    /// <summary>
+    /// Fills the list with what is trending, for somebody who has not searched for anything.
+    /// </summary>
+    /// <remarks>
+    /// Called when the window opens rather than when the application starts, because a request to
+    /// Hugging Face on every launch is a request nobody asked for. Called once: reopening the
+    /// window keeps what it already had rather than asking again.
+    ///
+    /// A failure here is one line and nothing else. Trending is a convenience for somebody who
+    /// does not know what to type, and the search box works whether or not it loaded, so this must
+    /// never be able to make the window look broken.
+    /// </remarks>
+    [RelayCommand]
+    public async Task LoadTrendingAsync()
+    {
+        if (Results.Count > 0 || IsLoadingTrending)
+        {
+            return;
+        }
+
+        IsLoadingTrending = true;
+        TrendingNote = string.Empty;
+
+        try
+        {
+            var trending = await _catalogue.TrendingAsync(TrendingCount, CancellationToken.None).ConfigureAwait(true);
+
+            // Somebody typed and searched while this was in flight. Their results win.
+            if (Results.Count > 0)
+            {
+                return;
+            }
+
+            foreach (var repository in trending)
+            {
+                Results.Add(repository);
+            }
+
+            IsShowingTrending = Results.Count > 0;
+
+            if (Results.Count == 0)
+            {
+                TrendingNote = "Hugging Face returned nothing trending. Search still works.";
+            }
+        }
+        catch (CatalogueUnavailableException ex)
+        {
+            TrendingNote = $"Trending could not be loaded. {ex.Message} Search still works.";
+        }
+        finally
+        {
+            IsLoadingTrending = false;
+        }
+    }
 
     /// <summary>Asks Hugging Face what it has.</summary>
     [RelayCommand(CanExecute = nameof(CanSearch))]
     private async Task SearchAsync()
     {
         IsSearching = true;
+        IsShowingTrending = false;
+        TrendingNote = string.Empty;
         Status = string.Empty;
         Link = string.Empty;
         Results.Clear();

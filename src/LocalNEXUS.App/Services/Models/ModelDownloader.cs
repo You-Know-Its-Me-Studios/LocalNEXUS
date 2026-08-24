@@ -179,8 +179,17 @@ public sealed class ModelDownloader
         }
     }
 
-    /// <summary>One attempt at the bytes from a given offset.</summary>
-    private Task<HttpResponseMessage> Send(ModelFileOption file, long from, CancellationToken ct)
+    /// <summary>
+    /// One attempt at the bytes from a given offset.
+    /// </summary>
+    /// <remarks>
+    /// Awaited here rather than returning the task, and that is not a style preference. Returning
+    /// it let the using block dispose the request while the send was still in flight, which threw
+    /// "cannot access a disposed object" on every real download and on no test, because a fake
+    /// handler reads the headers before it returns and a real one does not. Found by downloading
+    /// something.
+    /// </remarks>
+    private async Task<HttpResponseMessage> Send(ModelFileOption file, long from, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, file.DownloadUrl);
 
@@ -189,7 +198,9 @@ public sealed class ModelDownloader
             request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, null);
         }
 
-        return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        return await _http
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+            .ConfigureAwait(false);
     }
 
     private async Task FetchAsync(
